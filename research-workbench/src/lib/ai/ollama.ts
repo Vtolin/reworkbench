@@ -23,6 +23,24 @@ export class OllamaProvider implements AIProvider {
 
   async chat(messages: ChatMessage[], options: ChatOptions): Promise<ChatResult> {
     const thinking = (options as OllamaChatOptions).thinking ?? false;
+    try {
+      return await this.doChat(messages, options, thinking);
+    } catch (e) {
+      // Non-thinking models (e.g. qwen2.5:1.5b) reject think=true with 400.
+      // Retry once without thinking so the ask still succeeds, and say so in
+      // the thinking box instead of failing the whole request.
+      if (thinking && e instanceof Error && /failed: 400/.test(e.message)) {
+        const fallback = await this.doChat(messages, options, false);
+        return {
+          ...fallback,
+          thinking: `Thinking mode is not supported by ${options.model} — answered directly. Use a reasoning model (e.g. deepseek-r1) or turn off the Thinking toggle.`,
+        };
+      }
+      throw e;
+    }
+  }
+
+  private async doChat(messages: ChatMessage[], options: ChatOptions, thinking: boolean): Promise<ChatResult> {
     const res = await fetch(`${this.baseUrl}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -33,7 +51,9 @@ export class OllamaProvider implements AIProvider {
           ? [{ role: "system", content: "Think step-by-step inside <think> tags, then answer." }, ...messages]
           : messages,
         stream: !options.onToken ? false : true,
-        think: thinking,
+        // Omit `think` entirely unless requested: some models/versions
+        // reject the field even when false.
+        ...(thinking ? { think: true } : {}),
         options: {
           temperature: options.temperature ?? 0.0,
           ...(options.numCtx ? { num_ctx: options.numCtx } : {}),
