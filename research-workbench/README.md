@@ -34,7 +34,11 @@ No FastAPI, no SQLite, no Chroma, no `pfolder/`, no watch-folder daemon.
 ## Key flows
 
 - **Upload → approval**: member uploads (browser extracts/chunks/embeds, OpenAlex proposal, human confirms) → `pending` → admin approves in Admin dashboard → shared library.
-- **Chat**: read any workspace chat; continue only your own; "Import to my chats" branches (Chats page). Research page keeps the original per-device chat history + streaming UI.
+- **Chat**: Research history lives on your device; **Publish ↑** exports a thread to the
+  read-only **Shared chats** gallery for everyone. Import any shared chat back into
+  your Research (drawer → Shared → Import ↓) and continue it with your own model.
+  Nobody starts or continues conversations in the gallery; deleting a published
+  chat needs admin approval (owner files a request, admin decides).
 - **RAG**: Postgres FTS + pgvector → RRF fusion → your own model (Ollama local or BYOK cloud).
 - **Keys**: personal BYOK, AES-GCM at rest (`ai_credentials`, owner-only RLS), never shared.
 

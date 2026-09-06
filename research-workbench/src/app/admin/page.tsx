@@ -28,6 +28,7 @@ export default function AdminPage() {
   const [limit, setLimit] = useState(10);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingDoc[]>([]);
+  const [delRequests, setDelRequests] = useState<Array<{ id: string; chat_id: string | null; chat_title?: string; requested_by: string; created_at: string }>>([]);
   const [note, setNote] = useState<string | null>(null);
 
   const load = async () => {
@@ -42,6 +43,12 @@ export default function AdminPage() {
       const { api } = await import("@/lib/api");
       const r = await api.listDocuments({}) as { documents: Array<PendingDoc & { status: string }> };
       setPending(r.documents.filter((d) => d.status === "pending"));
+    } catch {
+      /* ignore */
+    }
+    try {
+      const { listDeletionRequests } = await import("@/lib/wb/publish");
+      setDelRequests(await listDeletionRequests());
     } catch {
       /* ignore */
     }
@@ -125,6 +132,18 @@ export default function AdminPage() {
     }
   };
 
+  const decideDeletion = async (requestId: string, decision: "approved" | "rejected") => {
+    if (!confirm(decision === "approved" ? "Approve deletion? The shared chat and its messages will be removed." : "Reject this deletion request?")) return;
+    try {
+      const { decideDeletionRequest } = await import("@/lib/wb/publish");
+      await decideDeletionRequest(requestId, decision);
+      load();
+      flash(decision === "approved" ? "Shared chat deleted" : "Deletion request rejected");
+    } catch (e) {
+      flash(e instanceof Error ? e.message : "Decision failed");
+    }
+  };
+
   return (
     <div className="flex-1 min-w-0 flex flex-col bg-black">
       <Topbar title="Admin" subtitle={`${workspace?.name ?? ""} • absolute ceiling MAX_ALLOWED_MEMBERS = ${MAX_ALLOWED_MEMBERS}`} />
@@ -146,6 +165,24 @@ export default function AdminPage() {
               </div>
             ))}
             {pending.length === 0 && <div className="text-sm text-[#5f5f5f]">Queue is empty.</div>}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-[#2f2f2f] bg-[#0a0a0a] p-4 lg:p-5">
+          <div className="text-sm font-semibold text-white">Shared-chat deletion requests ({delRequests.length})</div>
+          <div className="text-xs text-[#8e8e8e] mt-1">Owners cannot delete published research unilaterally — approving removes the chat and its messages.</div>
+          <div className="mt-3 space-y-2">
+            {delRequests.map((r) => (
+              <div key={r.id} className="flex items-center gap-3 rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm text-white truncate">{r.chat_title || "(deleted)"}</div>
+                  <div className="text-xs text-[#5f5f5f] truncate">requested {new Date(r.created_at).toLocaleString()}</div>
+                </div>
+                <button onClick={() => decideDeletion(r.id, "approved")} className="rounded-lg bg-white text-black px-3 py-1.5 text-xs font-medium">Approve delete</button>
+                <button onClick={() => decideDeletion(r.id, "rejected")} className="rounded-lg border border-[#2f2f2f] text-[#ececec] px-3 py-1.5 text-xs">Reject</button>
+              </div>
+            ))}
+            {delRequests.length === 0 && <div className="text-sm text-[#5f5f5f]">No deletion requests.</div>}
           </div>
         </div>
 

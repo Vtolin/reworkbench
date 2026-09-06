@@ -16,6 +16,20 @@
 
 ## 2. How the UI port works
 
+## 2b. Chat semantics (publish gallery model)
+
+- The **Shared chats** gallery is read-only: nobody starts or continues a
+  conversation there. It only receives published research.
+- **Publish**: Research history drawer → Publish ↑ exports the thread (content +
+  sources + thinking + model, stored in `chat_messages.metadata_json`).
+- **Import**: gallery → Open in Research, or Research drawer → Shared → Import ↓ —
+  creates a new local conversation seeded with the shared messages; your own
+  model continues it. (`POST /api/chats/import` was removed with the old model.)
+- **Delete**: owner files a `chat_deletion_requests` row (one pending per chat,
+  RLS-enforced); admin approves (chat + messages deleted, request kept as audit)
+  or rejects. No unilateral deletes.
+- Migration `0004_deletion_requests.sql` adds the table + RLS (run it in SQL Editor).
+
 `src/lib/api.ts` is a browser facade exposing the **original method names** (`api.listDocuments`, `api.ask`, `api.compare`, …) re-implemented against Supabase + browser inference. Pages and components keep their exact JSX; only id types changed (`number` → `string` uuid) plus the adaptations in §4. Data modules live in `src/lib/wb/` (library, search, ask, projects, related, ingest, openalex).
 
 ## 3. Schema

@@ -12,7 +12,7 @@ const NAV = [
   { href: "/search", label: "Search", icon: "⌕", desc: "Hybrid retrieval" },
   { href: "/research", label: "Research", icon: "✦", desc: "Ask & compare" },
   { href: "/projects", label: "Projects", icon: "⬢", desc: "Workspaces" },
-  { href: "/chats", label: "Chats", icon: "◭", desc: "Shared threads" },
+  { href: "/chats", label: "Chats", icon: "◭", desc: "Published results" },
   { href: "/upload", label: "Upload", icon: "↑", desc: "Ingest" },
   { href: "/settings", label: "Settings", icon: "⚙", desc: "Models & keys" },
 ];

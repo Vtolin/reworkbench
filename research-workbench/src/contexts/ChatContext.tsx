@@ -41,6 +41,8 @@ type ChatState = {
   /** "Clear memory": history before now is kept on screen but excluded from future prompts. */
   clearMemory: () => void;
   memoryCutoff: (id: string) => number;
+  /** Import an external thread (e.g. a shared chat) as a new local conversation. */
+  importConversation: (title: string, messages: ChatMessage[]) => string;
 };
 
 const KEY_CONV = "wb_conversations_v1";
@@ -213,6 +215,20 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     return readCutoffs()[id] ?? 0;
   }, []);
 
+  const importConversation = useCallback((title: string, messages: ChatMessage[]): string => {
+    const now = Date.now();
+    const c: Conversation = {
+      id: uid(),
+      title: title.slice(0, 60) || "Imported chat",
+      createdAt: now,
+      updatedAt: now,
+      messages,
+    };
+    setConversations((prev) => [c, ...prev]);
+    setActiveId(c.id);
+    return c.id;
+  }, []);
+
   const clearMemory = useCallback(() => {
     if (!activeId) return;
     try {
@@ -229,7 +245,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       conversations, activeId, activeConversation,
       removeMessage, updateMessage, truncateAfter,
       newConversation, selectConversation, deleteConversation, addMessage, clearActive,
-      clearMemory, memoryCutoff,
+      clearMemory, memoryCutoff, importConversation,
     }}>
       {children}
     </ChatContext.Provider>
