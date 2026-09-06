@@ -6,7 +6,6 @@
       "esnext"
     ],
     "target": "ES2020",
-    "downlevelIteration": true,
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
