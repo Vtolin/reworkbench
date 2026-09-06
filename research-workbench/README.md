@@ -61,28 +61,60 @@ research-workbench/
 └── details.md          # full technical reference
 ```
 
-## New laptop onboarding (per member, per machine — one time)
+## Joining on a new laptop (do this once per computer)
 
-Each member picks **one** inference path on each device. Nothing is shared between members.
+The library is shared, but the AI runs on **your own computer**. So each person,
+on each computer they use, picks one of the two options below. Nothing is shared
+between members — your models and keys stay yours.
 
-**Option A — local Ollama (private, recommended)**
-1. Install Ollama, then: `ollama pull nomic-embed-text` (required for vector search)
-   plus any chat model, e.g. `ollama pull gemma4:26b-a4b-it-qat`.
-2. Make sure it's serving: open `http://localhost:11434/` → "Ollama is running".
-3. In the app: register/login → Settings → provider **Ollama** → **Auto-detect Ollama models**.
-4. **Vercel-URL users only**: if you open the app via `*.vercel.app` (not `localhost:3000`),
-   allowlist that origin once, then quit + relaunch Ollama (tray icon → Quit → start):
+**Option A — run the AI on your computer (private, recommended)**
+
+1. Install Ollama from ollama.com and open it at least once.
+2. Open PowerShell (Windows Start menu → type `PowerShell` → Enter) and download
+   the two things the app needs (copy-paste one line at a time, Enter after each):
+   ```powershell
+   ollama pull nomic-embed-text
+   ollama pull gemma4:26b-a4b-it-qat
+   ```
+   The first one is required for searching; the second is the chat model.
+   (Big download — the chat model is ~15 GB. Any other Ollama model works too.)
+3. Check Ollama is awake: in your browser open `http://localhost:11434/`.
+   You should see the words **"Ollama is running"**. If not, start the Ollama app.
+4. Open the Workbench site and log in. Go to **Settings** → provider **Ollama** →
+   click **Auto-detect Ollama models**. If it lists your models, you're connected.
+5. **Only if you open the site via a `vercel.app` address** (not `localhost:3000`):
+   Ollama blocks websites it doesn't know, so introduce them once. In PowerShell:
    ```powershell
    setx OLLAMA_ORIGINS "https://YOUR-APP.vercel.app"
    ```
-   `localhost:3000` dev never needs this (localhost origins are allowed by default).
-   Verify with `echo $env:OLLAMA_ORIGINS` in a new terminal.
+   (Use the real address from your browser bar, e.g.
+   `https://research-workbench-topaz.vercel.app` — exactly that, nothing after it.)
+   Then **fully restart Ollama**: right-click its icon by the clock → **Quit**,
+   then open Ollama again from the Start menu. Just closing the browser tab is
+   not enough — the Ollama program itself must restart.
+6. Confirm it worked — in a **new** PowerShell window:
+   ```powershell
+   echo $env:OLLAMA_ORIGINS
+   Invoke-WebRequest -UseBasicParsing -Uri http://localhost:11434/api/tags -Headers @{Origin="https://YOUR-APP.vercel.app"} | Select-Object StatusCode
+   ```
+   The first line should print your address back; the second should say `200`.
+   `403` means Ollama is still the old one — repeat step 5.
+   (If PowerShell asks "Script Execution Risk", answer **Y**.)
 
-**Option B — cloud key (no install)**
-Settings → provider **Cloud** → pick OpenAI/DeepSeek/Google/Anthropic → paste your **own**
-key → Save → **↻ Models** to list live model ids. Keys are encrypted per-user, never shared.
+**Option B — use a cloud AI key (nothing to install)**
 
-Cold-start note: Ollama unloads idle models after ~5 min, so the first question after
-idle is slow (large models take a while to reload), then fast until idle again.
+1. Get an API key from one provider: OpenAI, DeepSeek, Google, or Anthropic.
+2. In the app: **Settings** → provider **Cloud** → pick that provider →
+   paste **your own** key → **Save key**.
+3. Click **↻ Models** — the app lists that provider's real models; pick one.
+   Your key is encrypted and visible only to you.
+
+**Everyday notes**
+
+- First question after a break is slow: Ollama unloads idle models after ~5 minutes,
+  so it reloads once (large models take a bit), then stays fast.
+- "Failed to fetch" in Research almost always means Ollama isn't awake on that
+  computer — redo step 3 above.
+- You only ever do the setup steps once per computer. After that: log in and work.
 
 See `details.md` for the complete reference, including honest behavior deltas vs the original.
