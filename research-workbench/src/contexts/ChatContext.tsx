@@ -16,6 +16,8 @@ export type ChatMessage = {
   model?: string;
   type?: "ask" | "compare" | "summarize";
   meta?: any;
+  /** Round-trip shape for shared-chat publish/import (kept optional). */
+  metadata_json?: { provider?: string; model?: string; sources?: any[]; thinking?: string | null };
 };
 
 export type Conversation = {

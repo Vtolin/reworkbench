@@ -121,7 +121,7 @@ export async function fetchSharedChat(chatId: string): Promise<{ chat: SharedCha
   if (error) throw new Error(error.message);
   const now = Date.now();
   const messages: ChatMessage[] = ((msgs ?? []) as Array<{
-    role: string; content: string; metadata_json: { sources?: unknown; thinking?: string; model?: string } | null;
+    role: string; content: string; metadata_json: { sources?: unknown; thinking?: string; model?: string; provider?: string } | null;
   }>).map((r, i) => ({
     id: `imp_${now}_${i}`,
     role: r.role as "user" | "assistant",
@@ -131,6 +131,7 @@ export async function fetchSharedChat(chatId: string): Promise<{ chat: SharedCha
     model: r.metadata_json?.model ?? undefined,
     timestamp: now + i,
     type: "ask" as const,
+    metadata_json: r.metadata_json as ChatMessage["metadata_json"],
   }));
   return { chat: chat as SharedChat, messages };
 }
