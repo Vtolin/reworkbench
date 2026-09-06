@@ -1,0 +1,23 @@
+# Python / local stack (retired by cloud migration, kept in git history)
+venv/
+__pycache__/
+*.pyc
+*.db
+*.db-journal
+
+# JS
+**/node_modules/
+**/.next/
+*.tsbuildinfo
+
+# Regenerable local data
+chroma_db/
+rerank_cache/
+summaries/
+
+# On-disk user-data backup (untracked by design, see backup.md)
+_archive/
+
+# Secrets (per-machine)
+**/.env.local
+**/.env
