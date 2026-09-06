@@ -34,6 +34,16 @@
 
 - **Code (exact):** `git log --oneline` → find this checkpoint `0c0b857` →
   `git checkout 0c0b857` (or `git revert`/`reset` to it). Everything deleted in step 2 comes back.
-- **User data:** copy back from `_archive/pfolder/`, `_archive/research_workbench_data/` to original paths.
+  Intermediate commits: `2b93f5d` (this file), `bfa4019` (old web UI archived as regular files).
+- **User data:** copy back from `_archive/pfolder/`, `_archive/research_workbench/` (whole dir incl. `data/`), `_archive/summaries/` to original paths.
 - **Database:** Supabase tables are additive (`IF NOT EXISTS`); nothing in the migration drops cloud data.
-- **Old web's own history:** `web/` had a nested `.git` — its history is inside the checkpoint too.
+- **Old web's own history:** `web/` had a nested `.git` (single commit) — removed; all its files are tracked in `bfa4019`.
+
+## Migration outcome (2026-09-06, same day)
+
+All 4 steps completed. Verified: `tsc --noEmit` clean, `next build` passes (22 routes),
+`next dev` boots (`✓ Ready`, `.env.local` loaded). Live env now at
+`research-workbench/.env.local` (moved with the app — the confusing `web/.env.local` is gone
+with the old stack). App root for Vercel: `research-workbench`.
+Note: during retirement a PowerShell `-Include`/`-Exclude` quirk deleted root dotfiles;
+`.gitignore` + this file were restored from git — no data lost (see commit history).
