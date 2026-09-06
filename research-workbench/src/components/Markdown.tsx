@@ -7,16 +7,26 @@ import "katex/dist/katex.min.css";
 // Covers code fences, inline code, bold, italic, links, headings, lists,
 // blockquotes, horizontal rules, GFM tables, and LaTeX (inline $...$ / \(...\) and block $$...$$ / \[...\] via KaTeX).
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 function renderLatexToHtml(latex: string, displayMode: boolean): string {
   try {
     return katex.renderToString(latex, {
       throwOnError: false,
       displayMode,
       strict: false,
-      trust: true,
+      // trust:false keeps \href / \html* commands inert. Verified: with
+      // trust:true, `\href{javascript:…}{…}` in AI-generated chat content
+      // renders a LIVE javascript: link → stored XSS in every member's
+      // browser. Plain math is unaffected by this flag.
+      trust: false,
     });
   } catch {
-    return `<span class="text-red-400">${latex}</span>`;
+    // Never interpolate raw (untrusted: AI output / document text) LaTeX
+    // into HTML unescaped.
+    return `<span class="text-red-400">${escapeHtml(latex)}</span>`;
   }
 }
 

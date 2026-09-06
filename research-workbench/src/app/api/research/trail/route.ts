@@ -15,6 +15,17 @@ export async function POST(req: Request) {
   }
   const supabase = await createServerSupabase();
   const { data: me } = await supabase.auth.getUser();
+  // A modified client could otherwise file trail events under another
+  // workspace's project id. Verify the project belongs to this workspace.
+  if (body.projectId) {
+    const { data: proj } = await supabase
+      .from("research_projects")
+      .select("id")
+      .eq("id", body.projectId)
+      .eq("workspace_id", body.workspaceId)
+      .maybeSingle();
+    if (!proj) return NextResponse.json({ error: "Project not found in this workspace" }, { status: 403 });
+  }
   const { error } = await supabase.from("research_trail").insert({
     workspace_id: body.workspaceId,
     project_id: body.projectId ?? null,

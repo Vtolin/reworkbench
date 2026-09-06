@@ -50,6 +50,26 @@ export async function POST(req: Request) {
   if (!workspaceId) {
     return NextResponse.json({ error: "No workspace exists yet — ask the admin to register first." }, { status: 404 });
   }
+  // Kicked members must not be able to self-rejoin (the JoinGate calls this
+  // route too). Their row stays `removed`; only an admin re-admitting them
+  // could change that (no such flow exists by design).
+  const { data: existing } = await service
+    .from("workspace_members")
+    .select("status")
+    .eq("workspace_id", workspaceId)
+    .eq("user_id", body.userId)
+    .maybeSingle();
+  const existingStatus = (existing as { status: string } | null)?.status;
+  if (existingStatus === "removed") {
+    return NextResponse.json(
+      { error: "Your access was revoked by the administrator. Please contact them." },
+      { status: 403 },
+    );
+  }
+  if (existingStatus === "active") {
+    // Idempotent retry (double-click / network retry) — already a member.
+    return NextResponse.json({ ok: true });
+  }
   const { data: ws } = await service
     .from("workspaces")
     .select("id, member_limit")

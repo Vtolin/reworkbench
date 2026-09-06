@@ -22,7 +22,11 @@ export async function POST(req: Request) {
     q: body.query,
     match_count: topN,
   });
-  if (ftsErr) return NextResponse.json({ error: ftsErr.message }, { status: 500 });
+  if (ftsErr) {
+    // Don't echo raw Postgres errors (they can include the crafted query).
+    console.error("fts_search_chunks failed:", ftsErr.message);
+    return NextResponse.json({ error: "Search failed" }, { status: 500 });
+  }
 
   let vector: unknown[] = [];
   if (body.queryEmbedding && body.queryEmbedding.length > 0) {

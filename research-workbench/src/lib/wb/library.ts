@@ -287,9 +287,16 @@ export async function chunkCount(): Promise<number> {
   return count ?? 0;
 }
 
-export async function documentFileUrl(doc: { storage_path?: string | null }): Promise<string | null> {
+export async function documentFileUrl(doc: { id?: string; storage_path?: string | null }): Promise<string | null> {
   if (!doc.storage_path) return null;
-  const { data, error } = await supabase().storage.from("documents").createSignedUrl(doc.storage_path, 3600);
+  const sb = supabase();
+  // RLS pre-check: never mint a signed URL (which bypasses storage RLS) for a
+  // document row the caller cannot read.
+  if (doc.id) {
+    const { data: allowed } = await sb.from("documents").select("id").eq("id", doc.id).maybeSingle();
+    if (!allowed) throw new Error("Document not found");
+  }
+  const { data, error } = await sb.storage.from("documents").createSignedUrl(doc.storage_path, 3600);
   if (error) throw new Error(error.message);
   return data.signedUrl;
 }

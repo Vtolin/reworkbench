@@ -35,7 +35,17 @@ export async function POST(req: Request) {
     .eq("workspace_id", body.workspaceId)
     .eq("user_id", body.userId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  // Invalidate all sessions for the kicked member.
-  await service.auth.admin.signOut(body.userId);
+  // Invalidate the kicked member's sessions. NOTE: auth.admin.signOut() takes
+  // a session JWT, not a user id — passing a UUID is a silent no-op. Banning
+  // is the mechanism that actually revokes all of the user's tokens. The
+  // account itself is preserved (audit trail); RLS already excludes removed
+  // members, so the ban is defense in depth.
+  const { error: banError } = await service.auth.admin.updateUserById(body.userId, {
+    ban_duration: "876000h", // ~100 years; only an admin action could lift it
+  });
+  if (banError) {
+    // Row removal above is the real enforcement; report but don't fail it.
+    console.error("kick: ban failed for", body.userId, banError.message);
+  }
   return NextResponse.json({ ok: true });
 }

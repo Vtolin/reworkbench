@@ -38,6 +38,17 @@ export interface IngestPreview {
 
 const YEAR_RE = /\b(19|20)\d{2}\b/;
 
+// Supabase free tier ships ~1GB of storage: cap single uploads so one file
+// (or a modified client ignoring the UI) can't fill the bucket. Matches the
+// old backend's 150 MB cap.
+export const MAX_FILE_BYTES = 150 * 1024 * 1024;
+
+function assertFileSize(file: File): void {
+  if (file.size > MAX_FILE_BYTES) {
+    throw new Error(`File too large (max ${MAX_FILE_BYTES / 1024 / 1024} MB)`);
+  }
+}
+
 function guessTitle(filename: string, text: string): string {
   const base = filename.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
   const firstLine = (text.split("\n").map((l) => l.trim()).filter(Boolean)[0] ?? "").slice(0, 200);
@@ -46,6 +57,7 @@ function guessTitle(filename: string, text: string): string {
 }
 
 export async function previewFile(file: File): Promise<IngestPreview> {
+  assertFileSize(file);
   const buf = await file.arrayBuffer();
   const [fileHash, textOut] = await Promise.all([
     sha256Hex(buf),
@@ -172,6 +184,7 @@ export async function confirmIngest(input: ConfirmInput): Promise<{
   indexingError: string | null;
 }> {
   const { file, preview } = input;
+  assertFileSize(file);
   const sb = createClient();
   const ws = await getWorkspaceId();
   const { data: me } = await sb.auth.getUser();
