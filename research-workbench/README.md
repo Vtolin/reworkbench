@@ -69,37 +69,73 @@ between members — your models and keys stay yours.
 
 **Option A — run the AI on your computer (private, recommended)**
 
-1. Install Ollama from ollama.com and open it at least once.
-2. Open PowerShell (Windows Start menu → type `PowerShell` → Enter) and download
-   the two things the app needs (copy-paste one line at a time, Enter after each):
-   ```powershell
+1. Install Ollama and open it at least once:
+   - **Windows**: download from ollama.com (it lives by the clock, bottom-right).
+   - **Mac (Apple Silicon)**: download from ollama.com (it lives in the top menu bar).
+     Apple chips run models fast with no extra setup.
+   - **Linux**: open Terminal and run `curl -fsSL https://ollama.com/install.sh | sh`
+     (it starts itself in the background).
+2. Download the models the app needs — open a terminal (PowerShell on Windows,
+   Terminal on Mac/Linux) and paste one line at a time, Enter after each:
+   ```bash
    ollama pull nomic-embed-text
-   ollama pull gemma4:26b-a4b-it-qat
+   ollama pull qwen3.5:4b
+   ollama pull qwen2.5:7b
+   ollama pull gpt-oss:20b
    ```
-   The first one is required for searching; the second is the chat model.
-   (Big download — the chat model is ~15 GB. Any other Ollama model works too.)
+   The first one is required for searching; the rest are chat models.
+   Rule of thumb: `gemma4:26b-a4b-it-qat` if your machine is strong,
+   `qwen2.5:7b` if it's modest — any Ollama model works, pick what fits.
 3. Check Ollama is awake: in your browser open `http://localhost:11434/`.
-   You should see the words **"Ollama is running"**. If not, start the Ollama app.
+   You should see the words **"Ollama is running"**. If not, start the Ollama app
+   (Linux: `sudo systemctl start ollama`).
 4. Open the Workbench site and log in. Go to **Settings** → provider **Ollama** →
    click **Auto-detect Ollama models**. If it lists your models, you're connected.
 5. **Only if you open the site via a `vercel.app` address** (not `localhost:3000`):
-   Ollama blocks websites it doesn't know, so introduce them once. In PowerShell:
-   ```powershell
-   setx OLLAMA_ORIGINS "https://YOUR-APP.vercel.app"
-   ```
+   Ollama blocks websites it doesn't know, so introduce them once.
    (Use the real address from your browser bar, e.g.
    `https://research-workbench-topaz.vercel.app` — exactly that, nothing after it.)
-   Then **fully restart Ollama**: right-click its icon by the clock → **Quit**,
-   then open Ollama again from the Start menu. Just closing the browser tab is
-   not enough — the Ollama program itself must restart.
-6. Confirm it worked — in a **new** PowerShell window:
-   ```powershell
-   echo $env:OLLAMA_ORIGINS
-   Invoke-WebRequest -UseBasicParsing -Uri http://localhost:11434/api/tags -Headers @{Origin="https://YOUR-APP.vercel.app"} | Select-Object StatusCode
-   ```
-   The first line should print your address back; the second should say `200`.
-   `403` means Ollama is still the old one — repeat step 5.
-   (If PowerShell asks "Script Execution Risk", answer **Y**.)
+   - **Windows** (PowerShell):
+     ```powershell
+     setx OLLAMA_ORIGINS "https://YOUR-APP.vercel.app"
+     ```
+     Then **fully restart Ollama**: right-click its icon by the clock → **Quit**,
+     then open Ollama again from the Start menu. Just closing the browser tab is
+     not enough — the Ollama program itself must restart.
+   - **Mac** (Terminal):
+     ```bash
+     launchctl setenv OLLAMA_ORIGINS "https://YOUR-APP.vercel.app"
+     ```
+     Then quit Ollama from the top menu bar and reopen it from Applications.
+     (Re-run this command after a reboot — macOS forgets it on restart.
+     Alternative that lasts as long as the window stays open: quit the menu-bar
+     app, then run `OLLAMA_ORIGINS="https://YOUR-APP.vercel.app" ollama serve`.)
+   - **Linux** (Terminal — permanent, survives reboots):
+     ```bash
+     sudo systemctl edit ollama
+     ```
+     An editor opens — paste these two lines, save, exit:
+     ```
+     [Service]
+     Environment="OLLAMA_ORIGINS=https://YOUR-APP.vercel.app"
+     ```
+     Then `sudo systemctl restart ollama`.
+6. Confirm it worked, in a **new** terminal window:
+   - Check the setting stuck:
+     - Windows: `echo $env:OLLAMA_ORIGINS` · Mac/Linux: `echo $OLLAMA_ORIGINS`
+     - (Linux systemd users: `systemctl show ollama --property=Environment` instead.)
+     It should print your address back.
+   - Ask Ollama directly, pretending to be the website:
+     - Windows:
+       ```powershell
+       Invoke-WebRequest -UseBasicParsing -Uri http://localhost:11434/api/tags -Headers @{Origin="https://YOUR-APP.vercel.app"} | Select-Object StatusCode
+       ```
+       (If PowerShell asks "Script Execution Risk", answer **Y**.)
+     - Mac/Linux:
+       ```bash
+       curl -s -o /dev/null -w "%{http_code}\n" -H "Origin: https://YOUR-APP.vercel.app" http://localhost:11434/api/tags
+       ```
+   - You want `200`. `403` means Ollama is still the old one — repeat step 5.
 
 **Option B — use a cloud AI key (nothing to install)**
 
