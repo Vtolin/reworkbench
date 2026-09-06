@@ -37,21 +37,19 @@ export default function RegisterPage() {
         router.push("/");
         return;
       }
-      // Member flow: Supabase Auth signUp, then server-side join guarded by
+      // Member flow: Supabase Auth signUp, then a server-side join guarded by
       // current_members < member_limit (and absolute MAX_ALLOWED_MEMBERS=10).
+      // The workspace is resolved server-side: RLS hides workspaces from
+      // non-members, so a client lookup would always come back empty here.
       const supabase = createClient();
       const { data, error: signErr } = await supabase.auth.signUp({ email, password });
       if (signErr) throw signErr;
       const userId = data.user?.id;
       if (!userId) throw new Error("Sign-up succeeded but no session — ask the admin to check email-confirmation settings.");
-      // Single-workspace MVP: join the first workspace found.
-      const { data: workspaces } = await supabase.from("workspaces").select("id").limit(1);
-      const workspaceId = workspaces?.[0]?.id;
-      if (!workspaceId) throw new Error("No workspace exists yet — ask the admin to register first.");
       const join = await fetch("/api/workspaces/members", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workspaceId, userId }),
+        body: JSON.stringify({ userId }),
       });
       const joinData = await join.json();
       if (!join.ok) throw new Error(joinData.error ?? "Join failed");

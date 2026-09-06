@@ -18,8 +18,11 @@ export async function GET(req: Request) {
   return NextResponse.json({ members: data, maxAllowed: MAX_ALLOWED_MEMBERS });
 }
 
-// POST /api/workspaces/members {workspaceId} — self-join guard: enforces
-// current_members < member_limit (soft) AND absolute MAX_ALLOWED_MEMBERS.
+// POST /api/workspaces/members {userId, workspaceId?} — self-join guard:
+// enforces current_members < member_limit (soft) AND absolute
+// MAX_ALLOWED_MEMBERS. The workspace is resolved server-side (service role)
+// because RLS hides workspaces from non-members — a direct client lookup
+// would always come back empty for a brand-new user.
 // Uses service role with a server-side re-check so a modified client cannot
 // bypass the limit. Called after Supabase Auth signUp.
 export async function POST(req: Request) {
@@ -29,22 +32,36 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
-  if (!body.workspaceId || !body.userId) {
-    return NextResponse.json({ error: "workspaceId and userId are required" }, { status: 400 });
+  if (!body.userId) {
+    return NextResponse.json({ error: "userId is required" }, { status: 400 });
   }
   const service = createServiceSupabase();
+  let workspaceId = body.workspaceId;
+  if (!workspaceId) {
+    // Single-workspace MVP: join the oldest workspace.
+    const { data: first } = await service
+      .from("workspaces")
+      .select("id")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    workspaceId = (first as { id: string } | null)?.id;
+  }
+  if (!workspaceId) {
+    return NextResponse.json({ error: "No workspace exists yet — ask the admin to register first." }, { status: 404 });
+  }
   const { data: ws } = await service
     .from("workspaces")
     .select("id, member_limit")
-    .eq("id", body.workspaceId)
+    .eq("id", workspaceId)
     .single();
   if (!ws) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
 
-  const softLimit = clampMemberLimit(ws.member_limit);
+  const softLimit = clampMemberLimit((ws as { member_limit: number }).member_limit);
   const { count } = await service
     .from("workspace_members")
     .select("id", { count: "exact", head: true })
-    .eq("workspace_id", body.workspaceId)
+    .eq("workspace_id", workspaceId)
     .eq("status", "active");
   const current = count ?? 0;
   if (current >= softLimit || current >= MAX_ALLOWED_MEMBERS) {
@@ -54,7 +71,7 @@ export async function POST(req: Request) {
     );
   }
   const { error } = await service.from("workspace_members").insert({
-    workspace_id: body.workspaceId,
+    workspace_id: workspaceId,
     user_id: body.userId,
     role: "member",
     status: "active",
