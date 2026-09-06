@@ -61,4 +61,28 @@ research-workbench/
 └── details.md          # full technical reference
 ```
 
+## New laptop onboarding (per member, per machine — one time)
+
+Each member picks **one** inference path on each device. Nothing is shared between members.
+
+**Option A — local Ollama (private, recommended)**
+1. Install Ollama, then: `ollama pull nomic-embed-text` (required for vector search)
+   plus any chat model, e.g. `ollama pull gemma4:26b-a4b-it-qat`.
+2. Make sure it's serving: open `http://localhost:11434/` → "Ollama is running".
+3. In the app: register/login → Settings → provider **Ollama** → **Auto-detect Ollama models**.
+4. **Vercel-URL users only**: if you open the app via `*.vercel.app` (not `localhost:3000`),
+   allowlist that origin once, then quit + relaunch Ollama (tray icon → Quit → start):
+   ```powershell
+   setx OLLAMA_ORIGINS "https://YOUR-APP.vercel.app"
+   ```
+   `localhost:3000` dev never needs this (localhost origins are allowed by default).
+   Verify with `echo $env:OLLAMA_ORIGINS` in a new terminal.
+
+**Option B — cloud key (no install)**
+Settings → provider **Cloud** → pick OpenAI/DeepSeek/Google/Anthropic → paste your **own**
+key → Save → **↻ Models** to list live model ids. Keys are encrypted per-user, never shared.
+
+Cold-start note: Ollama unloads idle models after ~5 min, so the first question after
+idle is slow (large models take a while to reload), then fast until idle again.
+
 See `details.md` for the complete reference, including honest behavior deltas vs the original.
