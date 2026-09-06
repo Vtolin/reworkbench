@@ -43,7 +43,7 @@ export interface InferenceSnapshot {
   temperature: number;
   numCtx: number;
   numPredict?: number;
-  cloudProvider: "openai" | "anthropic" | "google";
+  cloudProvider: "openai" | "anthropic" | "google" | "deepseek";
   cloudModel: string;
 }
 

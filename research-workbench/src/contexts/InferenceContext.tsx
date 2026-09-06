@@ -7,13 +7,15 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 
 export type InferenceProvider = "ollama" | "cloud";
 
+export type CloudProviderId = "openai" | "anthropic" | "google" | "deepseek";
+
 export interface InferenceSettings {
   provider: InferenceProvider;
   model: string;
   embedMode: "local" | "server";
   temperature: number;
   numCtx: number;
-  cloudProvider: "openai" | "anthropic" | "google";
+  cloudProvider: CloudProviderId;
   cloudModel: string;
 }
 

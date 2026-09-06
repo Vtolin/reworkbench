@@ -52,6 +52,27 @@ export default function AdminPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspace?.id]);
 
+  // Live refresh: a member joining (or being kicked) while this page is open
+  // shows up immediately instead of waiting for a manual reload.
+  useEffect(() => {
+    if (!workspace) return;
+    let channel: { unsubscribe: () => void } | null = null;
+    (async () => {
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      channel = supabase
+        .channel(`admin-members:${workspace.id}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "workspace_members", filter: `workspace_id=eq.${workspace.id}` },
+          () => load(),
+        )
+        .subscribe() as unknown as { unsubscribe: () => void };
+    })();
+    return () => { channel?.unsubscribe(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspace?.id]);
+
   if (workspace && workspace.role !== "admin") {
     return (
       <div className="flex-1 min-w-0 flex flex-col bg-black">
@@ -146,7 +167,10 @@ export default function AdminPage() {
         </div>
 
         <div className="rounded-2xl border border-[#2f2f2f] bg-[#0a0a0a] p-4 lg:p-5">
-          <div className="text-sm font-semibold text-white">Members ({members.length})</div>
+          <div className="flex items-center gap-3">
+            <div className="text-sm font-semibold text-white">Members ({members.length})</div>
+            <button onClick={load} className="ml-auto rounded-lg border border-[#2f2f2f] bg-[#212121] px-3 py-1 text-xs text-white hover:bg-[#2f2f2f]">↻ Refresh</button>
+          </div>
           <div className="mt-3 space-y-2">
             {members.map((m) => (
               <div key={m.id} className="flex items-center gap-3 rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2 text-sm">

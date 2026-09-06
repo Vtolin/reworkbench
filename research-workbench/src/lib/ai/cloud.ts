@@ -2,7 +2,23 @@
 // member's OWN stored/entered key; never a shared workspace key.
 import type { AIProvider, ChatMessage, ChatOptions, ChatResult, EmbedOptions } from "./types";
 
-export type CloudProviderId = "openai" | "anthropic" | "google";
+export type CloudProviderId = "openai" | "anthropic" | "google" | "deepseek";
+
+export const CLOUD_PROVIDERS: Array<{ id: CloudProviderId; label: string; hint: string }> = [
+  { id: "openai", label: "OpenAI", hint: "e.g. gpt-4o-mini" },
+  { id: "deepseek", label: "DeepSeek", hint: "e.g. deepseek-chat" },
+  { id: "google", label: "Google", hint: "e.g. gemini-2.0-flash" },
+  { id: "anthropic", label: "Anthropic", hint: "e.g. claude-3-5-haiku-latest" },
+];
+
+// Live model ids from the provider, authenticated with the member's OWN
+// stored key (server-side). Nothing hardcoded — pass-through errors included.
+export async function listCloudModels(provider: CloudProviderId): Promise<string[]> {
+  const res = await fetch(`/api/ai/proxy/models?provider=${encodeURIComponent(provider)}`);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((data as { error?: string }).error ?? `Model list failed: ${res.status}`);
+  return (data as { models: string[] }).models ?? [];
+}
 
 export class CloudProvider implements AIProvider {
   readonly id = "cloud" as const;

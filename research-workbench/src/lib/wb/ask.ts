@@ -11,7 +11,7 @@ import { getWorkspaceId, type HydratedDoc } from "./library";
 export interface InferenceSelection {
   provider: "ollama" | "cloud";
   model: string;
-  cloudProvider: "openai" | "anthropic" | "google";
+  cloudProvider: "openai" | "anthropic" | "google" | "deepseek";
   cloudModel: string;
   temperature: number;
   numCtx: number;

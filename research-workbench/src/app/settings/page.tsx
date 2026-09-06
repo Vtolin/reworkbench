@@ -27,6 +27,8 @@ export default function SettingsPage(){
   const [importBusy, setImportBusy] = useState(false);
   const [cloudKey, setCloudKey] = useState("");
   const [cloudMsg, setCloudMsg] = useState<string | null>(null);
+  const [cloudModels, setCloudModels] = useState<string[] | null>(null);
+  const [fetchingModels, setFetchingModels] = useState(false);
   const [detecting, setDetecting] = useState(false);
   const [detected, setDetected] = useState<string[] | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -59,11 +61,26 @@ export default function SettingsPage(){
       body: JSON.stringify({ provider: inf.cloudProvider, apiKey: cloudKey }),
     });
     if (res.ok) {
-      setCloudMsg("Key saved (encrypted at rest, owner-only — never shared).");
+      setCloudMsg("Key saved (encrypted at rest, owner-only — never shared). Now press ↻ Models to list.");
       setCloudKey("");
     } else {
       const d = await res.json().catch(() => ({}));
       setCloudMsg((d as any).error ?? "Save failed");
+    }
+  };
+
+  const fetchCloudModels = async () => {
+    setFetchingModels(true);
+    try {
+      const { listCloudModels } = await import("@/lib/ai/cloud");
+      const models = await listCloudModels(inf.cloudProvider);
+      setCloudModels(models);
+      setCloudMsg(models.length ? null : "No models returned — check the key.");
+    } catch (e) {
+      setCloudMsg(e instanceof Error ? e.message : "Model list failed (save your key first).");
+      setCloudModels(null);
+    } finally {
+      setFetchingModels(false);
     }
   };
 
@@ -186,15 +203,21 @@ export default function SettingsPage(){
           </div>
           <div className="mt-4 border-t border-[#2f2f2f] pt-4 text-xs font-medium text-[#ececec]">Cloud provider (BYOK — personal, never shared)
             <div className="flex flex-wrap gap-2 mt-2">
-              <select value={inf.cloudProvider} onChange={e=>setInf({ cloudProvider: e.target.value as "openai" | "anthropic" | "google" })} className="rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2 text-sm text-white">
+              <select value={inf.cloudProvider} onChange={e=>{ setInf({ cloudProvider: e.target.value as "openai" | "anthropic" | "google" | "deepseek" }); setCloudModels(null); }} className="rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2 text-sm text-white">
                 <option value="openai">OpenAI</option>
-                <option value="anthropic">Anthropic</option>
+                <option value="deepseek">DeepSeek</option>
                 <option value="google">Google</option>
+                <option value="anthropic">Anthropic</option>
               </select>
-              <input value={inf.cloudModel} onChange={e=>setInf({ cloudModel: e.target.value })} placeholder="Model (e.g. gpt-4o-mini)" className="rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2 text-sm text-white" />
+              <input value={inf.cloudModel} onChange={e=>setInf({ cloudModel: e.target.value })} list="cloud-models" placeholder="Model (e.g. deepseek-chat)" className="rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2 text-sm text-white" />
+              <datalist id="cloud-models">{(cloudModels ?? []).map(m=> <option key={m} value={m} />)}</datalist>
+              <button onClick={fetchCloudModels} disabled={fetchingModels} className="rounded-xl border border-[#2f2f2f] bg-[#212121] px-3 py-2 text-sm text-white disabled:opacity-50" title="List models from the provider using your saved key">
+                {fetchingModels ? "…" : "↻ Models"}
+              </button>
               <input value={cloudKey} onChange={e=>setCloudKey(e.target.value)} type="password" placeholder="Paste API key (encrypted server-side)" className="min-w-64 flex-1 rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2 text-sm text-white" />
               <button onClick={saveCloudKey} className="rounded-xl border border-[#2f2f2f] bg-[#212121] px-4 py-2 text-sm text-white">Save key</button>
             </div>
+            {cloudModels && <div className="mt-1 text-[11px] text-[#8e8e8e] break-all">{cloudModels.length ? `${cloudModels.length} models from provider` : "No models returned"}</div>}
             {cloudMsg && <div className="mt-2 text-[11px] text-[#8e8e8e]">{cloudMsg}</div>}
             <div className="mt-1 text-[11px] text-[#5f5f5f]">Effective: model {infSnap.model} • ctx {infSnap.numCtx} • temp {infSnap.temperature}</div>
           </div>
