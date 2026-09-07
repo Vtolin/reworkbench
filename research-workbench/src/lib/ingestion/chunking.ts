@@ -66,10 +66,21 @@ export function pseudoPaginate(text: string, pageChars = PSEUDO_PAGE_CHARS): str
 
 // Browser-side PDF text extraction via pdfjs-dist (no install required).
 // Returns { text, pageCount }. Callers chunk + detect sections on top.
+// NOTE: the worker MUST be configured (version-pinned CDN). Without it the
+// bundled build silently fails to parse in some browsers — which previously
+// produced 0-chunk "metadata_only" uploads with no error shown.
 export async function extractPdfTextBrowser(file: File | Blob): Promise<{ text: string; pageCount: number }> {
   const pdfjs = await import("pdfjs-dist");
+  if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+    pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
+  }
   const buf = await file.arrayBuffer();
-  const pdf = await pdfjs.getDocument({ data: buf }).promise;
+  let pdf;
+  try {
+    pdf = await pdfjs.getDocument({ data: buf }).promise;
+  } catch (e) {
+    throw new Error(`PDF parse failed: ${e instanceof Error ? e.message : String(e)}`);
+  }
   const parts: string[] = [];
   for (let p = 1; p <= pdf.numPages; p++) {
     const page = await pdf.getPage(p);

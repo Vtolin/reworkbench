@@ -176,11 +176,20 @@ export default function UploadFlow({ onDone }: { onDone?: ()=>void }) {
             </div>
           )}
 
-          {preview.noText && (
+          {preview.noText && !preview.extractionError && (
             <div className="mx-5 mt-4 rounded-xl bg-amber-950/30 border border-amber-800 p-3 text-sm text-amber-300">
               ⚠ No extractable text found in this file. If it is a scanned PDF (photos of pages),
               the library cannot search or answer from it until it is OCR&apos;d elsewhere and
               re-uploaded. Accepting will file it as metadata only.
+            </div>
+          )}
+
+          {preview.extractionError && (
+            <div className="mx-5 mt-4 rounded-xl bg-red-950/30 border border-red-900 p-3 text-sm text-red-300">
+              ⚠ PDF text extraction failed in your browser — accepting would file this as
+              metadata only with nothing searchable.
+              <div className="mt-1 font-mono text-xs break-all">{preview.extractionError}</div>
+              <div className="mt-1 text-xs text-red-300/70">Try re-uploading; if it persists, report this message.</div>
             </div>
           )}
 

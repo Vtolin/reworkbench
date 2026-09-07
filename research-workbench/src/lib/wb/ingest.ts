@@ -32,6 +32,8 @@ export interface IngestPreview {
   isDuplicate: boolean;
   /** True when no extractable text was found (e.g. scanned-image PDF). */
   noText: boolean;
+  /** Extraction threw instead of returning empty (worker/parse failure). */
+  extractionError: string | null;
   suggestedCollection: { id: string; name: string } | null;
   collectionReason: string;
   collectionConfidence: number;
@@ -61,19 +63,21 @@ function guessTitle(filename: string, text: string): string {
 export async function previewFile(file: File): Promise<IngestPreview> {
   assertFileSize(file);
   const buf = await file.arrayBuffer();
-  const [fileHash, textOut] = await Promise.all([
-    sha256Hex(buf),
-    (async () => {
-      if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
-        try {
-          return await extractPdfTextBrowser(file);
-        } catch {
-          return { text: "", pageCount: null as number | null };
-        }
-      }
-      return { text: await file.text(), pageCount: null as number | null };
-    })(),
-  ]);
+  // Never swallow extraction failures: a silent empty string becomes a
+  // 0-chunk "metadata_only" row that looks like a scanned PDF but isn't.
+  let textOut: { text: string; pageCount: number | null };
+  let extractionError: string | null = null;
+  if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
+    try {
+      textOut = await extractPdfTextBrowser(file);
+    } catch (e) {
+      extractionError = e instanceof Error ? e.message : String(e);
+      textOut = { text: "", pageCount: null };
+    }
+  } else {
+    textOut = { text: await file.text(), pageCount: null };
+  }
+  const [fileHash] = await Promise.all([sha256Hex(buf)]);
   const text = textOut.text;
   const textSnippet = text.slice(0, 2000);
   const doi = extractDoi(text.slice(0, 20000));
@@ -144,6 +148,7 @@ export async function previewFile(file: File): Promise<IngestPreview> {
     })),
     isDuplicate: hasHashDup,
     noText: text.trim().length === 0,
+    extractionError,
     suggestedCollection: sugg.collection,
     collectionReason: sugg.reason,
     collectionConfidence: sugg.confidence,
