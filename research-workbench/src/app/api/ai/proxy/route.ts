@@ -1,44 +1,6 @@
 import { NextResponse } from "next/server";
-import { createServerSupabase, createServiceSupabase } from "@/lib/supabase/server";
-import { decryptApiKey } from "@/lib/ai/keys";
-
-// Provider registry. `openai` / `deepseek` / `google` all speak the
-// OpenAI-compatible chat-completions dialect (different base URLs, same
-// shape); `anthropic` has its own native API and is special-cased below.
-// Model ids are NEVER hardcoded here — the client sends the model string,
-// and GET lists live models from the provider using the member's own key.
-const OPENAI_COMPAT_BASE: Record<string, string> = {
-  openai: "https://api.openai.com/v1",
-  deepseek: "https://api.deepseek.com",
-  google: "https://generativelanguage.googleapis.com/v1beta/openai",
-};
-
-const KNOWN_PROVIDERS = [...Object.keys(OPENAI_COMPAT_BASE), "anthropic"];
-
-async function resolveApiKey(provided: string | undefined): Promise<{ key?: string; error?: string; status?: number }> {
-  if (provided) return { key: provided };
-  const supabase = await createServerSupabase();
-  const { data: me } = await supabase.auth.getUser();
-  if (!me.user) return { error: "Unauthorized", status: 401 };
-  const service = createServiceSupabase();
-  const { data: cred } = await service
-    .from("ai_credentials")
-    .select("ciphertext, iv, provider")
-    .eq("user_id", me.user.id)
-    .maybeSingle();
-  if (!cred) {
-    return {
-      error: "No cloud API key saved. Add one in Settings → Cloud provider.",
-      status: 400,
-    };
-  }
-  try {
-    const c = cred as { ciphertext: string; iv: string };
-    return { key: decryptApiKey(c.ciphertext, c.iv) };
-  } catch {
-    return { error: "Stored key could not be decrypted", status: 500 };
-  }
-}
+import { createServerSupabase } from "@/lib/supabase/server";
+import { OPENAI_COMPAT_BASE, KNOWN_PROVIDERS, resolveApiKey } from "@/lib/ai/providers";
 
 // POST /api/ai/proxy {provider, model, messages, temperature, apiKey?}
 // Cloud-AI proxy (BYOK): resolves the caller's OWN stored key server-side
@@ -107,38 +69,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ content: text });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Proxy failed" }, { status: 500 });
-  }
-}
-
-// GET /api/ai/proxy/models?provider=deepseek — live model list from the
-// provider, authenticated with the member's OWN stored key. Nothing hardcoded.
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const provider = searchParams.get("provider") ?? "";
-  if (!KNOWN_PROVIDERS.includes(provider)) {
-    return NextResponse.json({ error: `Unsupported provider: ${provider || "(none)"}` }, { status: 400 });
-  }
-  const { key: apiKey, error, status } = await resolveApiKey(undefined);
-  if (!apiKey) return NextResponse.json({ error }, { status: status ?? 500 });
-  try {
-    if (provider === "anthropic") {
-      const upstream = await fetch("https://api.anthropic.com/v1/models?limit=50", {
-        headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-      });
-      if (!upstream.ok) return NextResponse.json({ error: `Anthropic error: ${upstream.status}` }, { status: 502 });
-      const data = await upstream.json();
-      const models = ((data.data ?? []) as Array<{ id: string }>).map((m) => m.id).sort();
-      return NextResponse.json({ models });
-    }
-    const upstream = await fetch(`${OPENAI_COMPAT_BASE[provider]}/models`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
-    if (!upstream.ok) return NextResponse.json({ error: `${provider} error: ${upstream.status}` }, { status: 502 });
-    const data = await upstream.json();
-    const models = ((data.data ?? []) as Array<{ id: string }>).map((m) => m.id).sort();
-    return NextResponse.json({ models });
-  } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Model list failed" }, { status: 500 });
   }
 }
 
