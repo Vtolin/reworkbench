@@ -85,7 +85,7 @@ between members — your models and keys stay yours.
    ```
    The first one is required for searching; the rest are chat models.
    Rule of thumb: `gemma4:26b-a4b-it-qat` if your machine is strong,
-   `qwen2.5:7b` if it's modest — any Ollama model works, pick what fits.
+   `qwen2.5:7b` if it's modest. Any Ollama model works, pick what fits.
 3. Check Ollama is awake: in your browser open `http://localhost:11434/`.
    You should see the words **"Ollama is running"**. If not, start the Ollama app
    (Linux: `sudo systemctl start ollama`).
