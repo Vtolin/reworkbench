@@ -97,7 +97,7 @@ export default function ChatsPage() {
         subtitle="Published research results — read here, continue in Research, delete only with admin approval"
       />
       {note && <div className="px-4 lg:px-6 pt-3 text-xs text-emerald-400">{note}</div>}
-      <div className="flex flex-1 min-h-0 pt-3">
+      <div className="flex flex-col sm:flex-row flex-1 min-w-0 pt-3 sm:min-h-0">
         <aside className="w-64 shrink-0 border-r border-[#2f2f2f] bg-[#0a0a0a] p-2 space-y-1 overflow-y-auto no-scrollbar hidden sm:block">
           {chats.length === 0 && <div className="text-xs text-[#5f5f5f] p-3 text-center">Nothing published yet — publish from Research → history → Publish ↑</div>}
           {chats.map((c) => (
@@ -123,9 +123,9 @@ export default function ChatsPage() {
             </button>
           ))}
         </div>
-        <section className="flex-1 min-w-0 hidden sm:flex flex-col">
+        <section className="flex-1 min-w-0 flex flex-col sm:min-h-0">
           {!active ? (
-            <div className="flex-1 grid place-items-center">
+            <div className="flex-1 grid place-items-center min-h-[40vh] sm:min-h-0 px-4">
               <div className="text-center max-w-sm">
                 <div className="h-12 w-12 mx-auto rounded-2xl bg-white text-black grid place-items-center text-xl mb-4">◭</div>
                 <div className="font-medium text-white">Published research, read-only</div>

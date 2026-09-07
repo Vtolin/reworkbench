@@ -509,7 +509,7 @@ export default function ResearchPage(){
   const statusElapsed = streamStatus ? Math.max(0, (statusNow - streamStatus.since) / 1000) : 0;
 
   return (
-    <div className="flex h-[100dvh] pt-[56px] lg:pt-0 lg:h-screen bg-black text-[#ececec] overflow-hidden relative">
+    <div className="flex h-[calc(100dvh-56px)] lg:h-screen bg-black text-[#ececec] overflow-hidden relative">
       {/* history drawer - always overlays (never pushes) so it can't collide/collapse the chat. Left sidebar is separately collapsible for width. */}
       {historyOpen && (
         <div className="absolute inset-0 z-20 flex">
@@ -531,9 +531,9 @@ export default function ResearchPage(){
                 title="Chat history"
               >☰</button>
 
-              <div className="flex gap-1 p-1 bg-[#212121] rounded-xl border border-[#2f2f2f]">
+              <div className="flex gap-1 p-1 bg-[#212121] rounded-xl border border-[#2f2f2f] overflow-x-auto no-scrollbar max-w-full">
                 {(["ask","compare","summarize","matrix","synthesis"] as Mode[]).map(m=>(
-                  <button key={m} onClick={()=>setMode(m)} className={`px-3 sm:px-4 py-1.5 rounded-lg text-sm font-medium capitalize transition ${mode===m ? "bg-white text-black" : "text-[#8e8e8e] hover:text-white"}`}>
+                  <button key={m} onClick={()=>setMode(m)} className={`px-2.5 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium capitalize transition shrink-0 whitespace-nowrap ${mode===m ? "bg-white text-black" : "text-[#8e8e8e] hover:text-white"}`}>
                     {m}
                   </button>
                 ))}
@@ -921,7 +921,7 @@ export default function ResearchPage(){
         </main>
 
         {/* input - static footer */}
-        <footer className="shrink-0 border-t border-[#2f2f2f] bg-black">
+        <footer className="shrink-0 border-t border-[#2f2f2f] bg-black pb-[env(safe-area-inset-bottom)]">
           <div className="max-w-3xl mx-auto px-4 py-4">
             {mode==="ask" && (
               <div className="rounded-2xl bg-[#212121] border border-[#2f2f2f] flex items-end gap-2 p-2 focus-within:border-[#404040]">

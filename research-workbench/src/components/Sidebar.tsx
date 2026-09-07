@@ -53,11 +53,10 @@ export default function Sidebar() {
       </div>
 
       <aside className={`
-        fixed lg:static inset-y-0 left-0 z-40 shrink-0 border-r border-[#2f2f2f] bg-[#0a0a0a] flex flex-col h-screen
-        transition-all duration-200 lg:translate-x-0
+        fixed lg:static left-0 bottom-0 top-[56px] lg:top-0 z-40 shrink-0 border-r border-[#2f2f2f] bg-[#0a0a0a] flex flex-col
+        transition-all duration-200 lg:translate-x-0 lg:h-screen
         ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
-        ${collapsed ? "lg:w-[72px]" : "w-[280px] lg:w-[280px]"}
-        pt-[56px] lg:pt-0
+        ${collapsed ? "lg:w-[72px]" : "w-[280px] max-w-[85vw] lg:w-[280px] lg:max-w-none"}
       `}>
         <div className={`px-3 py-4 border-b border-[#2f2f2f] hidden lg:flex items-center gap-3 ${collapsed ? "justify-center px-2" : "px-5"}`}>
           {!collapsed ? (
@@ -182,11 +181,11 @@ export default function Sidebar() {
         )}
 
         {!collapsed && (
-          <div className="p-3 border-t border-[#2f2f2f] space-y-2">
+          <div className="p-3 border-t border-[#2f2f2f] space-y-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
             <div className="rounded-xl bg-[#171717] border border-[#2f2f2f] text-[#ececec] p-3">
               <div className="text-xs font-medium text-white truncate">{user?.email ?? "…"}</div>
               <div className="text-[11px] text-[#8e8e8e] mt-1 leading-relaxed">Shared library • your own inference. Model & keys stay on this device.</div>
-              <button onClick={signOut} className="mt-2 text-[11px] text-[#8e8e8e] hover:text-white underline">Sign out</button>
+              <button onClick={signOut} className="mt-2 rounded-lg bg-[#212121] border border-[#2f2f2f] px-3 py-2 text-xs text-white hover:bg-[#2f2f2f] w-full">Sign out</button>
             </div>
           </div>
         )}
