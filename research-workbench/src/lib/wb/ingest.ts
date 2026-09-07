@@ -30,6 +30,8 @@ export interface IngestPreview {
   offline: boolean;
   duplicates: Array<{ id: string; title: string; label: string; confidence: number }>;
   isDuplicate: boolean;
+  /** True when no extractable text was found (e.g. scanned-image PDF). */
+  noText: boolean;
   suggestedCollection: { id: string; name: string } | null;
   collectionReason: string;
   collectionConfidence: number;
@@ -141,6 +143,7 @@ export async function previewFile(file: File): Promise<IngestPreview> {
       confidence: d.confidence,
     })),
     isDuplicate: hasHashDup,
+    noText: text.trim().length === 0,
     suggestedCollection: sugg.collection,
     collectionReason: sugg.reason,
     collectionConfidence: sugg.confidence,

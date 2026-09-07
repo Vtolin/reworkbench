@@ -100,3 +100,16 @@ export async function PUT(req: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
+
+// DELETE /api/ai/proxy — forget the caller's stored BYOK key (owner-only).
+// Idempotent: succeeds even if no key was saved. Note this only makes the
+// app forget the key; to truly revoke it, rotate/delete it in the
+// provider's own dashboard (OpenAI/DeepSeek/…).
+export async function DELETE() {
+  const supabase = await createServerSupabase();
+  const { data: me } = await supabase.auth.getUser();
+  if (!me.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { error } = await supabase.from("ai_credentials").delete().eq("user_id", me.user.id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}

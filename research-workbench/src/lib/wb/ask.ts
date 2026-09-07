@@ -98,6 +98,20 @@ export async function ask(
     scopeIds: opts.scopeIds?.length ? opts.scopeIds : undefined,
   };
   const { passages, context } = await retrieveContext(ragOpts);
+  if (!passages.length && sel.hybrid === "off") {
+    // Strict grounding with nothing retrieved: say so plainly (and usefully)
+    // instead of spending a model call to echo the constraint back.
+    return {
+      answer:
+        "I couldn't find anything in the approved library for that. Usually this means one of: " +
+        "the documents are still awaiting admin approval, the uploads contain no extractable text " +
+        "(scanned PDFs need OCR before re-uploading), or nothing has been embedded yet. " +
+        "Approve/re-upload in the Library, then ask again — or switch Hybrid on to let the model answer from its own knowledge.",
+      sources: [],
+      thinking: null,
+      retrieved: { count: 0 },
+    };
+  }
   const docs = await loadDocs([...new Set(passages.map((p) => p.document_id))]);
   const sources = toSources(passages.slice(0, topN), docs);
   const contextText = sources.length
@@ -153,6 +167,19 @@ export async function askStream(
     const docs = await loadDocs([...new Set(passages.map((p) => p.document_id))]);
     const sources = toSources(passages.slice(0, topN), docs);
     handlers.onMeta?.({ sources, retrieved: { count: passages.length } });
+    if (!passages.length && sel.hybrid === "off") {
+      handlers.onDone?.({
+        answer:
+          "I couldn't find anything in the approved library for that. Usually this means one of: " +
+          "the documents are still awaiting admin approval, the uploads contain no extractable text " +
+          "(scanned PDFs need OCR before re-uploading), or nothing has been embedded yet. " +
+          "Approve/re-upload in the Library, then ask again — or switch Hybrid on to let the model answer from its own knowledge.",
+        sources: [],
+        thinking: null,
+        retrieved: { count: 0 },
+      });
+      return;
+    }
     handlers.onStatus?.(sel.provider === "ollama" && sel.thinking ? "processing_prompt" : "generating");
 
     const history = sel.memoryMessages?.slice(-6) ?? [];

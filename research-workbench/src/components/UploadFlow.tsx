@@ -176,6 +176,14 @@ export default function UploadFlow({ onDone }: { onDone?: ()=>void }) {
             </div>
           )}
 
+          {preview.noText && (
+            <div className="mx-5 mt-4 rounded-xl bg-amber-950/30 border border-amber-800 p-3 text-sm text-amber-300">
+              ⚠ No extractable text found in this file. If it is a scanned PDF (photos of pages),
+              the library cannot search or answer from it until it is OCR&apos;d elsewhere and
+              re-uploaded. Accepting will file it as metadata only.
+            </div>
+          )}
+
           <div className="p-5 grid gap-4 md:grid-cols-2">
             <label className="md:col-span-2 text-xs font-medium text-[#ececec]">Title<input value={edit.title} onChange={e=>setEdit({...edit,title:e.target.value})} className="mt-1 w-full rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2.5 text-sm text-white" /></label>
             <label className="text-xs font-medium text-[#ececec]">Authors<input value={edit.authors} onChange={e=>setEdit({...edit,authors:e.target.value})} className="mt-1 w-full rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2.5 text-sm text-white placeholder:text-[#5f5f5f]" placeholder="Comma separated" /></label>

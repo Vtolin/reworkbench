@@ -69,8 +69,20 @@ export default function SettingsPage(){
     }
   };
 
-  const fetchCloudModels = async () => {
-    setFetchingModels(true);
+  const removeCloudKey = async () => {
+    if (!confirm("Forget your saved cloud API key on this workspace? (This does not revoke it at the provider — rotate it there too.)")) return;
+    const res = await fetch("/api/ai/proxy", { method: "DELETE" });
+    if (res.ok) {
+      setCloudKey("");
+      setCloudModels(null);
+      setCloudMsg("Saved key removed from the app. Rotate it in the provider dashboard to fully revoke.");
+    } else {
+      const d = await res.json().catch(() => ({}));
+      setCloudMsg((d as any).error ?? "Remove failed");
+    }
+  };
+
+  const fetchCloudModels = async () => {    setFetchingModels(true);
     try {
       const { listCloudModels } = await import("@/lib/ai/cloud");
       const models = await listCloudModels(inf.cloudProvider);
@@ -216,6 +228,7 @@ export default function SettingsPage(){
               </button>
               <input value={cloudKey} onChange={e=>setCloudKey(e.target.value)} type="password" placeholder="Paste API key (encrypted server-side)" className="min-w-64 flex-1 rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2 text-sm text-white" />
               <button onClick={saveCloudKey} className="rounded-xl border border-[#2f2f2f] bg-[#212121] px-4 py-2 text-sm text-white">Save key</button>
+              <button onClick={removeCloudKey} className="rounded-xl border border-red-900/50 bg-[#171717] px-4 py-2 text-sm text-red-400 hover:bg-red-950/30">Remove key</button>
             </div>
             {cloudModels && <div className="mt-1 text-[11px] text-[#8e8e8e] break-all">{cloudModels.length ? `${cloudModels.length} models from provider` : "No models returned"}</div>}
             {cloudMsg && <div className="mt-2 text-[11px] text-[#8e8e8e]">{cloudMsg}</div>}
