@@ -93,8 +93,7 @@ between members — your models and keys stay yours.
    click **Auto-detect Ollama models**. If it lists your models, you're connected.
 5. **Only if you open the site via a `vercel.app` address** (not `localhost:3000`):
    Ollama blocks websites it doesn't know, so introduce them once.
-   (Use the real address from your browser bar, e.g.
-   `https://research-workbench-topaz.vercel.app` — exactly that, nothing after it.)
+   (Use the real address from your browser bar)
    - **Windows** (PowerShell):
      ```powershell
      setx OLLAMA_ORIGINS "https://YOUR-APP.vercel.app"
