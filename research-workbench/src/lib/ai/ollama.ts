@@ -94,13 +94,17 @@ export class OllamaProvider implements AIProvider {
           }
         }
       }
-      // Non-stream-thinking fallback: split <think> tags out of the text.
-      if (!thinkingText) {
+      // Splitting <think> tags is gated on the toggle: with thinking off the
+      // model may still emit tags spontaneously (reasoning-distilled models
+      // do) — strip them silently instead of opening a Thinking box.
+      if (thinking && !thinkingText) {
         const m = full.match(/<think>([\s\S]*?)<\/think>/i);
         if (m) {
           thinkingText = m[1].trim();
           full = full.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
         }
+      } else if (!thinking) {
+        full = full.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
       }
       return { content: full, thinking: thinkingText || undefined, provider: "ollama", model: options.model };
     }
@@ -108,12 +112,14 @@ export class OllamaProvider implements AIProvider {
     let content: string = data?.message?.content ?? "";
     let thinkingText: string | undefined =
       typeof data?.message?.thinking === "string" ? data.message.thinking : undefined;
-    if (!thinkingText) {
+    if (thinking && !thinkingText) {
       const m = content.match(/<think>([\s\S]*?)<\/think>/i);
       if (m) {
         thinkingText = m[1].trim();
         content = content.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
       }
+    } else if (!thinking) {
+      content = content.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
     }
     return { content, thinking: thinkingText, provider: "ollama", model: options.model };
   }

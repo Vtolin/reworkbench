@@ -486,7 +486,7 @@ export default function ResearchPage(){
   const pillOff = "bg-[#212121] border-[#2f2f2f] text-[#8e8e8e] hover:text-white";
   const thinkingOn = thinkingMode;
 
-  const streamLegacyParsed = streaming && streaming.thinking === null && streaming.raw.toLowerCase().includes("<think>")
+  const streamLegacyParsed = thinkingMode && streaming && streaming.thinking === null && streaming.raw.toLowerCase().includes("<think>")
     ? parseThinking(streaming.raw)
     : null;
   const streamThinking = streamLegacyParsed ? streamLegacyParsed.thinking : (streaming?.thinking ?? null);
