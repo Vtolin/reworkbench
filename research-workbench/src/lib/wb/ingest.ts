@@ -2,7 +2,8 @@
 // confirm (Storage upload → rows → embeddings → pending approval).
 // Preserves the UploadFlow "AI proposes, human confirms" contract.
 import { createClient } from "@/lib/supabase/client";
-import { sha256Hex, chunkText, extractPdfTextBrowser } from "@/lib/ingestion/chunking";
+import { sha256Hex, chunkText } from "@/lib/ingestion/chunking";
+import { extractDocumentText } from "@/lib/importing/docloaders";
 import { checkDuplicates, extractDoi } from "@/lib/ingestion/dedup";
 import { classifyDocumentType, suggestCollection } from "@/lib/ingestion/classify";
 import { fetchMetadata } from "./openalex";
@@ -67,15 +68,11 @@ export async function previewFile(file: File): Promise<IngestPreview> {
   // 0-chunk "metadata_only" row that looks like a scanned PDF but isn't.
   let textOut: { text: string; pageCount: number | null };
   let extractionError: string | null = null;
-  if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
-    try {
-      textOut = await extractPdfTextBrowser(file);
-    } catch (e) {
-      extractionError = e instanceof Error ? e.message : String(e);
-      textOut = { text: "", pageCount: null };
-    }
-  } else {
-    textOut = { text: await file.text(), pageCount: null };
+  try {
+    textOut = await extractDocumentText(file);
+  } catch (e) {
+    extractionError = e instanceof Error ? e.message : String(e);
+    textOut = { text: "", pageCount: null };
   }
   const [fileHash] = await Promise.all([sha256Hex(buf)]);
   const text = textOut.text;
@@ -281,7 +278,16 @@ export async function confirmIngest(input: ConfirmInput): Promise<{
     try {
       const { data: rows, error: chunkErr } = await sb
         .from("document_chunks")
-        .insert(chunks.map((c) => ({ workspace_id: ws, document_id: docId, content: c.content, chunk_index: c.chunk_index })))
+        .insert(
+          chunks.map((c) => ({
+            workspace_id: ws,
+            document_id: docId,
+            content: c.content,
+            chunk_index: c.chunk_index,
+            page: c.page ?? null,
+            section: c.section ?? null,
+          }))
+        )
         .select("id, content");
       if (chunkErr) throw new Error(chunkErr.message);
       for (const row of (rows ?? []) as Array<{ id: string; content: string }>) {

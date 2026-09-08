@@ -16,7 +16,7 @@ export default function UploadPage(){
             <li>File is uploaded to <span className="font-mono text-white">Supabase Storage (documents bucket)</span>, content-addressed by SHA-256</li>
             <li>Document record created in <span className="font-mono text-white">Postgres → documents</span> with status <span className="font-mono text-white">pending</span></li>
             <li>Text is extracted in your browser, chunked (≈4700 chars / 880 overlap), and embedded via <span className="font-mono text-white">nomic-embed-text</span> (local Ollama) or your cloud embedding API</li>
-            <li>Chunks + vectors land in <span className="font-mono text-white">document_chunks / document_embeddings</span> (pgvector) for hybrid FTS + vector retrieval</li>
+            <li>Chunks + vectors land in <span className="font-mono text-white">document_chunks / document_embeddings</span> (pgvector) for hybrid FTS + BM25 + vector retrieval with cross-encoder reranking</li>
             <li>An admin approves the upload — only then does it enter the shared library</li>
           </ol>
           <div className="mt-3 text-xs text-[#5f5f5f]">Confidence thresholds: ≥0.85 auto-suggest collection, 0.60–0.84 ask to confirm, &lt;0.60 suggest creating new. Nothing is shared until confirmation + approval.</div>

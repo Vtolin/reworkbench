@@ -103,11 +103,11 @@ export default function UploadFlow({ onDone }: { onDone?: ()=>void }) {
     <div className="space-y-4">
       <div className="rounded-2xl border-2 border-dashed border-[#2f2f2f] bg-[#0a0a0a] p-6 lg:p-8 text-center">
         <div className="mx-auto h-12 w-12 rounded-2xl bg-white text-black grid place-items-center text-xl">↑</div>
-        <div className="mt-3 font-medium text-white">Drop a PDF / text file here</div>
+        <div className="mt-3 font-medium text-white">Drop a PDF, Word (DOCX), Excel (XLSX), PowerPoint (PPTX), or text file here</div>
         <div className="text-sm text-[#8e8e8e]">Local parsing • SHA-256 dedup • OpenAlex metadata lookup • Goes to pending approval — nothing is shared until an admin approves</div>
         <label className="mt-4 inline-flex cursor-pointer rounded-xl bg-white text-black px-5 py-2.5 text-sm font-medium hover:bg-[#ececec]">
           Choose file
-          <input type="file" className="hidden" accept=".pdf,.txt,.md,.csv,.html,.htm" onChange={e=> e.target.files?.[0] && startPreview(e.target.files[0])} />
+          <input type="file" className="hidden" accept=".pdf,.docx,.xlsx,.xls,.pptx,.rtf,.txt,.md,.csv,.tsv,.html,.htm" onChange={e=> e.target.files?.[0] && startPreview(e.target.files[0])} />
         </label>
         {file && <div className="mt-3 text-xs font-mono text-[#8e8e8e] break-all">{file.name} • {(file.size/1024/1024).toFixed(2)} MB</div>}
         {loading && <div className="mt-3 text-sm text-white">{phase || "Analyzing…"}</div>}
@@ -186,7 +186,7 @@ export default function UploadFlow({ onDone }: { onDone?: ()=>void }) {
 
           {preview.extractionError && (
             <div className="mx-5 mt-4 rounded-xl bg-red-950/30 border border-red-900 p-3 text-sm text-red-300">
-              ⚠ PDF text extraction failed in your browser — accepting would file this as
+              ⚠ Document text extraction failed in your browser — accepting would file this as
               metadata only with nothing searchable.
               <div className="mt-1 font-mono text-xs break-all">{preview.extractionError}</div>
               <div className="mt-1 text-xs text-red-300/70">Try re-uploading; if it persists, report this message.</div>

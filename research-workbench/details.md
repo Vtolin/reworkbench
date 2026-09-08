@@ -54,7 +54,7 @@ UI is identical; where the old backend did something the new architecture cannot
 - **Hybrid low→maximum**: prompt-level grounding instructions (old: server-side context mixing). Disclaimer UI unchanged.
 - **Summarize**: full 3-stage pipeline (MAP per-chunk fact extraction → REDUCE recursive consolidation → SYNTHESIS doc-type-aware narrative) + deterministic verbatim-fact regex layer (percentages, dates, sample sizes, Indonesian legal citations, data-source keywords) appended as a verified section; cleanup strips [THIS WORK]/[CITED] tags and literal \\n artifacts. Method toggleable in Settings (stuff = single-pass when fits ctx, map_reduce = always full pipeline). Export PDF opens a print view (Save as PDF); Export HTML downloads a styled file. Arm-toggle flow preserved.
 - **Matrix**: per-doc STRICT-JSON extraction via your model; CSV/MD/XLSX (SheetJS) client-side.
-- **Upload**: PDF parsing via pdfjs-dist in-browser (non-PDF via text read); DOCX/XLSX/PPTX/RTF loaders not ported — PDF/TXT/MD/CSV/HTML covered. OpenAlex via browser fetch (CORS-open). Confirm → Storage + rows + embeddings → `pending` (new: admin approval in Admin dashboard, approval queue included).
+- **Upload**: PDF parsing via pdfjs-dist in-browser, DOCX via JSZip OpenXML DOM parser, XLSX/XLS via SheetJS, PPTX via JSZip slide XML parser, RTF via regex control stripper; TXT/MD/CSV/HTML covered. OpenAlex via browser fetch (CORS-open). Confirm → Storage + rows + embeddings → `pending` (admin approval in Admin dashboard, approval queue included).
 - **Citations**: citeproc-js in-browser with the same 7 vendored styles + en-US locale; fetch-by-id from the CSL repo; custom XML; default style — all per-device localStorage (old: server-wide setting).
 - **Related**: same 4 labeled groups (citation graph, shared authors, shared topics, semantic via averaged chunk embeddings + RPC).
 - **Refs**: `[...]` extraction + fuzzy ≥0.55 match, same UI.
@@ -75,13 +75,13 @@ UI is identical; where the old backend did something the new architecture cannot
 | `core/metadata/providers.py` | `lib/wb/openalex.ts` (browser fetch) |
 | `core/research/analysis.py` | `lib/wb/ask.ts` (same prompts/shapes) |
 | FastAPI routes | `lib/api.ts` facade + Next.js API routes (`api/auth`, `api/workspaces`, `api/documents/approve`, `api/chats/import`, `api/ai/proxy`, `api/rag/*`, `api/research/trail`) |
-| SQLite/Chroma/BM25/rerank | Postgres FTS + pgvector + RRF (no reranker; Phase-7 hook in `/api/rag/search`) |
+| SQLite/Chroma/BM25/rerank | Postgres FTS + pgvector + Okapi BM25 + tri-modal RRF + Cross-Encoder reranker (`lib/rag/bm25.ts`, `lib/rag/rerank.ts`) |
 
 ## 6. Roadmap status
 
 - Phase 1 (foundation/auth/admin/kick): done. Phase 2 (library + Storage + approval): done.
 - Phase 3 (research entities + RLS): done. Phase 4 (chat + RLS + import): done.
-- Phase 5 (FTS + pgvector + RRF): done (MVP; rerank deferred).
+- Phase 5 (FTS + pgvector + Okapi BM25 + RRF + Cross-Encoder reranking): done.
 - Phase 6 (AIProvider + Ollama/Cloud + embed toggle): done.
-- Phase 7 (polish): realtime + approval UI + admin dashboard + auto-detect + cloud settings done; original UI ported 1:1 (this document §4 lists the equivalents).
-- Follow-ups: RAG reranker, DOCX/XLSX/PPTX browser loaders, multi-workspace switching, server-wide citation default.
+- Phase 7 (polish): realtime + approval UI + admin dashboard + auto-detect + cloud settings done; original UI ported 1:1; DOCX/XLSX/PPTX browser loaders completed.
+- Follow-ups: multi-workspace switching, server-wide citation default.

@@ -133,9 +133,11 @@ export async function ask(
   const ragOpts: RagOptions = {
     workspaceId: ws,
     query,
-    topN: topN * 2,
+    topN,
     embedMode: sel.embedMode,
     scopeIds: opts.scopeIds?.length ? opts.scopeIds : undefined,
+    rerankProvider: provider,
+    rerankModel: model,
   };
   const { passages, context, debug } = await retrieveContext(ragOpts);
   if (!passages.length && sel.hybrid === "off") {
@@ -145,8 +147,8 @@ export async function ask(
     // instead of hidden behind the generic message.
     const hints: string[] = [];
     if (debug.embedError) hints.push(`embedding: ${debug.embedError}`);
-    else if (!debug.hasQueryEmbedding) hints.push("embedding: no query vector (FTS-only)");
-    hints.push(`retrieval: FTS ${debug.ftsCount}, vector ${debug.vectorCount} (embedMode ${debug.embedMode}${debug.embeddingDims ? `, ${debug.embeddingDims}d` : ""})`);
+    else if (!debug.hasQueryEmbedding) hints.push("embedding: no query vector (FTS/BM25-only)");
+    hints.push(`retrieval: FTS ${debug.ftsCount}, vector ${debug.vectorCount}, BM25 ${debug.bm25Count} (embedMode ${debug.embedMode}${debug.embeddingDims ? `, ${debug.embeddingDims}d` : ""})`);
     return {
       answer:
         "I couldn't find anything in the approved library for that. Usually this means one of: " +
@@ -218,9 +220,12 @@ export async function askStream(
     const { passages, context, debug } = await retrieveContext({
       workspaceId: ws,
       query,
-      topN: topN * 2,
+      topN,
       embedMode: sel.embedMode,
       scopeIds: opts.scopeIds?.length ? opts.scopeIds : undefined,
+      onStatus: (stage, detail) => handlers.onStatus?.(stage, detail),
+      rerankProvider: provider,
+      rerankModel: model,
     });
     const docs = await loadDocs([...new Set(passages.map((p) => p.document_id))]);
     const sources = toSources(passages.slice(0, topN), docs);
@@ -232,7 +237,7 @@ export async function askStream(
           "the documents are still awaiting admin approval, the uploads contain no extractable text " +
           "(scanned PDFs need OCR before re-uploading), or nothing has been embedded yet. " +
           "Approve/re-upload in the Library, then ask again — or switch Hybrid on to let the model answer from its own knowledge." +
-          `\n\n_Diagnostics: ${debug.embedError ? `embedding: ${debug.embedError} · ` : ""}retrieval: FTS ${debug.ftsCount}, vector ${debug.vectorCount} (embedMode ${debug.embedMode}${debug.embeddingDims ? `, ${debug.embeddingDims}d` : ""})_`,
+          `\n\n_Diagnostics: ${debug.embedError ? `embedding: ${debug.embedError} · ` : ""}retrieval: FTS ${debug.ftsCount}, vector ${debug.vectorCount}, BM25 ${debug.bm25Count} (embedMode ${debug.embedMode}${debug.embeddingDims ? `, ${debug.embeddingDims}d` : ""})_`,
         sources: [],
         thinking: null,
         retrieved: { count: 0, debug },

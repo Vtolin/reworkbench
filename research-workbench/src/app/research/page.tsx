@@ -1002,7 +1002,7 @@ export default function ResearchPage(){
               </div>
             )}
             <div className="text-[11px] text-[#5f5f5f] text-center mt-2 px-2">
-              {settings.provider === "ollama" ? `${settings.model} • ${settings.numCtx} ctx` : `${settings.cloudProvider}:${settings.cloudModel}`} • Hybrid FTS+vector • {thinkingOn ? "Thinking on" : "Thinking off"} • {memoryOn ? "Memory on" : "Memory off"} • {hybridMode!=="off" ? `Hybrid source ${hybridMode}` : "Strict grounding"}
+              {settings.provider === "ollama" ? `${settings.model} • ${settings.numCtx} ctx` : `${settings.cloudProvider}:${settings.cloudModel}`} • Hybrid FTS+BM25+vector • Cross-encoder reranked • {thinkingOn ? "Thinking on" : "Thinking off"} • {memoryOn ? "Memory on" : "Memory off"} • {hybridMode!=="off" ? `Hybrid source ${hybridMode}` : "Strict grounding"}
             </div>
           </div>
         </footer>

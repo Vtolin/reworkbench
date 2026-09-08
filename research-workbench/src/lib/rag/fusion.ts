@@ -10,7 +10,7 @@ export interface RetrievedPassage {
   page: number | null;
   section: string | null;
   score: number;
-  source: "fts" | "vector" | "fusion";
+  source: "fts" | "vector" | "bm25" | "fusion";
 }
 
 export interface FusionInput {
@@ -21,7 +21,7 @@ export interface FusionInput {
   page: number | null;
   section: string | null;
   rank: number; // 1-based rank within its leg
-  leg: "fts" | "vector";
+  leg: "fts" | "vector" | "bm25";
 }
 
 // Reciprocal Rank Fusion: score = Σ 1/(k + rank), k=60 conventionally.
