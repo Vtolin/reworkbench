@@ -36,6 +36,13 @@ import { checkDuplicates } from "./ingestion/dedup";
 const INFERENCE_KEY = "rw.inference_settings.v1";
 const SETTINGS_KEY = "rw.settings.v1";
 
+export interface StageSnapshot {
+  provider: "inherit" | "ollama" | "cloud";
+  model: string;
+  cloudProvider: "openai" | "anthropic" | "google" | "deepseek";
+  cloudModel: string;
+}
+
 export interface InferenceSnapshot {
   provider: "ollama" | "cloud";
   model: string;
@@ -45,7 +52,13 @@ export interface InferenceSnapshot {
   numPredict?: number;
   cloudProvider: "openai" | "anthropic" | "google" | "deepseek";
   cloudModel: string;
+  summarizeMethod: "stuff" | "map_reduce";
+  mapStage: StageSnapshot;
+  reduceStage: StageSnapshot;
+  synthesisStage: StageSnapshot;
 }
+
+const INHERIT_STAGE_SNAP: StageSnapshot = { provider: "inherit", model: "", cloudProvider: "openai", cloudModel: "" };
 
 const INFERENCE_DEFAULTS: InferenceSnapshot = {
   provider: "ollama",
@@ -55,6 +68,10 @@ const INFERENCE_DEFAULTS: InferenceSnapshot = {
   numCtx: 32768,
   cloudProvider: "openai",
   cloudModel: "gpt-4o-mini",
+  summarizeMethod: "stuff",
+  mapStage: { ...INHERIT_STAGE_SNAP },
+  reduceStage: { ...INHERIT_STAGE_SNAP },
+  synthesisStage: { ...INHERIT_STAGE_SNAP },
 };
 
 export function readInference(): InferenceSnapshot {
@@ -80,6 +97,10 @@ function toSel(extra?: Partial<InferenceSelection>): InferenceSelection {
     thinking: false,
     broad: false,
     hybrid: "off",
+    summarizeMethod: s.summarizeMethod ?? "stuff",
+    mapStage: s.mapStage ?? { provider: "inherit", model: "", cloudProvider: s.cloudProvider, cloudModel: "" },
+    reduceStage: s.reduceStage ?? { provider: "inherit", model: "", cloudProvider: s.cloudProvider, cloudModel: "" },
+    synthesisStage: s.synthesisStage ?? { provider: "inherit", model: "", cloudProvider: s.cloudProvider, cloudModel: "" },
     ...extra,
   };
 }
@@ -186,19 +207,20 @@ export const api = {
   memoryStatus: async () => ({ enabled: true, turns: 0 }),
 
   compare: async (body: { query: string; document_ids: string[] }) => wbCompare(body.query, body.document_ids, toSel()),
-  summarize: async (body: { document_id: string }) => {
+  summarize: async (body: { document_id: string; onStatus?: (stage: string, detail?: string, current?: number, total?: number) => void }) => {
     const doc = await getDocument(body.document_id);
-    return wbSummarize(doc, toSel());
+    return wbSummarize(doc, toSel(), body.onStatus ? { onStatus: body.onStatus } : undefined);
   },
   summarizeStream: async (
     body: { document_id: string },
-    handlers: { onStatus?: (stage: string, detail?: string) => void; onDone?: (data: { summary: string; stats: unknown }) => void; onError?: (err: string) => void },
+    handlers: { onStatus?: (stage: string, detail?: string, current?: number, total?: number) => void; onDone?: (data: { summary: string; stats: unknown }) => void; onError?: (err: string) => void },
   ) => {
     try {
       handlers.onStatus?.("preparing");
       const doc = await getDocument(body.document_id);
-      handlers.onStatus?.("synthesizing");
-      const r = await wbSummarize(doc, toSel());
+      const r = await wbSummarize(doc, toSel(), {
+        onStatus: (stage, detail, current, total) => handlers.onStatus?.(stage, detail, current, total),
+      });
       handlers.onDone?.({ summary: r.summary, stats: r.stats });
     } catch (e) {
       handlers.onError?.(e instanceof Error ? e.message : "Summarize failed");
@@ -247,7 +269,7 @@ export const api = {
     const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     return [cols.join(","), ...rows.map((r) => cols.map((c) => esc(r[c])).join(","))].join("\n");
   },
-  synthesis: (document_ids: string[], question: string) => wbSynthesis(document_ids, question, toSel()),
+  synthesis: (document_ids: string[], question: string, handlers?: { onStatus?: (stage: string, detail?: string, current?: number, total?: number) => void }) => wbSynthesis(document_ids, question, toSel(), handlers ? { onStatus: handlers.onStatus } : undefined),
   extract: async (document_id: string, schema: string) => {
     const doc = await getDocument(document_id);
     return structuredExtract(doc, schema, toSel());

@@ -17,7 +17,32 @@ export interface InferenceSettings {
   numCtx: number;
   cloudProvider: CloudProviderId;
   cloudModel: string;
+  /** Summarization pipeline: single-pass stuff vs per-chunk map→reduce. */
+  summarizeMethod: "stuff" | "map_reduce";
+  /** Per-stage model overrides for the summarization/synthesis pipeline.
+   *  provider "inherit" = use the main chat provider+model above. */
+  mapStage: StageModel;
+  reduceStage: StageModel;
+  synthesisStage: StageModel;
 }
+
+export type StageProvider = "inherit" | "ollama" | "cloud";
+
+export interface StageModel {
+  provider: StageProvider;
+  /** Ollama tag (when provider is ollama). Empty = fall back to main model. */
+  model: string;
+  cloudProvider: CloudProviderId;
+  /** Cloud model id (when provider is cloud). Empty = fall back to main cloudModel. */
+  cloudModel: string;
+}
+
+const INHERIT_STAGE: StageModel = {
+  provider: "inherit",
+  model: "",
+  cloudProvider: "openai",
+  cloudModel: "",
+};
 
 const DEFAULTS: InferenceSettings = {
   provider: "ollama",
@@ -27,6 +52,10 @@ const DEFAULTS: InferenceSettings = {
   numCtx: 32768,
   cloudProvider: "openai",
   cloudModel: "gpt-4o-mini",
+  summarizeMethod: "stuff",
+  mapStage: { ...INHERIT_STAGE },
+  reduceStage: { ...INHERIT_STAGE },
+  synthesisStage: { ...INHERIT_STAGE },
 };
 
 const STORAGE_KEY = "rw.inference_settings.v1";

@@ -237,6 +237,61 @@ export default function SettingsPage(){
         </div>
 
         <div className="rounded-2xl border border-[#2f2f2f] bg-[#0a0a0a] p-4 lg:p-5">
+          <div className="text-sm font-semibold text-white">Summarization pipeline</div>
+          <div className="text-xs text-[#8e8e8e] mt-1">
+            <span className="text-white">Single pass</span> stitches the doc into one prompt with the chat model.
+            <span className="text-white"> Map→reduce</span> extracts each chunk with the map model, then combines with the reduce model —
+            slower but handles long docs. Cross-paper synthesis uses the synthesis model. Progress shows per chunk (<span className="font-mono">Extracting 1/20 chunks</span>).
+          </div>
+          <label className="block text-xs font-medium text-[#ececec] mt-4">Method
+            <select value={inf.summarizeMethod ?? "stuff"} onChange={e=>setInf({ summarizeMethod: e.target.value as "stuff" | "map_reduce" })} className="mt-1 w-full rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2 text-sm text-white">
+              <option value="stuff">Single pass (chat model)</option>
+              <option value="map_reduce">Map → reduce (per-chunk)</option>
+            </select>
+          </label>
+          {[["mapStage","Map — per-chunk extraction"],["reduceStage","Reduce — combining + final summary"],["synthesisStage","Synthesis — cross-paper"]].map(([key,label])=>{
+            const st = (inf as any)[key] ?? { provider: "inherit", model: "", cloudProvider: inf.cloudProvider, cloudModel: "" };
+            const set = (patch: Record<string, string>) => setInf({ [key]: { ...st, ...patch } } as any);
+            return (
+              <div key={key} className="mt-4 border-t border-[#2f2f2f] pt-3">
+                <div className="text-xs font-medium text-[#ececec]">{label}
+                  <span className="ml-2 text-[11px] text-[#5f5f5f] font-normal">
+                    {st.provider === "inherit" ? "using chat model" : st.provider === "ollama" ? `ollama:${st.model || inf.model}` : `${st.cloudProvider}:${st.cloudModel || inf.cloudModel}`}
+                  </span>
+                </div>
+                <div className="grid gap-3 mt-2 grid-cols-1 md:grid-cols-3">
+                  <label className="text-xs text-[#8e8e8e]">Provider
+                    <select value={st.provider} onChange={e=>set({ provider: e.target.value })} className="mt-1 w-full rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2 text-sm text-white">
+                      <option value="inherit">Inherit chat model</option>
+                      <option value="ollama">Ollama</option>
+                      <option value="cloud">Cloud</option>
+                    </select>
+                  </label>
+                  {st.provider === "ollama" && (
+                    <label className="text-xs text-[#8e8e8e]">Ollama model
+                      <input value={st.model} onChange={e=>set({ model: e.target.value })} list="ollama-models" placeholder={inf.model} className="mt-1 w-full rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2 text-sm text-white" />
+                    </label>
+                  )}
+                  {st.provider === "cloud" && (<>
+                    <label className="text-xs text-[#8e8e8e]">Cloud provider
+                      <select value={st.cloudProvider} onChange={e=>set({ cloudProvider: e.target.value })} className="mt-1 w-full rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2 text-sm text-white">
+                        <option value="openai">OpenAI</option>
+                        <option value="deepseek">DeepSeek</option>
+                        <option value="google">Google</option>
+                        <option value="anthropic">Anthropic</option>
+                      </select>
+                    </label>
+                    <label className="text-xs text-[#8e8e8e]">Cloud model
+                      <input value={st.cloudModel} onChange={e=>set({ cloudModel: e.target.value })} list="cloud-models" placeholder={inf.cloudModel} className="mt-1 w-full rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2 text-sm text-white" />
+                    </label>
+                  </>)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="rounded-2xl border border-[#2f2f2f] bg-[#0a0a0a] p-4 lg:p-5">
           <div className="text-sm font-semibold text-white">Citation — CSL styles</div>
           <div className="text-xs text-[#8e8e8e] mt-1">
             All citations render through one shared CSL engine (citeproc-js, same vendored styles) — the app supports the CSL ecosystem, not a hardcoded style list.

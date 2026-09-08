@@ -17,26 +17,51 @@ export interface RagOptions {
 export async function retrieveContext(opts: RagOptions): Promise<{
   passages: RetrievedPassage[];
   context: string;
+  debug: {
+    embedMode: "local" | "server";
+    hasQueryEmbedding: boolean;
+    embeddingDims: number | null;
+    embedError: string | null;
+    ftsCount: number;
+    vectorCount: number;
+  };
 }> {
   const { workspaceId, query, topN = 8, embedMode, embedModel, scopeIds } = opts;
 
   // 1. Embed the query on the selected path.
+  // NOTE: failures here used to be silent (FTS-only fallback with no signal),
+  // which made cloud+local-embed misses undebuggable. Capture the reason.
   let queryEmbedding: number[] | null = null;
+  let embedError: string | null = null;
   if (embedMode === "local") {
     try {
       queryEmbedding = await new OllamaProvider().embed(query, { model: embedModel });
-    } catch {
+    } catch (e) {
       queryEmbedding = null; // fall back to FTS-only
+      embedError = e instanceof Error ? e.message : String(e);
     }
   } else {
-    const res = await fetch("/api/rag/embed", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: query, mode: "server", model: embedModel }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      queryEmbedding = data.embedding as number[];
+    try {
+      const res = await fetch("/api/rag/embed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: query, mode: "server", model: embedModel }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        queryEmbedding = data.embedding as number[];
+        if (!Array.isArray(queryEmbedding) || !queryEmbedding.length) {
+          embedError = "Server embedding returned no vector (FTS-only)";
+          queryEmbedding = null;
+        }
+      } else {
+        const errBody = await res.json().catch(() => ({}));
+        embedError =
+          (errBody as { error?: string }).error ??
+          `Server embedding failed: ${res.status} (FTS-only)`;
+      }
+    } catch (e) {
+      embedError = e instanceof Error ? e.message : String(e);
     }
   }
 
@@ -84,5 +109,16 @@ export async function retrieveContext(opts: RagOptions): Promise<{
     const scoped = passages.filter((p) => scopeIds.includes(p.document_id));
     passages = (scoped.length ? scoped : passages).slice(0, topN);
   }
-  return { passages, context: formatPassagesForPrompt(passages) };
+  return {
+    passages,
+    context: formatPassagesForPrompt(passages),
+    debug: {
+      embedMode,
+      hasQueryEmbedding: !!queryEmbedding,
+      embeddingDims: queryEmbedding?.length ?? null,
+      embedError,
+      ftsCount: (data.fts ?? []).length,
+      vectorCount: (data.vector ?? []).length,
+    },
+  };
 }

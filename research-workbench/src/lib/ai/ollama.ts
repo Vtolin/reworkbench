@@ -81,7 +81,10 @@ export class OllamaProvider implements AIProvider {
             const evt = JSON.parse(line);
             const token = evt?.message?.content ?? "";
             const thinkDelta = evt?.message?.thinking ?? "";
-            if (thinkDelta) {
+            // Gate on the toggle: reasoning models can emit thinking deltas
+            // even when think=false was sent. Forwarding them would open the
+            // Thinking box despite the toggle being off.
+            if (thinkDelta && thinking) {
               thinkingText += thinkDelta;
               options.onThinking?.(thinkDelta);
             }

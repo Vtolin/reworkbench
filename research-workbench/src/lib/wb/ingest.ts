@@ -287,6 +287,7 @@ export async function confirmIngest(input: ConfirmInput): Promise<{
       for (const row of (rows ?? []) as Array<{ id: string; content: string }>) {
         const slice = row.content.slice(0, 2000);
         let embedding: number[];
+        let embedModelName = "nomic-embed-text";
         if (input.embedMode === "local") {
           embedding = await new OllamaProvider().embed(slice);
         } else {
@@ -295,13 +296,26 @@ export async function confirmIngest(input: ConfirmInput): Promise<{
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ text: slice, mode: "server" }),
           });
-          if (!res.ok) throw new Error("Server embedding failed");
+          if (!res.ok) {
+            const errBody = await res.json().catch(() => ({}));
+            throw new Error((errBody as { error?: string }).error ?? "Server embedding failed (requires OpenAI key in Settings)");
+          }
           embedding = (await res.json()).embedding as number[];
+          embedModelName = "text-embedding-3-small";
+          // Schema is vector(768) for nomic-embed-text; a 1536d OpenAI vector
+          // cannot be stored alongside. Fail loudly instead of leaving
+          // chunks without embeddings that silently never match.
+          if (embedding.length !== 768) {
+            throw new Error(
+              `Server embedding is ${embedding.length}d but the library stores 768d (nomic-embed-text). ` +
+              `Upload with Embedding mode Local, or re-embed the whole library after migrating the column.`,
+            );
+          }
         }
         const { error: embErr } = await sb.from("document_embeddings").insert({
           chunk_id: row.id,
           embedding,
-          model_name: "nomic-embed-text",
+          model_name: embedModelName,
         });
         if (embErr) throw new Error(embErr.message);
       }

@@ -54,6 +54,7 @@ export default function ResearchPage(){
   const [synthQ, setSynthQ] = useState("");
   const [synthAns, setSynthAns] = useState<string | null>(null);
   const [synthLoading, setSynthLoading] = useState(false);
+  const [synthStatus, setSynthStatus] = useState<{ stage: string; detail?: string; current?: number; total?: number } | null>(null);
   const [scopeOpenMobile, setScopeOpenMobile] = useState(false);
   const [compareOpenMobile, setCompareOpenMobile] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -78,10 +79,10 @@ export default function ResearchPage(){
   useEffect(()=>{ api.config().then(r=>setChatCfg(r)).catch(()=>{}); },[]);
   // elapsed-time ticker while a status (retrieving / loading / processing) is shown
   useEffect(()=>{
-    if (!streamStatus) return;
+    if (!streamStatus && !summarizeStatus) return;
     const id = setInterval(()=>setStatusNow(Date.now()), 500);
     return ()=>clearInterval(id);
-  },[streamStatus]);
+  },[streamStatus, summarizeStatus]);
   // memory = this conversation's own earlier messages (after any clear-memory
   // cutoff), sent as context when the Memory toggle is on.
   const memoryMessages = (() => {
@@ -186,10 +187,17 @@ export default function ResearchPage(){
         content = acc.answer;
         thinking = acc.thinking;
       } else {
-        // pre-explicit-events fallback: parse <think> out of the raw text
+        // pre-explicit-events fallback: parse <think> out of the raw text.
+        // Gated on the toggle: with thinking off, strip silently instead of
+        // opening a Thinking box (reasoning models emit tags spontaneously).
         const parsed = parseThinking(acc.raw);
-        content = parsed.answer;
-        thinking = parsed.thinking || null;
+        if (thinkingVal) {
+          content = parsed.answer;
+          thinking = parsed.thinking || null;
+        } else {
+          content = acc.raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+          thinking = null;
+        }
       }
       content = content.trim();
       thinking = thinking?.trim() || null;
@@ -227,6 +235,7 @@ export default function ResearchPage(){
             else setStreamStatus(prev => ({ stage, detail, since: prev?.since ?? Date.now() }));
           },
           onThinking: (delta) => {
+            if (!thinkingVal) return;
             streamAccRef.current.sawThinkingEvent = true;
             streamAccRef.current.thinking = (streamAccRef.current.thinking ?? "") + delta;
             setStreaming(prev => {
@@ -244,12 +253,13 @@ export default function ResearchPage(){
           },
           onDone: (data) => {
             didFallback = true;
+            const cleanAnswer = thinkingVal ? data.answer : data.answer.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
             addMessage({
               id: "msg_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8),
               role:"assistant",
-              content: data.answer,
+              content: cleanAnswer,
               sources: data.sources,
-              thinking: data.thinking || null,
+              thinking: thinkingVal ? (data.thinking || null) : null,
               thinkingEnabled: thinkingVal,
               timestamp: Date.now(),
               type:"ask",
@@ -397,10 +407,13 @@ export default function ResearchPage(){
     setAutoFollow(true);
     setSummarizeLoading(true);
     setExportNote(null);
-    setSummarizeStatus({ stage: "starting", since: Date.now() });
+    const pipelineStart = Date.now();
+    setSummarizeStatus({ stage: "starting", since: pipelineStart });
     // shared finish path for stream-done and plain-fallback responses
     const finishSummary = (r: any)=>{
-      const text = r.summary + (r.stats ? `\n\n— _${r.stats.method} • ${r.stats.page_count} pages • ${r.stats.chunk_count} chunks_` : "");
+      const models = r.stats?.map_model ? ` • map ${r.stats.map_model} → reduce ${r.stats.reduce_model} → synthesis ${r.stats.synthesis_model ?? ""}` : "";
+      const dtype = r.stats?.doc_type ? ` • ${r.stats.doc_type}` : "";
+      const text = r.summary + (r.stats ? `\n\n— _${r.stats.method} • ${r.stats.page_count} pages • ${r.stats.chunk_count} chunks${dtype}${models}_` : "");
       addMessage({ id: "msg_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8), role:"assistant", content: text, timestamp: Date.now(), type:"summarize", meta: r.stats });
       setLastSummaryDoc(summarizeDoc);
       // armed export: fire the same export the manual button would, from
@@ -410,25 +423,24 @@ export default function ResearchPage(){
     const failSummary = (msg: string)=>{
       addMessage({ id: "msg_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8), role:"assistant", content: "Error: "+msg, timestamp: Date.now(), type:"summarize" });
     };
+    // status updater: preserves the original pipeline start timestamp so
+    // the elapsed counter runs from the very beginning of the run.
+    const onStatus = (stage: string, detail?: string, current?: number, total?: number) =>
+      setSummarizeStatus({ stage, detail, current, total, since: pipelineStart });
     try{
-      let streamed = false;
       try{
         await api.summarizeStream(
           { document_id: summarizeDoc },
           {
-            onStatus: (stage, detail) => setSummarizeStatus({ stage, detail, since: Date.now() }),
-            onDone: (data) => { streamed = true; setSummarizeStatus(null); finishSummary(data); },
-            onError: (err) => { streamed = true; setSummarizeStatus(null); failSummary(err); },
+            onStatus,
+            onDone: (data) => { setSummarizeStatus(null); finishSummary(data); },
+            onError: (err) => { setSummarizeStatus(null); failSummary(err); },
           }
         );
-        // stream ended without done/error (e.g. aborted connection) - fall through
-        if (!streamed) {
-          const r = await api.summarize({ document_id: summarizeDoc });
-          setSummarizeStatus(null);
-          finishSummary(r);
-        }
       } catch{
-        const r = await api.summarize({ document_id: summarizeDoc });
+        // stream path failed — re-run with the same progress handlers so the
+        // user still sees the map/reduce stages even in fallback mode.
+        const r = await api.summarize({ document_id: summarizeDoc, onStatus });
         setSummarizeStatus(null);
         finishSummary(r);
       }
@@ -475,9 +487,15 @@ export default function ResearchPage(){
 
   const doSynthesis = async()=>{
     if(synthIds.length<2 || !synthQ.trim() || synthLoading) return;
-    setSynthLoading(true); setSynthAns(null);
-    try{ const r = await api.synthesis(synthIds, synthQ); setSynthAns(r.answer); }
-    catch(e:any){ setSynthAns("Error: "+e.message); }
+    setSynthLoading(true); setSynthAns(null); setSynthStatus({ stage: "starting" });
+    try{
+      const r = await api.synthesis(synthIds, synthQ, {
+        onStatus: (stage, detail, current, total) => setSynthStatus({ stage, detail, current, total }),
+      });
+      setSynthStatus(null);
+      setSynthAns(r.answer);
+    }
+    catch(e:any){ setSynthStatus(null); setSynthAns("Error: "+e.message); }
     finally{ setSynthLoading(false); }
   };
 
@@ -499,8 +517,8 @@ export default function ResearchPage(){
     preparing: "Preparing context…",
     processing_prompt: "Processing prompt…",
     classifying: "Classifying document…",
-    mapping: "Mapping — extracting facts…",
-    reducing: "Reducing — consolidating…",
+    mapping: "Extracting chunks…",
+    reducing: "Combining summaries…",
     synthesizing: "Synthesizing final summary…",
     exporting: "Exporting report…",
     generating: "Generating…",
@@ -708,7 +726,7 @@ export default function ResearchPage(){
                 <div className="h-12 w-12 rounded-2xl bg-white text-black grid place-items-center text-xl mb-4">✦</div>
                 <h2 className="text-2xl font-semibold text-white">{mode==="ask" ? "What do you want to know?" : mode==="compare" ? "Compare documents" : mode==="summarize" ? "Summarize a paper" : mode==="matrix" ? "Build a literature matrix" : "Cross-paper synthesis"}</h2>
                 <p className="text-sm text-[#8e8e8e] mt-2 max-w-md">
-                  {mode==="ask" ? "Ask any question against your library. Toggle Thinking for hypotheses or unanswerable questions — uses the model's built-in reasoning before answering." : mode==="compare" ? "Select ≥2 documents and ask how they relate. Each is retrieved separately and labeled." : mode==="summarize" ? "Pick a document. It is synthesized with verbatim facts preserved." : mode==="matrix" ? "Select documents and generate a matrix: paper, method, dataset, findings, limitations. Export to CSV, XLSX or Markdown." : "Select ≥2 documents and ask what the literature agrees on, disagrees on, or where the gaps are — answers are attributed per source."}
+                  {mode==="ask" ? "Ask any question against your library. Toggle Thinking for hypotheses or unanswerable questions — uses the model's built-in reasoning before answering." : mode==="compare" ? "Select ≥2 documents and ask how they relate. Each is retrieved separately and labeled." : mode==="summarize" ? "Pick a document. The pipeline classifies document type, extracts facts per chunk (map), consolidates (reduce), then writes a doc-type-aware narrative (synthesis). Verbatim figures and dates are extracted by regex — exact regardless of model output." : mode==="matrix" ? "Select documents and generate a matrix: paper, method, dataset, findings, limitations. Export to CSV, XLSX or Markdown." : "Select ≥2 documents and ask what the literature agrees on, disagrees on, or where the gaps are — answers are attributed per source."}
                 </p>
                 {mode==="ask" && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-6 w-full max-w-xl">
@@ -837,6 +855,14 @@ export default function ResearchPage(){
                 )}
 
                 {/* cross-paper synthesis output */}
+                {mode==="synthesis" && synthLoading && synthStatus && (
+                  <div className="py-3">
+                    <div className="rounded-xl bg-[#0a0a0a] border border-[#2f2f2f] px-3 py-2 flex items-center gap-2 text-xs text-[#b4b4b4]">
+                      <span className="h-2 w-2 rounded-full bg-white animate-pulse shrink-0" />
+                      <span>{STATUS_LABELS[synthStatus.stage] || synthStatus.stage}{synthStatus.detail ? ` — ${synthStatus.detail}` : ""}{synthStatus.current != null && synthStatus.total != null ? ` — excerpt ${synthStatus.current}/${synthStatus.total}` : ""}</span>
+                    </div>
+                  </div>
+                )}
                 {mode==="synthesis" && synthAns && (
                   <div className="py-6">
                     <div className="rounded-2xl bg-[#171717] border border-[#2f2f2f] px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap break-words text-[#ececec]">
@@ -907,10 +933,21 @@ export default function ResearchPage(){
                       <div className="flex items-center gap-2 text-sm text-[#8e8e8e]">
                         <span className="h-2 w-2 rounded-full bg-white animate-pulse" />
                         {mode==="summarize" && summarizeStatus ? (
-                          <span>{STATUS_LABELS[summarizeStatus.stage] || summarizeStatus.stage}{summarizeStatus.current != null && summarizeStatus.total != null ? ` — batch ${summarizeStatus.current}/${summarizeStatus.total}` : ""}</span>
+                          <span>{STATUS_LABELS[summarizeStatus.stage] || summarizeStatus.stage}{summarizeStatus.detail ? ` — ${summarizeStatus.detail}` : summarizeStatus.current != null && summarizeStatus.total != null ? ` — chunk ${summarizeStatus.current}/${summarizeStatus.total}` : ""}</span>
                         ) : mode==="summarize" ? "Summarizing…" : thinkingOn ? "Thinking…" : "Searching & synthesizing…"}
+                        {mode==="summarize" && summarizeStatus && (
+                          <span className="ml-auto text-[11px] font-mono text-[#5f5f5f] shrink-0">{Math.max(0, (statusNow - summarizeStatus.since) / 1000).toFixed(1)}s</span>
+                        )}
                       </div>
-                      <div className="mt-2 h-2 w-24 rounded-full thinking-shimmer" />
+                      {mode==="summarize" && summarizeStatus?.total != null && summarizeStatus.current != null && (
+                        <div className="mt-2 h-1.5 w-full rounded-full bg-[#2f2f2f] overflow-hidden">
+                          <div
+                            className="h-full bg-white rounded-full transition-all duration-300"
+                            style={{ width: `${Math.round((summarizeStatus.current / summarizeStatus.total) * 100)}%` }}
+                          />
+                        </div>
+                      )}
+                      {(!mode || mode!=="summarize") && <div className="mt-2 h-2 w-24 rounded-full thinking-shimmer" />}
                     </div>
                   </div>
                 ) : null}
@@ -953,7 +990,7 @@ export default function ResearchPage(){
               </div>
             )}
             {mode==="summarize" && (
-              <div className="text-xs text-[#8e8e8e] text-center py-2">Select a document above and click Summarize. Single-pass synthesis over the extracted text + verbatim facts.</div>
+              <div className="text-xs text-[#8e8e8e] text-center py-2">Select a document above and click Summarize. Method: <span className="text-white">{settings.summarizeMethod === "map_reduce" ? "map → reduce → synthesis" : "single-pass"}</span> • verbatim facts extracted by regex (change in Settings).</div>
             )}
             {mode==="matrix" && (
               <div className="text-xs text-[#8e8e8e] text-center py-2">Select documents above and click Build matrix. Each row is extracted by your own model; export as CSV / XLSX / Markdown.</div>
