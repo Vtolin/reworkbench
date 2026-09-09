@@ -776,7 +776,7 @@ export default function MakalahPage() {
                 return (
                   <div key={item.key} className="rounded-2xl bg-[#0a0a0a] border border-[#2f2f2f] p-4 space-y-2">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium text-white min-w-0 break-words flex-1 basis-40">{item.sub.number} {item.sub.title}</span>
+                      <span className="text-sm font-medium text-white min-w-0 wrap-break-word flex-1 basis-40">{item.sub.number} {item.sub.title}</span>
                       <span className={`ml-auto text-[11px] px-2 py-0.5 rounded-full border ${st.status === "ok" ? "text-emerald-400 border-emerald-900" : st.status === "error" ? "text-red-400 border-red-900" : st.status === "idle" ? "text-[#5f5f5f] border-[#2f2f2f]" : "text-amber-300 border-amber-800"}`}>
                         {st.status === "retrieving" ? "retrieving…" : st.status === "generating" ? "generating…" : st.status}
                       </span>
