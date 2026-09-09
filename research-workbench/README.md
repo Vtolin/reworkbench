@@ -242,12 +242,12 @@ layer. It does **not** provide the members' local AI compute.
 ```
 research-workbench/
 ├── src/
-│   ├── app/            # /, /search, /research, /projects, /chats, /reader, /upload, /settings, /admin, /login, /register + /api/*
-│   ├── components/     # Sidebar, Topbar, DocDetail, UploadFlow, Markdown, ChatHistoryPanel, …
-│   ├── contexts/       # Session, Inference (local-only), Chat (per-device history)
+│   ├── app/            # /, /search, /research, /makalah, /projects, /chats, /reader, /upload, /settings, /admin, /login, /register + /api/*
+│   ├── components/     # Sidebar, Topbar, DocDetail, UploadFlow, Markdown, ChatHistoryPanel, MakalahHistoryPanel, …
+│   ├── contexts/       # Session, Inference (local-only), Chat + Makalah (per-device history)
 │   └── lib/
 │       ├── api.ts      # facade: original method names → Supabase + browser inference
-│       ├── wb/         # library, search, ask, projects, related, ingest, openalex
+│       ├── wb/         # library, search, ask, makalah, projects, related, ingest, openalex
 │       ├── ai/         # AIProvider, OllamaProvider, CloudProvider, key encryption
 │       ├── rag/        # FTS+pgvector retrieval + RRF fusion
 │       ├── citations/  # citeproc-js engine + serializers

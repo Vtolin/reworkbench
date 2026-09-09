@@ -45,6 +45,7 @@ export default function MakalahHistoryPanel({
                   onClick={(e) => { e.stopPropagation(); deleteDraft(d.id); }}
                   className="opacity-0 group-hover:opacity-100 text-[#5f5f5f] hover:text-red-400 text-xs px-1"
                   title="Delete draft"
+                  aria-label="Delete draft"
                 >
                   ✕
                 </button>

@@ -58,17 +58,20 @@ export function docToCslItem(doc: {
   };
 }
 
-// Minimal plain-text renderer (APA-ish). Full CSL styles remain a Phase 7
-// server enhancement; this keeps chat citations truthful without citeproc.
+// Minimal plain-text renderer (APA-ish). Titles are de-duplicated of trailing
+// periods so "Indonesia." never renders as "Indonesia..". Items with no author
+// lead with the title (standard APA no-author form) instead of a bare "(2021)."
 export function renderCitationPlain(item: CslItem): string {
   const authors = (item.author ?? [])
     .map((a) => (a.given ? `${a.family}, ${a.given}` : a.family))
     .join(", ");
   const year = item.issued?.["date-parts"]?.[0]?.[0] ?? "n.d.";
+  const title = (item.title ?? "").trim().replace(/\.+$/, "") || "Untitled";
   const venue = item.containerTitle ? ` ${item.containerTitle}` : "";
   const vol = item.volume ? ` ${item.volume}` : "";
   const pages = item.page ? `, ${item.page}` : "";
-  return `${authors ? authors + " " : ""}(${year}). ${item.title ?? "Untitled"}.${venue}${vol}${pages}.`.trim();
+  if (!authors) return `${title} (${year}).${venue}${vol}${pages}.`.trim();
+  return `${authors} (${year}). ${title}.${venue}${vol}${pages}.`.trim();
 }
 
 export function formatEvidenceCitation(opts: {

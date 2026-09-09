@@ -9,6 +9,8 @@ import Markdown from "@/components/Markdown";
 import MakalahHistoryPanel from "@/components/MakalahHistoryPanel";
 import {
   validateSectionCitations,
+  stripLeakedCitations,
+  isMalformedReference,
   SECTION_SALVAGE_MARKER,
   type OutlineChapter,
   type OutlineSubsection,
@@ -47,6 +49,18 @@ function parseChapterLine(line: string, idx: number): { number: string; title: s
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** Walk section outputs and gather every cited source id (single helper for
+ *  the memo, refresh, and post-run paths). */
+function citedIdsOf(outputs: Array<SectionOutput | null>): string[] {
+  const ids = new Set<string>();
+  for (const out of outputs) {
+    out?.paragraphs.forEach((p) => p.citations.forEach((c) => {
+      if (c.source_id) ids.add(c.source_id);
+    }));
+  }
+  return [...ids];
 }
 
 export default function MakalahPage() {
@@ -262,7 +276,7 @@ export default function MakalahPage() {
           number: s.number, title: s.title, source_ids: s.likely_sources ?? [],
         })),
       })));
-      setCoverageNotes(res.coverage_notes);
+      setCoverageNotes(stripLeakedCitations(res.coverage_notes));
       setApproved(false);
     } catch (e) {
       setOutlineError(e instanceof Error ? e.message : "Outline generation failed");
@@ -325,8 +339,7 @@ export default function MakalahPage() {
 
   // ---- section loop (deterministic; app code owns control flow) -----------
 
-  const runOne = async (key: string, chTitle: string, sub: OutlineSubsection, chapNum: string): Promise<SectionOutput | null> => {
-    void chapNum;
+  const runOne = async (key: string, chTitle: string, sub: OutlineSubsection): Promise<SectionOutput | null> => {
     const scope = resolvedIds(sub);
     setSec(key, { status: "retrieving", error: null, passages: [], output: null, integrity: null, claims: null });
     try {
@@ -358,16 +371,6 @@ export default function MakalahPage() {
     }
   };
 
-  const collectCitedIds = (outputs: Record<string, SectionOutput | null>): string[] => {
-    const ids = new Set<string>();
-    for (const out of Object.values(outputs)) {
-      out?.paragraphs.forEach((p) => p.citations.forEach((c) => {
-        if (c.source_id) ids.add(c.source_id);
-      }));
-    }
-    return [...ids];
-  };
-
   const runAll = async () => {
     if (running || !flat.length) return;
     setRunning(true);
@@ -377,32 +380,27 @@ export default function MakalahPage() {
     for (const item of flat) {
       if (stopRef.current) { setRunNote("Stopped — generated sections are kept."); break; }
       // eslint-disable-next-line no-await-in-loop
-      outputs[item.key] = await runOne(item.key, item.ch.chapter_title, item.sub, item.ch.chapter_number);
+      outputs[item.key] = await runOne(item.key, item.ch.chapter_title, item.sub);
     }
     setRunning(false);
     try {
-      setReferences(await api.makalahReferences(collectCitedIds(outputs)));
+      setReferences(await api.makalahReferences(citedIdsOf(Object.values(outputs))));
     } catch {}
     setStep(4);
   };
 
   const refreshReferences = async () => {
-    const outputs: Record<string, SectionOutput | null> = {};
-    for (const item of flat) outputs[item.key] = secs[item.key]?.output ?? null;
     try {
-      setReferences(await api.makalahReferences(collectCitedIds(outputs)));
+      setReferences(await api.makalahReferences(
+        citedIdsOf(flat.map((item) => secs[item.key]?.output ?? null)),
+      ));
     } catch {}
   };
 
-  const citedIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const k of Object.keys(secs)) {
-      secs[k]?.output?.paragraphs.forEach((p) => p.citations.forEach((c) => {
-        if (c.source_id) ids.add(c.source_id);
-      }));
-    }
-    return [...ids];
-  }, [secs]);
+  const citedIds = useMemo(
+    () => citedIdsOf(Object.values(secs).map((s) => s.output)),
+    [secs],
+  );
 
   const quality: QualityReport = useMemo(() => {
     let total = 0;
@@ -452,6 +450,7 @@ export default function MakalahPage() {
       unsupported_claims: unsupported,
       missing_references: citedIds.filter((id) => !refIds.has(id)),
       unused_sources: selected.filter((id) => !citedIds.includes(id)),
+      malformed_references: references.filter((r) => isMalformedReference(r.formatted_apa7)).map((r) => r.id),
     };
   }, [flat, secs, references, citedIds, selected]);
 
@@ -601,6 +600,7 @@ export default function MakalahPage() {
               onClick={() => setHistoryOpen(!historyOpen)}
               className={`h-9 w-9 grid place-items-center rounded-xl border text-[#ececec] shrink-0 ${historyOpen ? "bg-white text-black border-white" : "bg-[#212121] border-[#2f2f2f] hover:bg-[#2f2f2f]"}`}
               title="Makalah history"
+              aria-label="Makalah history"
             >☰</button>
             {[1, 2, 3, 4].map((n) => stepPill(n, ["Setup", "Outline", "Drafting", "Result"][n - 1]))}
             <span className="ml-auto text-[11px] text-[#5f5f5f] self-center shrink-0 hidden sm:block">
@@ -718,7 +718,7 @@ export default function MakalahPage() {
                   <div className="flex gap-2">
                     <input value={ch.chapter_number} onChange={(e) => patchChapter(ci, { chapter_number: e.target.value })} className="w-24 rounded-xl bg-[#212121] border border-[#2f2f2f] px-3 py-2 text-sm text-white" />
                     <input value={ch.chapter_title} onChange={(e) => patchChapter(ci, { chapter_title: e.target.value })} className="flex-1 min-w-0 rounded-xl bg-[#212121] border border-[#2f2f2f] px-3 py-2 text-sm text-white" />
-                    <button onClick={() => { setOutline((p) => p.filter((_, i) => i !== ci)); setApproved(false); }} className="text-xs text-red-400 px-2" title="Delete chapter">✕</button>
+                    <button onClick={() => { setOutline((p) => p.filter((_, i) => i !== ci)); setApproved(false); }} className="text-xs text-red-400 px-2" title="Delete chapter" aria-label="Delete chapter">✕</button>
                   </div>
                   {(ch.subsections.length < minSubs || ch.subsections.length > maxSubs) && (
                     <div className="text-[11px] text-amber-300">Constraint: {minSubs}–{maxSubs} subsections per chapter (now {ch.subsections.length}).</div>
@@ -728,9 +728,9 @@ export default function MakalahPage() {
                       <div className="flex gap-2">
                         <input value={sub.number} onChange={(e) => patchSub(ci, si, { number: e.target.value })} className="w-16 rounded-lg bg-[#212121] border border-[#2f2f2f] px-2 py-1.5 text-xs text-white" />
                         <input value={sub.title} onChange={(e) => patchSub(ci, si, { title: e.target.value })} placeholder="Subsection title…" className="flex-1 min-w-0 rounded-lg bg-[#212121] border border-[#2f2f2f] px-2 py-1.5 text-xs text-white" />
-                        <button onClick={() => moveSub(ci, si, -1)} className="text-[#8e8e8e] hover:text-white text-xs px-1">↑</button>
-                        <button onClick={() => moveSub(ci, si, 1)} className="text-[#8e8e8e] hover:text-white text-xs px-1">↓</button>
-                        <button onClick={() => delSub(ci, si)} className="text-red-400 text-xs px-1">✕</button>
+                        <button onClick={() => moveSub(ci, si, -1)} aria-label="Move subsection up" className="text-[#8e8e8e] hover:text-white text-xs px-1">↑</button>
+                        <button onClick={() => moveSub(ci, si, 1)} aria-label="Move subsection down" className="text-[#8e8e8e] hover:text-white text-xs px-1">↓</button>
+                        <button onClick={() => delSub(ci, si)} aria-label="Delete subsection" className="text-red-400 text-xs px-1">✕</button>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         {selected.map((id) => {
@@ -780,7 +780,7 @@ export default function MakalahPage() {
                       <span className={`ml-auto text-[11px] px-2 py-0.5 rounded-full border ${st.status === "ok" ? "text-emerald-400 border-emerald-900" : st.status === "error" ? "text-red-400 border-red-900" : st.status === "idle" ? "text-[#5f5f5f] border-[#2f2f2f]" : "text-amber-300 border-amber-800"}`}>
                         {st.status === "retrieving" ? "retrieving…" : st.status === "generating" ? "generating…" : st.status}
                       </span>
-                      <button onClick={() => runOne(item.key, item.ch.chapter_title, item.sub, item.ch.chapter_number)} disabled={running} className="text-[11px] text-[#8e8e8e] hover:text-white border border-[#2f2f2f] rounded-full px-2.5 py-1 bg-[#171717] disabled:opacity-40">
+                      <button onClick={() => runOne(item.key, item.ch.chapter_title, item.sub)} disabled={running || st.status === "retrieving" || st.status === "generating"} className="text-[11px] text-[#8e8e8e] hover:text-white border border-[#2f2f2f] rounded-full px-2.5 py-1 bg-[#171717] disabled:opacity-40">
                         {st.status === "ok" ? "↻ Regenerate" : "Generate"}
                       </button>
                     </div>
@@ -882,6 +882,9 @@ export default function MakalahPage() {
                 )}
                 {quality.missing_references.length > 0 && (
                   <div className="text-xs text-amber-300">Missing metadata for: {quality.missing_references.join(", ")}</div>
+                )}
+                {quality.malformed_references.length > 0 && (
+                  <div className="text-xs text-amber-300">Malformed bibliography entries (check source metadata): {quality.malformed_references.map(titleOf).join(", ")}</div>
                 )}
                 {quality.unused_sources.length > 0 && (
                   <div className="text-xs text-[#8e8e8e]">Selected but never cited: {quality.unused_sources.map(titleOf).join(", ")}</div>

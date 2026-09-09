@@ -83,6 +83,14 @@ export interface QualityReport {
   unsupported_claims: Array<{ subsection: string; paragraph: number; reason: string }>;
   missing_references: string[];
   unused_sources: string[];
+  /** Cited entries that exist but look broken (no author, double period…). */
+  malformed_references: string[];
+}
+
+/** Cheap broken-entry heuristic: author-less leading "(year)" or ".." doubling. */
+export function isMalformedReference(entry: string): boolean {
+  const t = (entry ?? "").trim();
+  return !t || t.startsWith("(") || t.includes("..");
 }
 
 /** Marker placed in `gaps` when a section fell back to raw unstructured text. */
@@ -419,6 +427,71 @@ export async function retrieveForSection(
 // Section Generator (once per subsection)
 // ---------------------------------------------------------------------------
 
+/**
+ * Short opaque aliases (S1, S2, …) stand in for real document ids inside the
+ * Section Generator prompt. A raw UUID *looks* like a citation key, which
+ * invites the model to paste it into the prose; `S1` doesn't read that way.
+ * Mapping is restored (then validated) on the way back out.
+ */
+function aliasPassages(passages: SectionPassage[]): {
+  aliased: SectionPassage[];
+  toReal: Map<string, string>;
+} {
+  const seen = new Map<string, string>();
+  const toReal = new Map<string, string>();
+  let n = 0;
+  for (const p of passages) {
+    if (!seen.has(p.source_id)) {
+      n += 1;
+      seen.set(p.source_id, `S${n}`);
+      toReal.set(`S${n}`, p.source_id);
+    }
+  }
+  return {
+    aliased: passages.map((p) => ({ ...p, source_id: seen.get(p.source_id)! })),
+    toReal,
+  };
+}
+
+/** Map alias citations back to real ids. Unknown aliases survive untouched so
+ *  the citation validator flags them as hallucinated. */
+function resolveAliases(output: SectionOutput, toReal: Map<string, string>): SectionOutput {
+  return {
+    ...output,
+    paragraphs: output.paragraphs.map((p) => ({
+      ...p,
+      citations: p.citations.map((c) => ({
+        ...c,
+        source_id: toReal.get(c.source_id) ?? c.source_id,
+      })),
+    })),
+  };
+}
+
+const UUID_SRC = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+const UUID_PAREN_RE = new RegExp(`\\(\\s*(?:${UUID_SRC})\\s*(?:,\\s*p\\.?\\s*\\d+)?\\s*\\)`, "gi");
+const UUID_RE = new RegExp(`\\b(?:${UUID_SRC})\\b`, "gi");
+const ALIAS_LEAK_RE = /\[\s*S\d+\s*\]|\(\s*S\d+\s*(?:,\s*p\.?\s*\d+)?\s*\)/g;
+// (Smith, 2020) / (Faridah et al., 2021) / (Smith & Jones, 2020) shapes only:
+// the comma (or et-al/&-form) requirement keeps legit refs like (UUD 1945) safe.
+const AUTHORYEAR_LEAK_RE = /\(\s*[A-Z][\w\-]+(?:\s+et\.?\s*al\.?)?\s*,\s*\d{4}[a-z]?\s*\)|\(\s*[A-Z][\w\-]+\s+(?:&\s*[A-Z][\w\-]+|and\s+[A-Z][\w\-]+|et\.?\s*al\.?)\s*,?\s*\d{4}[a-z]?\s*\)/g;
+
+/**
+ * Belt-and-suspenders: strip citation-shaped leakage the model baked into
+ * prose (raw UUIDs, alias echoes like `(S1, p. 3)`, author-year echoes like
+ * `(Faridah et al., 2021)`). Attribution lives in `citations`, never in text.
+ */
+export function stripLeakedCitations(text: string): string {
+  return text
+    .replace(UUID_PAREN_RE, "")
+    .replace(UUID_RE, "")
+    .replace(ALIAS_LEAK_RE, "")
+    .replace(AUTHORYEAR_LEAK_RE, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\s+([.,;:])/g, "$1")
+    .trim();
+}
+
 export function buildSectionUserPrompt(input: {
   topic: string;
   chapter_title: string;
@@ -441,13 +514,19 @@ export function buildSectionUserPrompt(input: {
     `Do not introduce facts, statistics, or claims not present in these passages. ` +
     `If the passages are insufficient to write a complete section, write what is ` +
     `supported and note the gap — do not fill it with unsupported material.\n\n` +
+    `Passages are labeled with short aliases (S1, S2, …). In the "citations" array, ` +
+    `refer to passages ONLY by alias.\n\n` +
     `Passages:\n${passages}\n\n` +
+    `Attribution rule (strict): NEVER write a source alias, source id, author name, ` +
+    `year, or bracketed reference inside "text" — attribution belongs ONLY in the ` +
+    `"citations" array. Bad: "…populasi termiskin (S1, p. 224)." ` +
+    `Good: "…populasi termiskin."\n\n` +
     `Citation style: ${input.citation_style}. Every factual claim must carry an inline ` +
-    `citation pointing to one of the passages above by source_id. If a paragraph has no ` +
+    `citation pointing to one of the passages above by alias. If a paragraph has no ` +
     `supporting passage, emit it with an empty citations array rather than citing an ` +
     `unrelated source.\n\n` +
     `Return JSON only:\n` +
-    `{"paragraphs": [{"text": "...", "citations": [{"source_id": "paper_04", "page": 7}]}], ` +
+    `{"paragraphs": [{"text": "...", "citations": [{"source_id": "S1", "page": 7}]}], ` +
     `"gaps": "note any part of the topic the given passages don't cover, or empty string"}`
   );
 }
@@ -489,19 +568,26 @@ export async function generateSection(
   sel: InferenceSelection,
 ): Promise<SectionOutput> {
   const { provider, model } = pickMakalahStage(sel, sel.makalahSectionStage);
+  const { aliased, toReal } = aliasPassages(input.passages);
+  const clean = (o: SectionOutput): SectionOutput => ({
+    ...o,
+    paragraphs: o.paragraphs.map((p) => ({ ...p, text: stripLeakedCitations(p.text) })),
+  });
   try {
-    return await chatJson(
-      provider, model, MAKALAH_SHARED_SYSTEM, buildSectionUserPrompt(input),
+    const out = await chatJson(
+      provider, model, MAKALAH_SHARED_SYSTEM,
+      buildSectionUserPrompt({ ...input, passages: aliased }),
       sel.numCtx, makalahBudget(sel), parseSectionJson, "Section generation",
       sel.makalahThinking ?? false,
     );
+    return clean(resolveAliases(out, toReal));
   } catch (e) {
     // Salvage ONLY malformed-model-output failures (chatJson tags those with a
     // string `.raw`). Network / provider / auth errors must stay hard errors —
     // silently converting "Ollama offline" into a fake section would be a lie.
     const raw = (e as { raw?: unknown }).raw;
     if (typeof raw !== "string") throw e;
-    const text = stripFences(raw).trim() || "(model returned empty output)";
+    const text = stripLeakedCitations(stripFences(raw).trim()) || "(model returned empty output)";
     return {
       paragraphs: [{ text, citations: [] }],
       gaps:
