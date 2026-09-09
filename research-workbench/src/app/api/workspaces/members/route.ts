@@ -35,6 +35,16 @@ export async function POST(req: Request) {
   if (!body.userId) {
     return NextResponse.json({ error: "userId is required" }, { status: 400 });
   }
+  // Security: verify the caller is actually the user they claim to be.
+  // Without this check, anyone with a known userId UUID could self-join.
+  const callerSupabase = await createServerSupabase();
+  const { data: callerData } = await callerSupabase.auth.getUser();
+  if (!callerData.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (callerData.user.id !== body.userId) {
+    return NextResponse.json({ error: "Forbidden: userId does not match authenticated user" }, { status: 403 });
+  }
   const service = createServiceSupabase();
   let workspaceId = body.workspaceId;
   if (!workspaceId) {

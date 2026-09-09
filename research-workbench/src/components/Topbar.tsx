@@ -10,7 +10,7 @@ export default function Topbar({ title, subtitle, actions }: { title: string; su
       <div className="px-4 lg:px-6 py-4 flex items-center gap-4">
         <div className="flex-1 min-w-0">
           <h1 className="text-lg lg:text-xl font-semibold tracking-tight text-white">{title}</h1>
-          {subtitle && <p className="text-sm text-[#8e8e8e] truncate hidden sm:block">{subtitle}</p>}
+          {subtitle && <p className="text-sm text-[#8e8e8e] truncate">{subtitle}</p>}
         </div>
         <div className="flex items-center gap-2 lg:gap-3 shrink-0">
           {health && (

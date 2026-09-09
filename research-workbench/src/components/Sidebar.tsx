@@ -11,6 +11,7 @@ const NAV = [
   { href: "/", label: "Library", icon: "◧", desc: "All papers" },
   { href: "/search", label: "Search", icon: "⌕", desc: "Hybrid retrieval" },
   { href: "/research", label: "Research", icon: "✦", desc: "Ask & compare" },
+  { href: "/makalah", label: "Makalah", icon: "✎", desc: "Draft papers" },
   { href: "/projects", label: "Projects", icon: "⬢", desc: "Workspaces" },
   { href: "/chats", label: "Chats", icon: "◭", desc: "Published results" },
   { href: "/upload", label: "Upload", icon: "↑", desc: "Ingest" },
@@ -169,9 +170,9 @@ export default function Sidebar() {
               <div className="flex flex-wrap gap-1.5 px-2">
                 {tags.length===0 && <span className="text-xs text-[#5f5f5f] italic">No tags</span>}
                 {tags.map(t=>(
-                  <span key={t.id} className="inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs bg-[#171717]" style={{borderColor: "#2f2f2f", color: "#ececec"}}>
+                  <Link key={t.id} href={`/?tag=${t.id}`} onClick={()=>setOpen(false)} className="inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs bg-[#171717] hover:bg-[#212121] hover:border-[#404040] transition-colors" style={{borderColor: "#2f2f2f", color: "#ececec"}}>
                     #{t.name} <span className="bg-[#212121] text-[#8e8e8e] rounded-full px-1">{t.document_count}</span>
-                  </span>
+                  </Link>
                 ))}
               </div>
             </div>

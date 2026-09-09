@@ -397,8 +397,12 @@ export default function ResearchPage(){
   const downloadBlob = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = filename; a.click();
-    URL.revokeObjectURL(url);
+    a.href = url; a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    // Defer revoke so browser has time to initiate the download
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   // Export buttons double as arm-toggles: pressing one arms that format
@@ -435,9 +439,10 @@ export default function ResearchPage(){
 
   const doSummarize = async()=>{
     if(!summarizeDoc || summarizeLoading) return;
-    const doc = docs.find(d=>d.id===summarizeDoc);
+    const docId = summarizeDoc; // capture now; state may change mid-summary
+    const doc = docs.find(d=>d.id===docId);
     const armed = armedExport;
-    const userMsg: ChatMessage = { id: Date.now().toString(), role:"user", content: `Summarize: ${doc?.original_filename || summarizeDoc}`, timestamp: Date.now(), type:"summarize" };
+    const userMsg: ChatMessage = { id: Date.now().toString(), role:"user", content: `Summarize: ${doc?.original_filename || docId}`, timestamp: Date.now(), type:"summarize" };
     addMessage(userMsg);
     setAutoFollow(true);
     setSummarizeLoading(true);
@@ -450,7 +455,7 @@ export default function ResearchPage(){
       const dtype = r.stats?.doc_type ? ` • ${r.stats.doc_type}` : "";
       const text = r.summary + (r.stats ? `\n\n— _${r.stats.method} • ${r.stats.page_count} pages • ${r.stats.chunk_count} chunks${dtype}${models}_` : "");
       addMessage({ id: "msg_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8), role:"assistant", content: text, timestamp: Date.now(), type:"summarize", meta: r.stats });
-      setLastSummaryDoc(summarizeDoc);
+      setLastSummaryDoc(docId); // use captured id, not live state
       // armed export: fire the same export the manual button would, from
       // this same summary (no second model run).
       if (armed) doManualExport(armed);

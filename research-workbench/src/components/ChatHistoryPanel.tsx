@@ -126,7 +126,7 @@ export default function ChatHistoryPanel({ onNavigate }: { onNavigate?: () => vo
                     )
                   )}
                   <button
-                    onClick={(e) => { e.stopPropagation(); deleteConversation(c.id); }}
+                    onClick={(e) => { e.stopPropagation(); if (confirm(`Delete "${c.title || "New chat"}"? This cannot be undone.`)) deleteConversation(c.id); }}
                     className="opacity-0 group-hover:opacity-100 text-[#5f5f5f] hover:text-red-400 text-xs px-1"
                     title="Delete chat"
                   >✕</button>

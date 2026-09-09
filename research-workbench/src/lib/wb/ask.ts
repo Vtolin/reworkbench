@@ -31,6 +31,13 @@ export interface InferenceSelection {
   mapStage?: StageSelection;
   reduceStage?: StageSelection;
   synthesisStage?: StageSelection;
+  /** Makalah pipeline overrides: outline (cheap) vs section drafting (heavy). */
+  makalahOutlineStage?: StageSelection;
+  makalahSectionStage?: StageSelection;
+  /** Makalah chain-of-thought toggle (default off = deterministic JSON). */
+  makalahThinking?: boolean;
+  /** Makalah per-call output cap (num_predict). */
+  makalahNumPredict?: number;
 }
 
 export interface Source {

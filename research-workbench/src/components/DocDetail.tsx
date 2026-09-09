@@ -88,16 +88,16 @@ export default function DocDetail({ id, onClose, onUpdated }: { id: string | nul
         <button onClick={onClose} className="h-8 w-8 grid place-items-center rounded-full bg-[#212121] hover:bg-[#2f2f2f] border border-[#2f2f2f] text-white shrink-0">✕</button>
       </div>
 
-      <div className="flex gap-1 p-2 border-b border-[#2f2f2f] bg-[#000]">
+      <div className="flex gap-0.5 p-1.5 border-b border-[#2f2f2f] bg-[#000]">
         {[
-          ["meta","Metadata"],
+          ["meta","Meta"],
           ["ask","Ask"],
           ["cite","Cite"],
           ["related","Related"],
           ["refs","Refs"],
           ["notes","Notes"],
         ].map(([k,label])=>(
-          <button key={k} onClick={()=>{ setTab(k as any); if(k==="cite" && !citations) loadCitations(); if(k==="related" && !related) api.related(id).then(setRelated).catch(()=>{}); if(k==="refs" && !references) api.references(id, true).then(setReferences).catch(()=>{}); }} className={`flex-1 rounded-lg px-3 py-1.5 text-sm ${tab===k? "bg-white text-black shadow-sm font-medium":"text-[#8e8e8e] hover:text-white hover:bg-[#171717]"}`}>{label}</button>
+          <button key={k} onClick={()=>{ setTab(k as any); if(k==="cite" && !citations) loadCitations(); if(k==="related" && !related) api.related(id).then(setRelated).catch(()=>{}); if(k==="refs" && !references) api.references(id, true).then(setReferences).catch(()=>{}); }} className={`flex-1 min-w-0 shrink rounded-md px-1 py-1.5 text-xs font-medium truncate ${tab===k? "bg-white text-black shadow-sm":"text-[#8e8e8e] hover:text-white hover:bg-[#171717]"}`}>{label}</button>
         ))}
       </div>
 
@@ -298,7 +298,7 @@ function AnnotationsPanel({ docId }: { docId:string }) {
     <div className="space-y-3">
       <div className="rounded-xl border border-[#2f2f2f] bg-[#171717] p-3 space-y-2">
         <input value={text} onChange={e=>setText(e.target.value)} placeholder="Selected text…" className="w-full rounded-lg border border-[#2f2f2f] bg-black px-3 py-2 text-sm text-white placeholder:text-[#5f5f5f]" />
-        <input value={note} onChange={e=>setNote(e.target.value)} placeholder="Note (optional)…" className="w-full rounded-lg border border-[#2f2f2f] bg-black px-3 py-2 text-sm text-white placeholder:text-[#5f5f5f]" />
+        <input value={note} onChange={e=>setNote(e.target.value)} onKeyDown={e=>e.key==="Enter" && add()} placeholder="Note (optional)…" className="w-full rounded-lg border border-[#2f2f2f] bg-black px-3 py-2 text-sm text-white placeholder:text-[#5f5f5f]" />
         <button onClick={add} className="rounded-xl bg-white text-black px-4 py-2 text-sm font-medium">Add highlight</button>
       </div>
       <div className="space-y-2">

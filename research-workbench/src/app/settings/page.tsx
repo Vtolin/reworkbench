@@ -292,6 +292,78 @@ export default function SettingsPage(){
         </div>
 
         <div className="rounded-2xl border border-[#2f2f2f] bg-[#0a0a0a] p-4 lg:p-5">
+          <div className="text-sm font-semibold text-white">Makalah pipeline</div>
+          <div className="text-xs text-[#8e8e8e] mt-1">
+            Outline is cheap structure-only work (a small/fast model is fine).
+            Section drafting writes the actual prose with citations — use your strongest model here.
+            Both inherit the chat model above unless overridden. Changes apply on the next run.
+          </div>
+          <div className="mt-4 border-t border-[#2f2f2f] pt-3 grid gap-3 grid-cols-1 md:grid-cols-2">
+            <div className="text-xs text-[#8e8e8e]">Thinking (chain-of-thought)
+              <div className="mt-1">
+                <button
+                  onClick={() => setInf({ makalahThinking: !inf.makalahThinking })}
+                  className={`rounded-full px-4 py-1.5 text-xs font-medium border transition ${inf.makalahThinking ? "bg-emerald-500/15 border-emerald-600 text-emerald-300" : "bg-[#212121] border-[#2f2f2f] text-[#8e8e8e] hover:text-white"}`}
+                  title="Off (default): deterministic JSON. On: model reasons step-by-step first — costs output tokens."
+                >
+                  {inf.makalahThinking ? "● On" : "○ Off"}
+                </button>
+              </div>
+              <div className="mt-1 text-[11px] text-[#5f5f5f]">Off = deterministic JSON (recommended). Note: native reasoning models can still think on their own — if outline/section calls fail with “only reasoning”, use a non-reasoning model for that stage.</div>
+            </div>
+            <label className="text-xs text-[#8e8e8e]">Max output tokens / call (num_predict)
+              <input
+                type="number" min={256} max={16384} step={256}
+                value={inf.makalahNumPredict ?? 3072}
+                onChange={(e) => setInf({ makalahNumPredict: Number(e.target.value) || 3072 })}
+                className="mt-1 w-full rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2 text-sm text-white"
+              />
+              <span className="text-[11px] text-[#5f5f5f]">Caps outline + section answers. Raise if long sections truncate; lower to save VRAM/time.</span>
+            </label>
+          </div>
+          {[["makalahOutlineStage","Outline — structure proposal (LLM call #1)"],["makalahSectionStage","Sections — drafting + claim check (LLM call #2)"]].map(([key,label])=>{
+            const st = (inf as any)[key] ?? { provider: "inherit", model: "", cloudProvider: inf.cloudProvider, cloudModel: "" };
+            const set = (patch: Record<string, string>) => setInf({ [key]: { ...st, ...patch } } as any);
+            return (
+              <div key={key} className="mt-4 border-t border-[#2f2f2f] pt-3">
+                <div className="text-xs font-medium text-[#ececec]">{label}
+                  <span className="ml-2 text-[11px] text-[#5f5f5f] font-normal">
+                    {st.provider === "inherit" ? "using chat model" : st.provider === "ollama" ? `ollama:${st.model || inf.model}` : `${st.cloudProvider}:${st.cloudModel || inf.cloudModel}`}
+                  </span>
+                </div>
+                <div className="grid gap-3 mt-2 grid-cols-1 md:grid-cols-3">
+                  <label className="text-xs text-[#8e8e8e]">Provider
+                    <select value={st.provider} onChange={e=>set({ provider: e.target.value })} className="mt-1 w-full rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2 text-sm text-white">
+                      <option value="inherit">Inherit chat model</option>
+                      <option value="ollama">Ollama</option>
+                      <option value="cloud">Cloud</option>
+                    </select>
+                  </label>
+                  {st.provider === "ollama" && (
+                    <label className="text-xs text-[#8e8e8e]">Ollama model
+                      <input value={st.model} onChange={e=>set({ model: e.target.value })} list="ollama-models" placeholder={inf.model} className="mt-1 w-full rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2 text-sm text-white" />
+                    </label>
+                  )}
+                  {st.provider === "cloud" && (<>
+                    <label className="text-xs text-[#8e8e8e]">Cloud provider
+                      <select value={st.cloudProvider} onChange={e=>set({ cloudProvider: e.target.value })} className="mt-1 w-full rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2 text-sm text-white">
+                        <option value="openai">OpenAI</option>
+                        <option value="deepseek">DeepSeek</option>
+                        <option value="google">Google</option>
+                        <option value="anthropic">Anthropic</option>
+                      </select>
+                    </label>
+                    <label className="text-xs text-[#8e8e8e]">Cloud model
+                      <input value={st.cloudModel} onChange={e=>set({ cloudModel: e.target.value })} list="cloud-models" placeholder={inf.cloudModel} className="mt-1 w-full rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2 text-sm text-white" />
+                    </label>
+                  </>)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="rounded-2xl border border-[#2f2f2f] bg-[#0a0a0a] p-4 lg:p-5">
           <div className="text-sm font-semibold text-white">Citation — CSL styles</div>
           <div className="text-xs text-[#8e8e8e] mt-1">
             All citations render through one shared CSL engine (citeproc-js, same vendored styles) — the app supports the CSL ecosystem, not a hardcoded style list.

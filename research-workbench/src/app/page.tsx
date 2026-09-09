@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState, Suspense } from "react";
+import { useCallback, useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import Topbar from "@/components/Topbar";
@@ -22,7 +22,7 @@ function LibraryInner() {
   const activeCollection = searchParams.get("collection");
   const activeTag = searchParams.get("tag");
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const params: any = {};
     if (q) params.q = q;
     if (activeCollection) params.collection_id = activeCollection;
@@ -33,14 +33,16 @@ function LibraryInner() {
       const r = await api.listDocuments(params);
       setDocs(r.documents); setTotal(r.total);
     } catch { /* signed out or no workspace yet */ }
-  };
-  const loadMeta = async()=>{
+  }, [q, activeCollection, activeTag, yearFilter, typeFilter]);
+
+  const loadMeta = useCallback(async()=>{
     try{ setCollections(await api.collections()); }catch{}
     try{ setTags(await api.tags()); }catch{}
-  };
-  useEffect(()=>{ load(); },[q, activeCollection, activeTag, yearFilter, typeFilter]);
-  useEffect(()=>{ loadMeta(); },[]);
-  useEffect(()=>{ const id=setInterval(loadMeta, 3000); return ()=>clearInterval(id); },[]);
+  }, []);
+
+  useEffect(()=>{ load(); },[load]);
+  useEffect(()=>{ loadMeta(); },[loadMeta]);
+  useEffect(()=>{ const id=setInterval(loadMeta, 3000); return ()=>clearInterval(id); },[loadMeta]);
 
   const filteredInfo = useMemo(()=>{
     const parts=[];
@@ -220,9 +222,9 @@ function LibraryInner() {
       </div>
 
       {selected && (
-        <div className="fixed inset-0 z-50 lg:static lg:inset-auto flex">
+        <div className="fixed inset-x-0 bottom-0 top-[56px] z-50 flex lg:static lg:inset-auto">
           <button className="hidden lg:block flex-1 bg-black/60 backdrop-blur-sm" onClick={()=>setSelected(null)} aria-label="close" />
-          <div className="ml-auto w-full sm:w-120 lg:w-120 h-full">
+          <div className="w-full sm:w-120 lg:w-120 h-full">
             <DocDetail id={selected} onClose={()=>setSelected(null)} onUpdated={load} />
           </div>
         </div>

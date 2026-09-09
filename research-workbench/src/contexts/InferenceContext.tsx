@@ -24,6 +24,13 @@ export interface InferenceSettings {
   mapStage: StageModel;
   reduceStage: StageModel;
   synthesisStage: StageModel;
+  /** Makalah pipeline overrides (inherit = use main chat provider+model). */
+  makalahOutlineStage: StageModel;
+  makalahSectionStage: StageModel;
+  /** Makalah chain-of-thought. Off (default) = deterministic JSON output. */
+  makalahThinking: boolean;
+  /** Makalah per-call output cap (num_predict). */
+  makalahNumPredict: number;
 }
 
 export type StageProvider = "inherit" | "ollama" | "cloud";
@@ -56,6 +63,10 @@ const DEFAULTS: InferenceSettings = {
   mapStage: { ...INHERIT_STAGE },
   reduceStage: { ...INHERIT_STAGE },
   synthesisStage: { ...INHERIT_STAGE },
+  makalahOutlineStage: { ...INHERIT_STAGE },
+  makalahSectionStage: { ...INHERIT_STAGE },
+  makalahThinking: false,
+  makalahNumPredict: 3072,
 };
 
 const STORAGE_KEY = "rw.inference_settings.v1";

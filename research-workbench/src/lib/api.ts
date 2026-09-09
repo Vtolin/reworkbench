@@ -17,6 +17,12 @@ import {
   type InferenceSelection, type StreamHandlers,
 } from "./wb/ask";
 import {
+  generateOutline as wbMakalahOutline, generateSection as wbMakalahSection,
+  retrieveForSection as wbMakalahRetrieve, getSourceSummaries as wbMakalahSources,
+  buildReferences as wbMakalahReferences, claimSupportCheck as wbMakalahClaimCheck,
+  type TemplateConstraints, type SourceSummary, type SectionPassage,
+} from "./wb/makalah";
+import {
   listProjects, createProject as wbCreateProject, getProject as wbGetProject,
   deleteProject as wbDeleteProject, addEvidence, projectClaims as wbProjectClaims,
   createClaim as wbCreateClaim, deleteClaim as wbDeleteClaim,
@@ -56,6 +62,10 @@ export interface InferenceSnapshot {
   mapStage: StageSnapshot;
   reduceStage: StageSnapshot;
   synthesisStage: StageSnapshot;
+  makalahOutlineStage: StageSnapshot;
+  makalahSectionStage: StageSnapshot;
+  makalahThinking: boolean;
+  makalahNumPredict: number;
 }
 
 const INHERIT_STAGE_SNAP: StageSnapshot = { provider: "inherit", model: "", cloudProvider: "openai", cloudModel: "" };
@@ -72,6 +82,10 @@ const INFERENCE_DEFAULTS: InferenceSnapshot = {
   mapStage: { ...INHERIT_STAGE_SNAP },
   reduceStage: { ...INHERIT_STAGE_SNAP },
   synthesisStage: { ...INHERIT_STAGE_SNAP },
+  makalahOutlineStage: { ...INHERIT_STAGE_SNAP },
+  makalahSectionStage: { ...INHERIT_STAGE_SNAP },
+  makalahThinking: false,
+  makalahNumPredict: 3072,
 };
 
 export function readInference(): InferenceSnapshot {
@@ -101,6 +115,10 @@ function toSel(extra?: Partial<InferenceSelection>): InferenceSelection {
     mapStage: s.mapStage ?? { provider: "inherit", model: "", cloudProvider: s.cloudProvider, cloudModel: "" },
     reduceStage: s.reduceStage ?? { provider: "inherit", model: "", cloudProvider: s.cloudProvider, cloudModel: "" },
     synthesisStage: s.synthesisStage ?? { provider: "inherit", model: "", cloudProvider: s.cloudProvider, cloudModel: "" },
+    makalahOutlineStage: (s as Partial<InferenceSnapshot>).makalahOutlineStage ?? { provider: "inherit", model: "", cloudProvider: s.cloudProvider, cloudModel: "" },
+    makalahSectionStage: (s as Partial<InferenceSnapshot>).makalahSectionStage ?? { provider: "inherit", model: "", cloudProvider: s.cloudProvider, cloudModel: "" },
+    makalahThinking: (s as Partial<InferenceSnapshot>).makalahThinking ?? false,
+    makalahNumPredict: (s as Partial<InferenceSnapshot>).makalahNumPredict ?? 3072,
     ...extra,
   };
 }
@@ -270,6 +288,22 @@ export const api = {
     return [cols.join(","), ...rows.map((r) => cols.map((c) => esc(r[c])).join(","))].join("\n");
   },
   synthesis: (document_ids: string[], question: string, handlers?: { onStatus?: (stage: string, detail?: string, current?: number, total?: number) => void }) => wbSynthesis(document_ids, question, toSel(), handlers ? { onStatus: handlers.onStatus } : undefined),
+  // Makalah pipeline (deterministic; LLM as pure function, see lib/wb/makalah) --
+  makalahSources: (document_ids: string[]) => wbMakalahSources(document_ids),
+  makalahOutline: (body: { topic: string; language: string; academic_level: string; source_summaries: SourceSummary[]; template_constraints: TemplateConstraints }) =>
+    wbMakalahOutline(body, toSel()),
+  makalahRetrieve: (
+    query: string,
+    scopeIds: string[] | undefined,
+    handlers?: { onStatus?: (stage: string, detail?: string) => void },
+    topK = 8,
+    keepTop = 4,
+  ): Promise<SectionPassage[]> => wbMakalahRetrieve(query, scopeIds, toSel(), topK, keepTop, handlers?.onStatus),
+  makalahSection: (body: { topic: string; chapter_title: string; subsection_number: string; subsection_title: string; language: string; citation_style: string; passages: SectionPassage[]; target_length_words: number }) =>
+    wbMakalahSection(body, toSel()),
+  makalahReferences: (document_ids: string[]) => wbMakalahReferences(document_ids),
+  makalahClaimCheck: (paragraphText: string, citedPassages: SectionPassage[]) =>
+    wbMakalahClaimCheck(paragraphText, citedPassages, toSel()),
   extract: async (document_id: string, schema: string) => {
     const doc = await getDocument(document_id);
     return structuredExtract(doc, schema, toSel());

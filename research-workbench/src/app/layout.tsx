@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ChatProvider } from "@/contexts/ChatContext";
+import { MakalahProvider } from "@/contexts/MakalahContext";
 import { SessionProvider } from "@/contexts/SessionContext";
 import { InferenceProvider } from "@/contexts/InferenceContext";
 import AppShell from "@/components/AppShell";
@@ -17,11 +18,13 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`} style={{ colorScheme: "dark" }}>
-      <body className="min-h-screen flex bg-black text-[#ececec] overflow-hidden">
+      <body className="min-h-screen flex bg-black text-[#ececec]">
         <SessionProvider>
           <InferenceProvider>
             <ChatProvider>
-              <AppShell>{children}</AppShell>
+              <MakalahProvider>
+                <AppShell>{children}</AppShell>
+              </MakalahProvider>
             </ChatProvider>
           </InferenceProvider>
         </SessionProvider>

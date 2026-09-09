@@ -26,34 +26,44 @@ export class OllamaProvider implements AIProvider {
     try {
       return await this.doChat(messages, options, thinking);
     } catch (e) {
-      // Non-thinking models (e.g. qwen2.5:1.5b) reject think=true with 400.
-      // Retry once without thinking so the ask still succeeds, and say so in
-      // the thinking box instead of failing the whole request.
-      if (thinking && e instanceof Error && /failed: 400/.test(e.message)) {
-        const fallback = await this.doChat(messages, options, false);
-        return {
-          ...fallback,
-          thinking: `Thinking mode is not supported by ${options.model} — answered directly. Use a reasoning model (e.g. deepseek-r1) or turn off the Thinking toggle.`,
-        };
+      if (e instanceof Error && /failed: 400/.test(e.message)) {
+        // Old Ollama builds reject the `think` field entirely — retry with it
+        // omitted (the pre-explicit-flag behavior).
+        if (thinking) {
+          // Non-thinking models (e.g. qwen2.5:1.5b) reject think=true with 400.
+          // Retry once without thinking so the ask still succeeds, and say so in
+          // the thinking box instead of failing the whole request.
+          const fallback = await this.doChat(messages, options, undefined);
+          return {
+            ...fallback,
+            thinking: `Thinking mode is not supported by ${options.model} — answered directly. Use a reasoning model (e.g. deepseek-r1) or turn off the Thinking toggle.`,
+          };
+        }
+        return await this.doChat(messages, options, undefined);
       }
       throw e;
     }
   }
 
-  private async doChat(messages: ChatMessage[], options: ChatOptions, thinking: boolean): Promise<ChatResult> {
+  private async doChat(messages: ChatMessage[], options: ChatOptions, thinking: boolean | undefined): Promise<ChatResult> {
+    // `undefined` = omit the field (legacy fallback only). Otherwise always
+    // explicit: reasoning models (qwen3, deepseek-r1, …) think NATIVELY when
+    // the field is omitted and can burn the whole num_predict budget on
+    // thinking, returning empty content (verified live on qwen3.5:4b —
+    // omitted: 1024 thinking tokens + 0 answer bytes; think:false: clean
+    // answer in 1.6s). Structured calls (Makalah JSON) depend on this.
+    const wantThinking = thinking === true;
     const res = await fetch(`${this.baseUrl}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       signal: options.signal,
       body: JSON.stringify({
         model: options.model,
-        messages: thinking
+        messages: wantThinking
           ? [{ role: "system", content: "Think step-by-step inside <think> tags, then answer." }, ...messages]
           : messages,
         stream: !options.onToken ? false : true,
-        // Omit `think` entirely unless requested: some models/versions
-        // reject the field even when false.
-        ...(thinking ? { think: true } : {}),
+        ...(thinking === undefined ? {} : { think: thinking }),
         options: {
           temperature: options.temperature ?? 0.0,
           ...(options.numCtx ? { num_ctx: options.numCtx } : {}),
@@ -84,7 +94,7 @@ export class OllamaProvider implements AIProvider {
             // Gate on the toggle: reasoning models can emit thinking deltas
             // even when think=false was sent. Forwarding them would open the
             // Thinking box despite the toggle being off.
-            if (thinkDelta && thinking) {
+            if (thinkDelta && wantThinking) {
               thinkingText += thinkDelta;
               options.onThinking?.(thinkDelta);
             }
@@ -100,13 +110,13 @@ export class OllamaProvider implements AIProvider {
       // Splitting <think> tags is gated on the toggle: with thinking off the
       // model may still emit tags spontaneously (reasoning-distilled models
       // do) — strip them silently instead of opening a Thinking box.
-      if (thinking && !thinkingText) {
+      if (wantThinking && !thinkingText) {
         const m = full.match(/<think>([\s\S]*?)<\/think>/i);
         if (m) {
           thinkingText = m[1].trim();
           full = full.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
         }
-      } else if (!thinking) {
+      } else if (!wantThinking) {
         full = full.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
       }
       return { content: full, thinking: thinkingText || undefined, provider: "ollama", model: options.model };
@@ -115,13 +125,13 @@ export class OllamaProvider implements AIProvider {
     let content: string = data?.message?.content ?? "";
     let thinkingText: string | undefined =
       typeof data?.message?.thinking === "string" ? data.message.thinking : undefined;
-    if (thinking && !thinkingText) {
+    if (wantThinking && !thinkingText) {
       const m = content.match(/<think>([\s\S]*?)<\/think>/i);
       if (m) {
         thinkingText = m[1].trim();
         content = content.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
       }
-    } else if (!thinking) {
+    } else if (!wantThinking) {
       content = content.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
     }
     return { content, thinking: thinkingText, provider: "ollama", model: options.model };
