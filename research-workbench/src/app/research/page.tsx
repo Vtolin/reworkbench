@@ -67,6 +67,7 @@ export default function ResearchPage(){
   const [autoFollow, setAutoFollow] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // streaming state for real-time generation
   const [streaming, setStreaming] = useState<{ answer: string; thinking: string | null; raw: string; sources: any[] | null; retrieved: unknown } | null>(null);
@@ -339,6 +340,40 @@ export default function ResearchPage(){
     );
   };
 
+  const copyToClipboard = async (id: string, text: string) => {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      setCopiedId(id);
+      setTimeout(() => setCopiedId((curr) => (curr === id ? null : curr)), 2000);
+    } catch {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        setCopiedId(id);
+        setTimeout(() => setCopiedId((curr) => (curr === id ? null : curr)), 2000);
+      } catch {}
+    }
+  };
+
   const doCompare = async()=>{
     if(compareIds.length<2 || !compareQ.trim() || compareLoading) return;
     const userMsg: ChatMessage = { id: Date.now().toString(), role:"user", content: `[Compare: ${compareIds.map(id=>docs.find(d=>d.id===id)?.original_filename).join(", ")}] ${compareQ}`, timestamp: Date.now(), type:"compare" };
@@ -527,7 +562,7 @@ export default function ResearchPage(){
   const statusElapsed = streamStatus ? Math.max(0, (statusNow - streamStatus.since) / 1000) : 0;
 
   return (
-    <div className="flex h-[calc(100dvh-56px)] lg:h-screen bg-black text-[#ececec] overflow-hidden relative">
+    <div className="mt-[56px] lg:mt-0 flex h-[calc(100dvh-56px)] lg:h-screen bg-black text-[#ececec] overflow-hidden relative">
       {/* history drawer - always overlays (never pushes) so it can't collide/collapse the chat. Left sidebar is separately collapsible for width. */}
       {historyOpen && (
         <div className="absolute inset-0 z-20 flex">
@@ -549,7 +584,7 @@ export default function ResearchPage(){
                 title="Chat history"
               >☰</button>
 
-              <div className="flex gap-1 p-1 bg-[#212121] rounded-xl border border-[#2f2f2f] overflow-x-auto no-scrollbar max-w-full">
+              <div className="min-w-0 flex-1 flex gap-1 p-1 bg-[#212121] rounded-xl border border-[#2f2f2f] overflow-x-auto no-scrollbar max-w-full">
                 {(["ask","compare","summarize","matrix","synthesis"] as Mode[]).map(m=>(
                   <button key={m} onClick={()=>setMode(m)} className={`px-2.5 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium capitalize transition shrink-0 whitespace-nowrap ${mode===m ? "bg-white text-black" : "text-[#8e8e8e] hover:text-white"}`}>
                     {m}
@@ -807,10 +842,12 @@ export default function ResearchPage(){
                           {m.hybridMode ? ` • hybrid ${m.hybridMode}` : ""}
                           {m.stopped ? " • stopped" : ""}
                         </div>
-                        {m.role==="assistant" && m.type==="ask" && !m.stopped && (
+                        {m.role==="assistant" && !m.stopped && (
                           <>
-                            <button onClick={()=>regenerate(m.id)} disabled={loading} className="ml-auto text-[11px] text-[#8e8e8e] hover:text-white border border-[#2f2f2f] rounded-full px-2.5 py-1 bg-[#171717] disabled:opacity-40" title="Regenerate this answer">↻ Regenerate</button>
-                            <button onClick={()=>navigator.clipboard.writeText(m.content)} className="text-[11px] text-[#8e8e8e] hover:text-white border border-[#2f2f2f] rounded-full px-2.5 py-1 bg-[#171717]" title="Copy answer">⧉ Copy</button>
+                            {m.type==="ask" && (
+                              <button onClick={()=>regenerate(m.id)} disabled={loading} className="ml-auto text-[11px] text-[#8e8e8e] hover:text-white border border-[#2f2f2f] rounded-full px-2.5 py-1 bg-[#171717] disabled:opacity-40" title="Regenerate this answer">↻ Regenerate</button>
+                            )}
+                            <button onClick={()=>copyToClipboard(m.id, m.content)} className={`${m.type==="ask" ? "" : "ml-auto "}text-[11px] text-[#8e8e8e] hover:text-white border border-[#2f2f2f] rounded-full px-2.5 py-1 bg-[#171717]`} title="Copy answer">{copiedId===m.id ? "✓ Copied" : "⧉ Copy"}</button>
                           </>
                         )}
                         {m.role==="user" && m.type==="ask" && editingId!==m.id && (
@@ -865,6 +902,9 @@ export default function ResearchPage(){
                 )}
                 {mode==="synthesis" && synthAns && (
                   <div className="py-6">
+                    <div className="flex justify-end mb-2">
+                      <button onClick={()=>copyToClipboard("synth", synthAns)} className="text-[11px] text-[#8e8e8e] hover:text-white border border-[#2f2f2f] rounded-full px-2.5 py-1 bg-[#171717]" title="Copy synthesis">{copiedId==="synth" ? "✓ Copied" : "⧉ Copy"}</button>
+                    </div>
                     <div className="rounded-2xl bg-[#171717] border border-[#2f2f2f] px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap break-words text-[#ececec]">
                       <Markdown content={synthAns} />
                     </div>
