@@ -158,6 +158,11 @@ function makalahBudget(sel: InferenceSelection): number {
   return Math.min(16384, Math.max(256, n));
 }
 
+/** Thinking-token budget for drafting, clamped so typos can't starve answers. */
+export function makalahThinkBudget(sel: InferenceSelection): number {
+  return Math.min(4096, Math.max(128, sel.makalahThinkingBudget ?? 1024));
+}
+
 function stripFences(text: string): string {
   return text
     .trim()
@@ -206,7 +211,7 @@ async function chatJson<T>(
   numPredict: number,
   parse: (t: string) => T,
   label: string,
-  thinking = false,
+  think: boolean | "low" | "medium" | "high" | "max" = false,
 ): Promise<T> {
   let lastRaw = "";
   let lastErr = "";
@@ -219,7 +224,10 @@ async function chatJson<T>(
       );
     const r = await provider.chat(
       [{ role: "system", content: system }, { role: "user", content: prompt }],
-      { model, temperature: 0, numCtx, numPredict, thinking },
+      {
+        model, temperature: 0, numCtx, numPredict, thinking: think !== false,
+        ...(typeof think === "string" ? { thinkLevel: think } : {}),
+      },
     );
     lastRaw = (r.content ?? "").replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
     // Reasoning models can burn the whole token budget thinking and return an
@@ -339,10 +347,12 @@ export async function generateOutline(
   sel: InferenceSelection,
 ): Promise<MakalahOutline> {
   const { provider, model } = pickMakalahStage(sel, sel.makalahOutlineStage);
+  // Outline is structure-only: thinking is always off here (it only ever
+  // burned budget for zero benefit). Reasoning belongs to drafting.
   const parsed = await chatJson(
     provider, model, MAKALAH_SHARED_SYSTEM, buildOutlineUserPrompt(input),
     sel.numCtx, makalahBudget(sel), parseOutlineJson, "Outline generation",
-    sel.makalahThinking ?? false,
+    false,
   );
   return assertOutlineUsable(parsed);
 }
@@ -471,7 +481,14 @@ function resolveAliases(output: SectionOutput, toReal: Map<string, string>): Sec
 const UUID_SRC = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const UUID_PAREN_RE = new RegExp(`\\(\\s*(?:${UUID_SRC})\\s*(?:,\\s*p\\.?\\s*\\d+)?\\s*\\)`, "gi");
 const UUID_RE = new RegExp(`\\b(?:${UUID_SRC})\\b`, "gi");
-const ALIAS_LEAK_RE = /\[\s*S\d+\s*\]|\(\s*S\d+\s*(?:,\s*p\.?\s*\d+)?\s*\)/g;
+// Page markers in several languages — the model localizes them (Indonesian
+// "h." for halaman turned up in the wild as "[S2, h. 5]").
+const PAGE_MARK_SRC = "(?:p\\.?|h\\.?|hal\\.?|halaman|pp?\\.?)";
+const ALIAS_LEAK_RE = new RegExp(
+  `\\[\\s*S\\d+\\s*(?:,\\s*${PAGE_MARK_SRC}\\s*\\d+)?\\s*\\]` +
+  `|\\(\\s*S\\d+\\s*(?:,\\s*${PAGE_MARK_SRC}\\s*\\d+)?\\s*\\)`,
+  "gi",
+);
 // (Smith, 2020) / (Faridah et al., 2021) / (Smith & Jones, 2020) shapes only:
 // the comma (or et-al/&-form) requirement keeps legit refs like (UUD 1945) safe.
 const AUTHORYEAR_LEAK_RE = /\(\s*[A-Z][\w\-]+(?:\s+et\.?\s*al\.?)?\s*,\s*\d{4}[a-z]?\s*\)|\(\s*[A-Z][\w\-]+\s+(?:&\s*[A-Z][\w\-]+|and\s+[A-Z][\w\-]+|et\.?\s*al\.?)\s*,?\s*\d{4}[a-z]?\s*\)/g;
@@ -492,6 +509,32 @@ export function stripLeakedCitations(text: string): string {
     .trim();
 }
 
+/**
+ * Strip title echoes (`[Full Paper Title, h. 1]`, `(Full Paper Title)`): the
+ * model sometimes cites by title string instead of alias, usually echoing a
+ * title it saw inside passage text or from training data. Matching is exact
+ * (case-insensitive) against known source titles, so only genuine echoes go —
+ * and only titles long enough (≥24 chars) that a prose collision is implausible.
+ */
+export function stripTitleEchoes(text: string, titles: string[]): string {
+  const pats = [...new Set(titles.map((t) => (t ?? "").trim()))]
+    .filter((t) => t.length >= 24)
+    .sort((a, b) => b.length - a.length);
+  let out = text;
+  for (const t of pats) {
+    const esc = t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    out = out.replace(
+      new RegExp(
+        `\\[\\s*${esc}\\s*(?:,\\s*${PAGE_MARK_SRC}\\s*\\d+)?\\s*\\]` +
+        `|\\(\\s*${esc}\\s*(?:,\\s*${PAGE_MARK_SRC}\\s*\\d+)?\\s*\\)`,
+        "gi",
+      ),
+      "",
+    );
+  }
+  return out.replace(/[ \t]{2,}/g, " ").replace(/\s+([.,;:])/g, "$1").trim();
+}
+
 export function buildSectionUserPrompt(input: {
   topic: string;
   chapter_title: string;
@@ -501,7 +544,7 @@ export function buildSectionUserPrompt(input: {
   citation_style: string;
   passages: SectionPassage[];
   target_length_words: number;
-}): string {
+}, thinkBudget: number | null = null): string {
   const passages =
     input.passages
       .map((p) => `[${p.source_id}, p.${p.page ?? "?"}] ${p.text}`)
@@ -510,6 +553,12 @@ export function buildSectionUserPrompt(input: {
     `Write section ${input.subsection_number} "${input.subsection_title}" of chapter ` +
     `"${input.chapter_title}" for an academic paper on "${input.topic}", in ${input.language}. ` +
     `Target length: about ${input.target_length_words} words.\n\n` +
+    (thinkBudget !== null ?
+      `Thinking budget: you may spend AT MOST ${thinkBudget} tokens reasoning inside ` +
+      `<think> tags before answering, then stop thinking and write the final JSON. ` +
+      `Keep deliberation tight — a complete, valid answer matters more than long ` +
+      `reasoning, and the total call is capped, so over-thinking truncates your answer.\n\n`
+    : "") +
     `You may ONLY use claims that are directly supported by the passages below. ` +
     `Do not introduce facts, statistics, or claims not present in these passages. ` +
     `If the passages are insufficient to write a complete section, write what is ` +
@@ -527,7 +576,7 @@ export function buildSectionUserPrompt(input: {
     `unrelated source.\n\n` +
     `Return JSON only:\n` +
     `{"paragraphs": [{"text": "...", "citations": [{"source_id": "S1", "page": 7}]}], ` +
-    `"gaps": "note any part of the topic the given passages don't cover, or empty string"}`
+    `"gaps": "in ${input.language}: note any part of the topic the given passages don't cover, or empty string (this note is for the author's drafting view only and is never published)"}`
   );
 }
 
@@ -564,30 +613,46 @@ export async function generateSection(
     citation_style: string;
     passages: SectionPassage[];
     target_length_words: number;
+    /** Known source titles (id → title) for stripping title-echo leaks. */
+    source_titles?: Record<string, string>;
   },
   sel: InferenceSelection,
 ): Promise<SectionOutput> {
   const { provider, model } = pickMakalahStage(sel, sel.makalahSectionStage);
   const { aliased, toReal } = aliasPassages(input.passages);
+  const echoTitles = Object.values(input.source_titles ?? {});
   const clean = (o: SectionOutput): SectionOutput => ({
     ...o,
-    paragraphs: o.paragraphs.map((p) => ({ ...p, text: stripLeakedCitations(p.text) })),
+    paragraphs: o.paragraphs.map((p) => ({
+      ...p,
+      text: stripTitleEchoes(stripLeakedCitations(p.text), echoTitles),
+    })),
   });
-  try {
-    const out = await chatJson(
-      provider, model, MAKALAH_SHARED_SYSTEM,
-      buildSectionUserPrompt({ ...input, passages: aliased }),
-      sel.numCtx, makalahBudget(sel), parseSectionJson, "Section generation",
-      sel.makalahThinking ?? false,
-    );
-    return clean(resolveAliases(out, toReal));
-  } catch (e) {
-    // Salvage ONLY malformed-model-output failures (chatJson tags those with a
-    // string `.raw`). Network / provider / auth errors must stay hard errors —
-    // silently converting "Ollama offline" into a fake section would be a lie.
+  // Thinking lives ONLY here: outline and claim-check always run cold.
+  // When on, drafting is two-phase (both fixed, app-controlled calls):
+  //   1. deliberate — thinking enabled, num_predict == think budget (a HARD
+  //      cap: Ollama stops generating at the cap, so the trace can never eat
+  //      the answer). The trace is kept; any content is a best-effort bonus.
+  //   2. answer — thinking disabled with the FULL answer cap, the trace
+  //      injected as context. The answer can never starve, by construction.
+  // If phase 1 already yields valid JSON content, it is used directly and
+  // phase 2 is skipped. If phase 1 fails outright, we fall back to a single
+  // cold call. Either way the JSON contract + alias/strip pipeline below holds.
+  const thinkingOn = sel.makalahThinking ?? false;
+  const thinkBudget = thinkingOn ? makalahThinkBudget(sel) : null;
+  const answerCap = makalahBudget(sel);
+  const baseUser = buildSectionUserPrompt({ ...input, passages: aliased }, thinkBudget);
+  const finish = (parsed: SectionOutput): SectionOutput =>
+    clean(resolveAliases(parsed, toReal));
+  // Salvage ONLY malformed-model-output failures (chatJson tags those with a
+  // string `.raw`). Network / provider / auth errors must stay hard errors —
+  // silently converting "Ollama offline" into a fake section would be a lie.
+  const salvage = (e: unknown): SectionOutput => {
     const raw = (e as { raw?: unknown }).raw;
     if (typeof raw !== "string") throw e;
-    const text = stripLeakedCitations(stripFences(raw).trim()) || "(model returned empty output)";
+    const text = stripTitleEchoes(
+      stripLeakedCitations(stripFences(raw).trim()), echoTitles,
+    ) || "(model returned empty output)";
     return {
       paragraphs: [{ text, citations: [] }],
       gaps:
@@ -595,6 +660,55 @@ export async function generateSection(
         `so the raw text above is preserved as-is WITHOUT citations. Verify every claim ` +
         `against the retrieved passages manually before keeping this section.`,
     };
+  };
+
+  if (thinkBudget === null) {
+    try {
+      const out = await chatJson(
+        provider, model, MAKALAH_SHARED_SYSTEM, baseUser,
+        sel.numCtx, answerCap, parseSectionJson, "Section generation", false,
+      );
+      return finish(out);
+    } catch (e) {
+      return salvage(e);
+    }
+  }
+
+  let trace = "";
+  try {
+    const deliberation = await provider.chat(
+      [
+        { role: "system", content: MAKALAH_SHARED_SYSTEM },
+        { role: "user", content: baseUser },
+      ],
+      {
+        model, temperature: 0, numCtx: sel.numCtx, numPredict: thinkBudget,
+        thinking: true, thinkLevel: sel.makalahThinkLevel ?? "low",
+      },
+    );
+    const content = (deliberation.content ?? "").replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+    if (content) {
+      try {
+        return finish(parseSectionJson(content));
+      } catch {
+        /* well-formed trace but unusable draft — deliberate below from trace */
+      }
+    }
+    trace = (deliberation.thinking ?? "").trim();
+  } catch {
+    trace = ""; // deliberation failed — cold fallback below
+  }
+  const finalUser = trace
+    ? `${baseUser}\n\nYour earlier deliberation (follow it; do not repeat it, output JSON only):\n${trace.slice(0, thinkBudget * 3)}`
+    : baseUser;
+  try {
+    const out = await chatJson(
+      provider, model, MAKALAH_SHARED_SYSTEM, finalUser,
+      sel.numCtx, answerCap, parseSectionJson, "Section generation", false,
+    );
+    return finish(out);
+  } catch (e) {
+    return salvage(e);
   }
 }
 
@@ -646,7 +760,7 @@ export async function claimSupportCheck(
       sel.numCtx, 512,
       (t) => extractJsonObject(t) as Record<string, unknown>,
       "Claim check",
-      sel.makalahThinking ?? false,
+      false,
     );
     const verdict =
       String(obj.verdict ?? "").toLowerCase().includes("not") ?
@@ -667,7 +781,7 @@ export async function buildReferences(docIds: string[]): Promise<MakalahReferenc
   const sb = createClient();
   const { data: docs } = await sb
     .from("documents")
-    .select("id, title, year, journal, volume, issue, pages, publisher, doi, document_type")
+    .select("id, title, original_filename, year, journal, volume, issue, pages, publisher, doi, document_type")
     .in("id", docIds);
   const rows = (docs ?? []) as Array<Record<string, unknown>>;
   // Attach author names for citation rendering.
@@ -689,9 +803,16 @@ export async function buildReferences(docIds: string[]): Promise<MakalahReferenc
   }
   return rows.map((d) => {
     const id = d.id as string;
+    // Metadata fallback chain: extracted title → uploaded filename → id stub.
+    // A cited source always yields an entry; thin entries are flagged by
+    // isMalformedReference in the quality report instead of going missing.
+    const title =
+      ((d.title as string | null) ?? "").trim() ||
+      ((d.original_filename as string | null) ?? "").trim() ||
+      `Document ${id.slice(0, 8)}`;
     const item = docToCslItem({
       id,
-      title: (d.title as string | null) ?? null,
+      title,
       authors: authorsByDoc.get(id) ?? [],
       year: (d.year as number | null) ?? null,
       journal: (d.journal as string | null) ?? null,

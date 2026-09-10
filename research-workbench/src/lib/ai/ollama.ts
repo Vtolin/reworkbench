@@ -6,6 +6,8 @@ export const OLLAMA_BASE_URL = "http://localhost:11434";
 export const DEFAULT_CHAT_MODEL = "gemma4:26b-a4b-it-qat";
 export const DEFAULT_EMBED_MODEL = "nomic-embed-text";
 
+export type ThinkLevel = "low" | "medium" | "high" | "max";
+
 export interface OllamaChatOptions extends ChatOptions {
   thinking?: boolean;
 }
@@ -23,8 +25,11 @@ export class OllamaProvider implements AIProvider {
 
   async chat(messages: ChatMessage[], options: ChatOptions): Promise<ChatResult> {
     const thinking = (options as OllamaChatOptions).thinking ?? false;
+    // Effort level only takes effect when thinking is on; otherwise the
+    // provider always sends an explicit think:false (see doChat).
+    const thinkLevel = thinking ? (options.thinkLevel ?? undefined) : undefined;
     try {
-      return await this.doChat(messages, options, thinking);
+      return await this.doChat(messages, options, thinking, thinkLevel);
     } catch (e) {
       if (e instanceof Error && /failed: 400/.test(e.message)) {
         // Old Ollama builds reject the `think` field entirely — retry with it
@@ -45,14 +50,19 @@ export class OllamaProvider implements AIProvider {
     }
   }
 
-  private async doChat(messages: ChatMessage[], options: ChatOptions, thinking: boolean | undefined): Promise<ChatResult> {
+  private async doChat(messages: ChatMessage[], options: ChatOptions, thinking: boolean | undefined, thinkLevel?: ThinkLevel): Promise<ChatResult> {
     // `undefined` = omit the field (legacy fallback only). Otherwise always
     // explicit: reasoning models (qwen3, deepseek-r1, …) think NATIVELY when
     // the field is omitted and can burn the whole num_predict budget on
     // thinking, returning empty content (verified live on qwen3.5:4b —
     // omitted: 1024 thinking tokens + 0 answer bytes; think:false: clean
     // answer in 1.6s). Structured calls (Makalah JSON) depend on this.
+    // When thinking is on, a level (low/medium/high/max) is sent instead of
+    // `true` if provided — a server-side bound on the trace length. Numeric
+    // budgets are NOT a stable Ollama feature (400 on 0.33.3), so token
+    // budgets are enforced via prompt instruction + num_predict accounting.
     const wantThinking = thinking === true;
+    const thinkValue = thinking === undefined ? undefined : wantThinking ? (thinkLevel ?? true) : false;
     const res = await fetch(`${this.baseUrl}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -63,7 +73,7 @@ export class OllamaProvider implements AIProvider {
           ? [{ role: "system", content: "Think step-by-step inside <think> tags, then answer." }, ...messages]
           : messages,
         stream: !options.onToken ? false : true,
-        ...(thinking === undefined ? {} : { think: thinking }),
+        ...(thinkValue === undefined ? {} : { think: thinkValue }),
         options: {
           temperature: options.temperature ?? 0.0,
           ...(options.numCtx ? { num_ctx: options.numCtx } : {}),

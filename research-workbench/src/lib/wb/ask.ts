@@ -38,6 +38,10 @@ export interface InferenceSelection {
   makalahThinking?: boolean;
   /** Makalah per-call output cap (num_predict). */
   makalahNumPredict?: number;
+  /** Makalah thinking effort level, sent when drafting with thinking on. */
+  makalahThinkLevel?: "low" | "medium" | "high" | "max";
+  /** Makalah thinking-token budget for drafting (prompt-declared + capped). */
+  makalahThinkingBudget?: number;
 }
 
 export interface Source {

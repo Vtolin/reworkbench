@@ -10,6 +10,7 @@ import MakalahHistoryPanel from "@/components/MakalahHistoryPanel";
 import {
   validateSectionCitations,
   stripLeakedCitations,
+  stripTitleEchoes,
   isMalformedReference,
   SECTION_SALVAGE_MARKER,
   type OutlineChapter,
@@ -109,6 +110,13 @@ export default function MakalahPage() {
     docs.find((d) => d.id === id)?.title ||
     docs.find((d) => d.id === id)?.original_filename ||
     id.slice(0, 8);
+
+  // id → display title for every known doc; sent to the engine so title-echo
+  // leaks can be stripped precisely (generic: works for any topic/language).
+  const allTitles = useMemo(
+    () => Object.fromEntries(docs.map((d) => [d.id, d.title || d.original_filename || d.id])),
+    [docs],
+  );
 
   const flat = useMemo(() => {
     // Subsection numbers are user-editable, so duplicates are possible —
@@ -276,7 +284,7 @@ export default function MakalahPage() {
           number: s.number, title: s.title, source_ids: s.likely_sources ?? [],
         })),
       })));
-      setCoverageNotes(stripLeakedCitations(res.coverage_notes));
+      setCoverageNotes(stripTitleEchoes(stripLeakedCitations(res.coverage_notes), selected.map(titleOf)));
       setApproved(false);
     } catch (e) {
       setOutlineError(e instanceof Error ? e.message : "Outline generation failed");
@@ -358,6 +366,7 @@ export default function MakalahPage() {
         citation_style: citationStyle,
         passages,
         target_length_words: targetWords,
+        source_titles: allTitles,
       });
       setSec(key, {
         status: "ok",
@@ -395,6 +404,23 @@ export default function MakalahPage() {
         citedIdsOf(flat.map((item) => secs[item.key]?.output ?? null)),
       ));
     } catch {}
+  };
+
+  // References go stale when sections are (re)generated one by one instead of
+  // via Generate-all — top up the missing ones before preview/export/copy so
+  // Daftar Pustaka is never silently empty.
+  const ensureReferences = async (): Promise<MakalahReference[]> => {
+    const missing = citedIdsOf(flat.map((item) => secs[item.key]?.output ?? null))
+      .filter((id) => !references.some((r) => r.id === id));
+    if (!missing.length) return references;
+    try {
+      const fresh = await api.makalahReferences(missing);
+      const merged = [...references, ...fresh.filter((f) => !references.some((r) => r.id === f.id))];
+      setReferences(merged);
+      return merged;
+    } catch {
+      return references;
+    }
   };
 
   const citedIds = useMemo(
@@ -490,7 +516,7 @@ export default function MakalahPage() {
   const outlineModelLabel = resolveStageLabel(settings.makalahOutlineStage as unknown as { provider: string; model: string; cloudProvider: string; cloudModel: string } | undefined);
   const sectionModelLabel = resolveStageLabel(settings.makalahSectionStage as unknown as { provider: string; model: string; cloudProvider: string; cloudModel: string } | undefined);
 
-  const buildMarkdown = (): string => {
+  const buildMarkdown = (refs: MakalahReference[] = references): string => {
     const lines: string[] = [`# ${docTitle}`, ""];
     for (const ch of outline) {
       lines.push(`## ${ch.chapter_number} ${ch.chapter_title}`, "");
@@ -502,27 +528,28 @@ export default function MakalahPage() {
             const cites = p.citations.map((c) => `[${titleOf(c.source_id)}${c.page ? `, h. ${c.page}` : ""}]`).join(" ");
             lines.push(`${p.text}${cites ? ` ${cites}` : ""}`, "");
           }
-          if (st.output.gaps) lines.push(`> Kesenjangan: ${st.output.gaps}`, "");
+          // gaps intentionally excluded: drafting-view QA, never published
         } else {
           lines.push("_Belum dibuat._", "");
         }
       }
     }
     lines.push(`## ${isID ? "Daftar Pustaka" : "References"}`, "");
-    references.forEach((r) => lines.push(`- ${r.formatted_apa7}`));
+    refs.forEach((r) => lines.push(`- ${r.formatted_apa7}`));
     return lines.join("\n");
   };
 
   const copyMarkdown = async () => {
     try {
-      await navigator.clipboard.writeText(buildMarkdown());
+      await navigator.clipboard.writeText(buildMarkdown(await ensureReferences()));
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {}
   };
 
-  const exportPDF = () => {
+  const exportPDF = async () => {
     setExportNote(null);
+    const refs = await ensureReferences();
     const w = window.open("", "_blank");
     if (!w) {
       setExportNote("Popup blocked — allow popups for this site, then press Export PDF again.");
@@ -537,8 +564,8 @@ export default function MakalahPage() {
             `<span class="cite">[${escapeHtml(titleOf(c.source_id))}${c.page ? `, h. ${c.page}` : ""}]</span>`).join(" ");
           return `<p>${escapeHtml(p.text)} ${cites}</p>`;
         }).join("") ?? "<p><em>Belum dibuat.</em></p>";
-        const gap = st?.output?.gaps ? `<p class="gap">Catatan: ${escapeHtml(st.output.gaps)}</p>` : "";
-        return `<h3>${escapeHtml(sub.number)} ${escapeHtml(sub.title)}</h3>${paras}${gap}`;
+        // gaps intentionally excluded: drafting-view QA, never published
+        return `<h3>${escapeHtml(sub.number)} ${escapeHtml(sub.title)}</h3>${paras}`;
       }).join("")}`).join("");
     const toc = outline.map((ch) => `
       <div class="toc-ch">${escapeHtml(ch.chapter_number)} ${escapeHtml(ch.chapter_title)}</div>
@@ -567,7 +594,7 @@ export default function MakalahPage() {
       <h2>${isID ? "Daftar Isi" : "Table of Contents"}</h2>${toc}
       ${secHtml}
       <h2>${isID ? "Daftar Pustaka" : "References"}</h2>
-      <ol class="refs">${references.map((r) => `<li>${escapeHtml(r.formatted_apa7)}</li>`).join("")}</ol>
+      <ol class="refs">${refs.map((r) => `<li>${escapeHtml(r.formatted_apa7)}</li>`).join("")}</ol>
       </body></html>`);
     w.document.close();
     w.focus();
@@ -690,7 +717,9 @@ export default function MakalahPage() {
 
               <div className="flex justify-end flex-wrap gap-2 items-center">
                 <span className="text-[11px] text-[#5f5f5f] mr-auto">
-                  outline {outlineModelLabel} • sections {sectionModelLabel} — change in Settings → Makalah pipeline
+                  outline {outlineModelLabel} • sections {sectionModelLabel}
+                  {settings.makalahThinking ? ` • thinking ${settings.makalahThinkLevel ?? "low"} · ${settings.makalahThinkingBudget ?? 1024} tok (drafting only)` : " • thinking off"}
+                  {" "}— change in Settings → Makalah pipeline
                 </span>
                 {mode === "A" ? (
                   <button onClick={() => { setStep(2); if (!outline.length) runOutline(); }} disabled={!topic.trim() || !selected.length} className="rounded-xl bg-white text-black px-6 py-2.5 text-sm font-medium disabled:opacity-40">Continue → outline</button>
@@ -767,7 +796,7 @@ export default function MakalahPage() {
               <div className="flex gap-2 flex-wrap">
                 <button onClick={runAll} disabled={running || !approved} className="rounded-xl bg-white text-black px-5 py-2 text-sm font-medium disabled:opacity-40">{running ? "Drafting…" : "Generate all sections"}</button>
                 {running && <button onClick={() => { stopRef.current = true; }} className="rounded-xl border border-[#2f2f2f] bg-[#212121] px-5 py-2 text-sm text-white">■ Stop (keep partial)</button>}
-                <button onClick={() => setStep(4)} className="rounded-xl border border-[#2f2f2f] bg-[#212121] px-5 py-2 text-sm text-white">Preview →</button>
+                <button onClick={async () => { await ensureReferences(); setStep(4); }} className="rounded-xl border border-[#2f2f2f] bg-[#212121] px-5 py-2 text-sm text-white">Preview →</button>
               </div>
               {runNote && <div className="text-xs text-[#8e8e8e]">{runNote}</div>}
 

@@ -13,6 +13,10 @@ export interface ChatOptions {
   numCtx?: number;
   numPredict?: number;
   thinking?: boolean;
+  /** Effort level sent as Ollama's `think` value when thinking is on
+   *  (server-side trace bound for qwen3/gpt-oss/deepseek families).
+   *  Ignored by the cloud backend. */
+  thinkLevel?: "low" | "medium" | "high" | "max";
   signal?: AbortSignal;
   onToken?: (token: string) => void;
   onThinking?: (delta: string) => void;

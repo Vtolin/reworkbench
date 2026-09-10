@@ -66,6 +66,8 @@ export interface InferenceSnapshot {
   makalahSectionStage: StageSnapshot;
   makalahThinking: boolean;
   makalahNumPredict: number;
+  makalahThinkLevel: "low" | "medium" | "high" | "max";
+  makalahThinkingBudget: number;
 }
 
 const INHERIT_STAGE_SNAP: StageSnapshot = { provider: "inherit", model: "", cloudProvider: "openai", cloudModel: "" };
@@ -86,6 +88,8 @@ const INFERENCE_DEFAULTS: InferenceSnapshot = {
   makalahSectionStage: { ...INHERIT_STAGE_SNAP },
   makalahThinking: false,
   makalahNumPredict: 3072,
+  makalahThinkLevel: "low" as const,
+  makalahThinkingBudget: 1024,
 };
 
 export function readInference(): InferenceSnapshot {
@@ -119,6 +123,8 @@ function toSel(extra?: Partial<InferenceSelection>): InferenceSelection {
     makalahSectionStage: (s as Partial<InferenceSnapshot>).makalahSectionStage ?? { provider: "inherit", model: "", cloudProvider: s.cloudProvider, cloudModel: "" },
     makalahThinking: (s as Partial<InferenceSnapshot>).makalahThinking ?? false,
     makalahNumPredict: (s as Partial<InferenceSnapshot>).makalahNumPredict ?? 3072,
+    makalahThinkLevel: (s as Partial<InferenceSnapshot>).makalahThinkLevel ?? "low",
+    makalahThinkingBudget: (s as Partial<InferenceSnapshot>).makalahThinkingBudget ?? 1024,
     ...extra,
   };
 }
@@ -299,7 +305,7 @@ export const api = {
     topK = 8,
     keepTop = 4,
   ): Promise<SectionPassage[]> => wbMakalahRetrieve(query, scopeIds, toSel(), topK, keepTop, handlers?.onStatus),
-  makalahSection: (body: { topic: string; chapter_title: string; subsection_number: string; subsection_title: string; language: string; citation_style: string; passages: SectionPassage[]; target_length_words: number }) =>
+  makalahSection: (body: { topic: string; chapter_title: string; subsection_number: string; subsection_title: string; language: string; citation_style: string; passages: SectionPassage[]; target_length_words: number; source_titles?: Record<string, string> }) =>
     wbMakalahSection(body, toSel()),
   makalahReferences: (document_ids: string[]) => wbMakalahReferences(document_ids),
   makalahClaimCheck: (paragraphText: string, citedPassages: SectionPassage[]) =>

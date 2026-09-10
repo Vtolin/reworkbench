@@ -31,6 +31,10 @@ export interface InferenceSettings {
   makalahThinking: boolean;
   /** Makalah per-call output cap (num_predict). */
   makalahNumPredict: number;
+  /** Makalah thinking effort level (Ollama low/medium/high/max). */
+  makalahThinkLevel: "low" | "medium" | "high" | "max";
+  /** Makalah thinking-token budget for section drafting. */
+  makalahThinkingBudget: number;
 }
 
 export type StageProvider = "inherit" | "ollama" | "cloud";
@@ -67,6 +71,8 @@ const DEFAULTS: InferenceSettings = {
   makalahSectionStage: { ...INHERIT_STAGE },
   makalahThinking: false,
   makalahNumPredict: 3072,
+  makalahThinkLevel: "low",
+  makalahThinkingBudget: 1024,
 };
 
 const STORAGE_KEY = "rw.inference_settings.v1";

@@ -299,7 +299,7 @@ export default function SettingsPage(){
             Both inherit the chat model above unless overridden. Changes apply on the next run.
           </div>
           <div className="mt-4 border-t border-[#2f2f2f] pt-3 grid gap-3 grid-cols-1 md:grid-cols-2">
-            <div className="text-xs text-[#8e8e8e]">Thinking (chain-of-thought)
+            <div className="text-xs text-[#8e8e8e]">Thinking — section drafting only
               <div className="mt-1">
                 <button
                   onClick={() => setInf({ makalahThinking: !inf.makalahThinking })}
@@ -309,8 +309,34 @@ export default function SettingsPage(){
                   {inf.makalahThinking ? "● On" : "○ Off"}
                 </button>
               </div>
-              <div className="mt-1 text-[11px] text-[#5f5f5f]">Off = deterministic JSON (recommended). Note: native reasoning models can still think on their own — if outline/section calls fail with “only reasoning”, use a non-reasoning model for that stage.</div>
+              <div className="mt-1 text-[11px] text-[#5f5f5f]">Outline + claim check never think — reasoning runs only while drafting sections. Note: native reasoning models can still think on their own — if calls fail with “only reasoning”, use a non-reasoning model for that stage.</div>
             </div>
+            {inf.makalahThinking && (
+              <>
+                <label className="text-xs text-[#8e8e8e]">Thinking level (server trace bound)
+                  <select
+                    value={inf.makalahThinkLevel ?? "low"}
+                    onChange={(e) => setInf({ makalahThinkLevel: e.target.value as "low" | "medium" | "high" | "max" })}
+                    className="mt-1 w-full rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2 text-sm text-white"
+                  >
+                    <option value="low">Low — brief trace</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High — deep trace</option>
+                    <option value="max">Max</option>
+                  </select>
+                  <span className="text-[11px] text-[#5f5f5f]">Bounds the trace server-side (qwen3/deepseek families). Ollama has no hard numeric cap, so this pairs with the token budget below.</span>
+                </label>
+                <label className="text-xs text-[#8e8e8e]">Thinking budget (tokens)
+                  <input
+                    type="number" min={128} max={4096} step={64}
+                    value={inf.makalahThinkingBudget ?? 1024}
+                    onChange={(e) => setInf({ makalahThinkingBudget: Number(e.target.value) || 1024 })}
+                    className="mt-1 w-full rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2 text-sm text-white"
+                  />
+                  <span className="text-[11px] text-[#5f5f5f]">Hard cap: deliberation runs with exactly this many tokens, then the answer is written cold with the full output cap — thinking can never truncate the answer. The model is also told its allowance.</span>
+                </label>
+              </>
+            )}
             <label className="text-xs text-[#8e8e8e]">Max output tokens / call (num_predict)
               <input
                 type="number" min={256} max={16384} step={256}
