@@ -92,10 +92,40 @@ const INFERENCE_DEFAULTS: InferenceSnapshot = {
   makalahThinkingBudget: 1024,
 };
 
+const STAGE_PROVIDERS = new Set(["inherit", "ollama", "cloud"]);
+const MAIN_PROVIDERS = new Set(["ollama", "cloud"]);
+const CLOUD_PROVIDERS = new Set(["openai", "anthropic", "google", "deepseek"]);
+
+function saneStage(v: unknown, fallbackCloud: string): StageSnapshot {
+  const s = (v ?? {}) as Partial<StageSnapshot>;
+  return {
+    provider: STAGE_PROVIDERS.has(s.provider as string) ? (s.provider as StageSnapshot["provider"]) : "inherit",
+    model: typeof s.model === "string" ? s.model : "",
+    cloudProvider: CLOUD_PROVIDERS.has(s.cloudProvider as string)
+      ? (s.cloudProvider as StageSnapshot["cloudProvider"])
+      : (CLOUD_PROVIDERS.has(fallbackCloud) ? (fallbackCloud as StageSnapshot["cloudProvider"]) : "openai"),
+    cloudModel: typeof s.cloudModel === "string" ? s.cloudModel : "",
+  };
+}
+
 export function readInference(): InferenceSnapshot {
   try {
     const raw = localStorage.getItem(INFERENCE_KEY);
-    if (raw) return { ...INFERENCE_DEFAULTS, ...JSON.parse(raw) };
+    if (raw) {
+      const p = { ...INFERENCE_DEFAULTS, ...JSON.parse(raw) } as InferenceSnapshot;
+      // Coerce corrupt/unknown values (old drafts, hand-edited storage):
+      // an unknown provider string would otherwise construct a broken
+      // CloudProvider/Ollama selection deep in the pipeline.
+      if (!MAIN_PROVIDERS.has(p.provider as string)) p.provider = INFERENCE_DEFAULTS.provider;
+      if (!CLOUD_PROVIDERS.has(p.cloudProvider as string)) p.cloudProvider = INFERENCE_DEFAULTS.cloudProvider;
+      if (p.embedMode !== "local" && p.embedMode !== "server") p.embedMode = INFERENCE_DEFAULTS.embedMode;
+      if (!Number.isFinite(p.numCtx) || p.numCtx <= 0) p.numCtx = INFERENCE_DEFAULTS.numCtx;
+      if (p.summarizeMethod !== "stuff" && p.summarizeMethod !== "map_reduce") p.summarizeMethod = "stuff";
+      for (const k of ["mapStage", "reduceStage", "synthesisStage", "makalahOutlineStage", "makalahSectionStage"] as const) {
+        p[k] = saneStage(p[k], p.cloudProvider);
+      }
+      return p;
+    }
   } catch {
     /* ignore */
   }
@@ -305,8 +335,8 @@ export const api = {
     topK = 8,
     keepTop = 4,
   ): Promise<SectionPassage[]> => wbMakalahRetrieve(query, scopeIds, toSel(), topK, keepTop, handlers?.onStatus),
-  makalahSection: (body: { topic: string; chapter_title: string; subsection_number: string; subsection_title: string; language: string; citation_style: string; passages: SectionPassage[]; target_length_words: number; source_titles?: Record<string, string> }) =>
-    wbMakalahSection(body, toSel()),
+  makalahSection: (body: { topic: string; chapter_title: string; subsection_number: string; subsection_title: string; language: string; citation_style: string; passages: SectionPassage[]; target_length_words: number; source_titles?: Record<string, string>; outline_context?: { full_outline: string; prior_summaries: string; scope_note?: string }; grounding?: import("./wb/makalah").MakalahHybrid }, signal?: AbortSignal) =>
+    wbMakalahSection(body, toSel(), signal),
   makalahReferences: (document_ids: string[]) => wbMakalahReferences(document_ids),
   makalahClaimCheck: (paragraphText: string, citedPassages: SectionPassage[]) =>
     wbMakalahClaimCheck(paragraphText, citedPassages, toSel()),

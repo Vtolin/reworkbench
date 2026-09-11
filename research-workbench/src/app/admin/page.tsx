@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Topbar from "@/components/Topbar";
 import { useSession } from "@/contexts/SessionContext";
 import { MAX_ALLOWED_MEMBERS } from "@/lib/permissions/constants";
+import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 
 interface Member {
   id: string;
@@ -61,22 +62,35 @@ export default function AdminPage() {
 
   // Live refresh: a member joining (or being kicked) while this page is open
   // shows up immediately instead of waiting for a manual reload.
+  // Unique channel per mount + removeChannel cleanup: re-subscribing to a
+  // static name while the old channel still exists throws
+  // "cannot add postgres_changes callbacks … after subscribe()".
+  const mountId = useRef<string | null>(null);
+  if (!mountId.current) {
+    mountId.current = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  }
   useEffect(() => {
     if (!workspace) return;
-    let channel: { unsubscribe: () => void } | null = null;
+    let cancelled = false;
+    let client: SupabaseClient | null = null;
+    let channel: RealtimeChannel | null = null;
     (async () => {
       const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
-      channel = supabase
-        .channel(`admin-members:${workspace.id}`)
+      if (cancelled) return;
+      client = createClient();
+      channel = client
+        .channel(`admin-members:${workspace.id}:${mountId.current}`)
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "workspace_members", filter: `workspace_id=eq.${workspace.id}` },
           () => load(),
-        )
-        .subscribe() as unknown as { unsubscribe: () => void };
+        );
+      channel.subscribe();
     })();
-    return () => { channel?.unsubscribe(); };
+    return () => {
+      cancelled = true;
+      if (client && channel) client.removeChannel(channel);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspace?.id]);
 

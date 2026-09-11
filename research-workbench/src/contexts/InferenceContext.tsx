@@ -103,7 +103,17 @@ export function InferenceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setState({ ...DEFAULTS, ...JSON.parse(raw) });
+      if (raw) {
+        const p = { ...DEFAULTS, ...JSON.parse(raw) } as InferenceSettings;
+        // Same coercion as api.readInference (canonical): never let a corrupt
+        // stored string construct a broken provider selection downstream.
+        if (p.provider !== "ollama" && p.provider !== "cloud") p.provider = DEFAULTS.provider;
+        if (!["openai", "anthropic", "google", "deepseek"].includes(p.cloudProvider)) p.cloudProvider = DEFAULTS.cloudProvider;
+        if (p.embedMode !== "local" && p.embedMode !== "server") p.embedMode = DEFAULTS.embedMode;
+        if (!Number.isFinite(p.numCtx) || (p.numCtx as number) <= 0) p.numCtx = DEFAULTS.numCtx;
+        setState(p);
+        return;
+      }
     } catch {
       /* keep defaults */
     }

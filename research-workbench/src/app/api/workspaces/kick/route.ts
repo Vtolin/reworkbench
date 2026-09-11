@@ -28,7 +28,31 @@ export async function POST(req: Request) {
   if (caller?.role !== "admin") {
     return NextResponse.json({ error: "Admin only" }, { status: 403 });
   }
+  if (body.userId === me.user.id) {
+    return NextResponse.json({ error: "You cannot kick yourself" }, { status: 400 });
+  }
   const service = createServiceSupabase();
+  // Refuse to remove the last active admin (would orphan the workspace).
+  const { data: admins, error: adminErr } = await service
+    .from("workspace_members")
+    .select("user_id, role")
+    .eq("workspace_id", body.workspaceId)
+    .eq("status", "active")
+    .eq("role", "admin");
+  if (adminErr) return NextResponse.json({ error: adminErr.message }, { status: 500 });
+  const targetIsAdmin = ((admins ?? []) as Array<{ user_id: string }>).some((a) => a.user_id === body.userId);
+  if (targetIsAdmin && (admins ?? []).length <= 1) {
+    return NextResponse.json({ error: "Cannot remove the last admin" }, { status: 400 });
+  }
+  const { data: target, error: targetErr } = await service
+    .from("workspace_members")
+    .select("user_id")
+    .eq("workspace_id", body.workspaceId)
+    .eq("user_id", body.userId)
+    .eq("status", "active")
+    .maybeSingle();
+  if (targetErr) return NextResponse.json({ error: targetErr.message }, { status: 500 });
+  if (!target) return NextResponse.json({ error: "Member not found" }, { status: 404 });
   const { error } = await service
     .from("workspace_members")
     .update({ status: "removed" })

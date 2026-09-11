@@ -1,8 +1,21 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createServiceSupabase } from "@/lib/supabase/server";
 
 // POST /api/auth/register-admin {email, password, admin_key}
 // On ADMIN_REGISTRATION_KEY match: create Supabase user → workspace → admin membership.
+// Errors are deliberately generic: distinguishing "bad key" from
+// "email taken" would let anonymous callers enumerate accounts and
+// brute-force the key with an oracle.
+function keyMatches(provided: unknown, expected: string): boolean {
+  if (typeof provided !== "string" || !provided) return false;
+  const a = Buffer.from(provided, "utf8");
+  const b = Buffer.from(expected, "utf8");
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+const GENERIC_FAIL = "Registration failed";
+
 export async function POST(req: Request) {
   const expected = process.env.ADMIN_REGISTRATION_KEY;
   if (!expected) {
@@ -14,8 +27,8 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
-  if (body.admin_key !== expected) {
-    return NextResponse.json({ error: "Invalid admin key" }, { status: 403 });
+  if (!keyMatches(body.admin_key, expected)) {
+    return NextResponse.json({ error: GENERIC_FAIL }, { status: 403 });
   }
   if (!body.email || !body.password) {
     return NextResponse.json({ error: "email and password are required" }, { status: 400 });
@@ -28,7 +41,7 @@ export async function POST(req: Request) {
     email_confirm: true,
   });
   if (createErr || !created.user) {
-    return NextResponse.json({ error: createErr?.message ?? "User creation failed" }, { status: 400 });
+    return NextResponse.json({ error: GENERIC_FAIL }, { status: 400 });
   }
   const userId = created.user.id;
 

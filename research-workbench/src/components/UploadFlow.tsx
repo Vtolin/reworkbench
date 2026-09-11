@@ -2,7 +2,14 @@
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { useInference } from "@/contexts/InferenceContext";
-import { previewFile, confirmIngest, type IngestPreview } from "@/lib/wb/ingest";
+import {
+  previewFile, confirmIngest,
+  buildTitleAssistPrompt, parseTitleAssistJson, pageOneText,
+  type IngestPreview,
+} from "@/lib/wb/ingest";
+import { OllamaProvider } from "@/lib/ai/ollama";
+import { CloudProvider } from "@/lib/ai/cloud";
+import { cleanDoi } from "@/lib/wb/openalex";
 
 function buildEdit(candidate: any, preview: IngestPreview | null) {
   const e = preview?.extracted || {};
@@ -35,9 +42,12 @@ export default function UploadFlow({ onDone }: { onDone?: ()=>void }) {
   const [collections, setCollections] = useState<any[]>([]);
   const [candidates, setCandidates] = useState<any[]>([]);
   const [activeCandidate, setActiveCandidate] = useState<any>(null);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   const startPreview = async (f: File) => {
     setFile(f); setError(null); setPreview(null); setResult(null);
+    setAiError(null);
     setLoading(true); setPhase("Analyzing… extracting text, checking OpenAlex, duplicates, classifying");
     try {
       const r = await previewFile(f);
@@ -64,18 +74,62 @@ export default function UploadFlow({ onDone }: { onDone?: ()=>void }) {
     setEdit(buildEdit(c, preview));
   };
 
+  // On-demand page-1 skim: one small LLM call, only when the user asks
+  // (kept manual so bulk uploads never burn quota on this).
+  const suggestFromPageOne = async () => {
+    if (!preview || aiBusy) return;
+    setAiBusy(true);
+    setAiError(null);
+    try {
+      const prompt = buildTitleAssistPrompt(pageOneText(preview.text ?? ""));
+      const { provider, model } = settings.provider === "ollama"
+        ? { provider: new OllamaProvider(), model: settings.model }
+        : { provider: new CloudProvider(settings.cloudProvider), model: settings.cloudModel };
+      const r = await provider.chat(
+        [
+          { role: "system", content: "You are a metadata-extraction function. Output ONLY the requested JSON." },
+          { role: "user", content: prompt },
+        ],
+        { model, temperature: 0, numCtx: settings.numCtx, numPredict: 512 } as Parameters<typeof provider.chat>[1],
+      );
+      const parsed = parseTitleAssistJson((r.content ?? "").replace(/<think>[\s\S]*?<\/think>/gi, ""));
+      setActiveCandidate(null);
+      setEdit((prev: any) => ({
+        ...prev,
+        ...(parsed.title ? { title: parsed.title } : {}),
+        ...(parsed.authors.length ? { authors: parsed.authors.join(", ") } : {}),
+        ...(parsed.year != null ? { year: String(parsed.year) } : {}),
+        ...(parsed.venue ? { journal: parsed.venue } : {}),
+        ...(parsed.doi ? { doi: parsed.doi } : {}),
+      }));
+    } catch (e: any) {
+      setAiError(e?.message ?? "AI suggestion failed");
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
   const confirm = async() => {
     if(!preview || !file) return;
     setLoading(true); setError(null);
     setPhase("Uploading → creating record → embedding chunks…");
+    // Validate human-editable fields: raw Number("…")/DOI strings would
+    // otherwise store NaN years and punctuated DOIs that break later dedup.
+    const rawYear = String(edit.year ?? "").trim();
+    const yearNum = /^\d{4}$/.test(rawYear) ? Number(rawYear) : NaN;
+    if (rawYear && (!Number.isInteger(yearNum) || yearNum < 1000 || yearNum > 2100)) {
+      setLoading(false); setPhase("");
+      setError(`Invalid year "${rawYear}" — use a 4-digit year 1000–2100 or leave it empty.`);
+      return;
+    }
     try{
       const r = await confirmIngest({
         file,
         preview,
         title: edit.title,
         authors: (edit.authors||"").split(",").map((s:string)=>s.trim()).filter(Boolean),
-        year: edit.year ? Number(edit.year) : null,
-        doi: edit.doi || null,
+        year: rawYear ? yearNum : null,
+        doi: cleanDoi(edit.doi) || null,
         journal: edit.journal || null,
         jurisdiction: edit.jurisdiction || null,
         document_type: edit.document_type || null,
@@ -158,10 +212,40 @@ export default function UploadFlow({ onDone }: { onDone?: ()=>void }) {
                   </button>
                 </>
               ) : (
-                <div className="flex flex-wrap items-center gap-2 text-sm">
-                  <span className="font-medium text-white">No external record</span>
-                  <span className="rounded-full bg-[#212121] border border-[#2f2f2f] px-2 py-0.5 text-xs text-[#8e8e8e]">Source: local extraction</span>
-                  {preview.metadataError && <span className="text-xs text-[#5f5f5f]">{preview.metadataError}</span>}
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="font-medium text-white">No external record</span>
+                    <span className="rounded-full bg-[#212121] border border-[#2f2f2f] px-2 py-0.5 text-xs text-[#8e8e8e]">Source: local extraction</span>
+                    {preview.metadataError && <span className="text-xs text-[#5f5f5f]">{preview.metadataError}</span>}
+                  </div>
+                  {candidates.length > 0 && (
+                    <div className="text-xs text-amber-300">
+                      OpenAlex found {candidates.length} match{candidates.length > 1 ? "es" : ""} below the auto-accept threshold — pick one manually or keep local:
+                      <select
+                        className="ml-2 rounded-lg border border-[#2f2f2f] bg-black px-2 py-1 text-xs text-white outline-none"
+                        onChange={e=>chooseCandidate(e.target.value)}
+                        defaultValue=""
+                      >
+                        <option value="" className="bg-[#171717]">— keep local extraction —</option>
+                        {candidates.map((c:any,i:number)=>(
+                          <option key={i} value={i} className="bg-[#171717]">{c.title?.slice(0,80)} ({Math.round((c.confidence??0)*100)}%)</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={suggestFromPageOne}
+                      disabled={aiBusy}
+                      className="rounded-lg border border-[#2f2f2f] bg-[#212121] px-3 py-1 text-xs text-white hover:bg-[#2f2f2f] disabled:opacity-50"
+                      title="One small model call over the first page only; fills title/authors/year/venue/DOI"
+                    >
+                      {aiBusy ? "Reading page 1…" : "✨ Suggest from page 1"}
+                    </button>
+                    <span className="text-[11px] text-[#5f5f5f]">One small call, first page only — fills empty fields below.</span>
+                  </div>
+                  {aiError && <div className="text-xs text-red-300">{aiError}</div>}
+                  <div className="text-[11px] text-[#5f5f5f]">Check the title/year/journal below before Accept — Daftar Pustaka is built from these fields exactly.</div>
                 </div>
               )}
             </div>

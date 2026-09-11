@@ -1,18 +1,27 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { OPENAI_COMPAT_BASE, KNOWN_PROVIDERS, resolveApiKey } from "@/lib/ai/providers";
+import { OPENAI_COMPAT_BASE, KNOWN_PROVIDERS, resolveApiKey, buildGoogleExtraBody, upstreamError, type GeminiThinkLevel } from "@/lib/ai/providers";
 
-// POST /api/ai/proxy {provider, model, messages, temperature, apiKey?}
+// POST /api/ai/proxy {provider, model, messages, temperature, apiKey?, thinkingBudget?, thinkLevel?}
 // Cloud-AI proxy (BYOK): resolves the caller's OWN stored key server-side
 // (ai_credentials, owner-only RLS + AES-GCM at rest) and forwards to the
 // cloud provider. Never uses a shared workspace key. Never logs keys.
+// thinkingBudget/thinkLevel are honored for Google (extra_body thinking_config)
+// and ignored for other providers.
 export async function POST(req: Request) {
+  // Authenticated-only: even BYOK-with-own-key callers must hold a session,
+  // otherwise this is an open relay on Vercel egress/compute.
+  const gate = await createServerSupabase();
+  const { data: gateUser } = await gate.auth.getUser();
+  if (!gateUser.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   let body: {
     provider?: string;
     model?: string;
     messages?: Array<{ role: string; content: string }>;
     temperature?: number;
     apiKey?: string; // optional client-held key (client-side-only mode)
+    thinkingBudget?: number;
+    thinkLevel?: GeminiThinkLevel;
   };
   try {
     body = await req.json();
@@ -32,6 +41,10 @@ export async function POST(req: Request) {
   try {
     const compatBase = OPENAI_COMPAT_BASE[body.provider];
     if (compatBase) {
+      const extra_body =
+        body.provider === "google"
+          ? buildGoogleExtraBody({ model: body.model ?? "", thinkingBudget: body.thinkingBudget, thinkLevel: body.thinkLevel })
+          : undefined;
       const upstream = await fetch(`${compatBase}/chat/completions`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
@@ -39,9 +52,13 @@ export async function POST(req: Request) {
           model: body.model,
           messages: body.messages,
           temperature: body.temperature ?? 0,
+          ...(extra_body ? { extra_body } : {}),
         }),
       });
-      if (!upstream.ok) return NextResponse.json({ error: `${body.provider} error: ${upstream.status}` }, { status: 502 });
+      if (!upstream.ok) {
+        const text = await upstream.text().catch(() => "");
+        return NextResponse.json({ error: upstreamError(body.provider, upstream.status, text) }, { status: 502 });
+      }
       const data = await upstream.json();
       return NextResponse.json({ content: data.choices?.[0]?.message?.content ?? "" });
     }
@@ -62,7 +79,8 @@ export async function POST(req: Request) {
       }),
     });
     if (!upstream.ok) {
-      return NextResponse.json({ error: `Anthropic error: ${upstream.status}` }, { status: 502 });
+      const text = await upstream.text().catch(() => "");
+      return NextResponse.json({ error: upstreamError("Anthropic", upstream.status, text) }, { status: 502 });
     }
     const data = await upstream.json();
     const text = (data.content ?? []).map((b: { text?: string }) => b.text ?? "").join("");

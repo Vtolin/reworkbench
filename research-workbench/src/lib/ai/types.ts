@@ -17,6 +17,10 @@ export interface ChatOptions {
    *  (server-side trace bound for qwen3/gpt-oss/deepseek families).
    *  Ignored by the cloud backend. */
   thinkLevel?: "low" | "medium" | "high" | "max";
+  /** Target thinking-token budget. Forwarded to backends that support it
+   *  (Google `extra_body` thinking_config); otherwise ignored. Soft target,
+   *  not a hard cap — size `numPredict` so the answer survives regardless. */
+  thinkingBudget?: number;
   signal?: AbortSignal;
   onToken?: (token: string) => void;
   onThinking?: (delta: string) => void;

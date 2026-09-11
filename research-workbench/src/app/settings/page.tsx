@@ -221,7 +221,7 @@ export default function SettingsPage(){
                 <option value="google">Google</option>
                 <option value="anthropic">Anthropic</option>
               </select>
-              <input value={inf.cloudModel} onChange={e=>setInf({ cloudModel: e.target.value })} list="cloud-models" placeholder="Model (e.g. deepseek-chat)" className="rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2 text-sm text-white" />
+              <input value={inf.cloudModel} onChange={e=>setInf({ cloudModel: e.target.value })} list="cloud-models" placeholder={`Model (${{ openai: "e.g. gpt-4o-mini", deepseek: "e.g. deepseek-chat", google: "e.g. gemini-2.5-flash", anthropic: "e.g. claude-haiku-4-5" }[inf.cloudProvider]})`} className="rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2 text-sm text-white" />
               <datalist id="cloud-models">{(cloudModels ?? []).map(m=> <option key={m} value={m} />)}</datalist>
               <button onClick={fetchCloudModels} disabled={fetchingModels} className="rounded-xl border border-[#2f2f2f] bg-[#212121] px-3 py-2 text-sm text-white disabled:opacity-50" title="List models from the provider using your saved key">
                 {fetchingModels ? "…" : "↻ Models"}

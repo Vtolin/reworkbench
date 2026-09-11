@@ -25,6 +25,8 @@ export function chunkText(
   let start = 0;
   let index = 0;
   // Prefer paragraph/sentence boundaries, fall back to hard split.
+  // CJK sentence ends (。！？) included — latin-only boundaries hard-split
+  // spaceless text mid-sentence at 4700 chars.
   while (start < clean.length) {
     let end = Math.min(start + chunkSize, clean.length);
     if (end < clean.length) {
@@ -35,6 +37,10 @@ export function chunkText(
         window.lastIndexOf(".\n"),
         window.lastIndexOf("? "),
         window.lastIndexOf("! "),
+        window.lastIndexOf("。"),
+        window.lastIndexOf("！"),
+        window.lastIndexOf("？"),
+        window.lastIndexOf("\n"),
       );
       const cut = lastPara > chunkSize * 0.4 ? lastPara : lastSentence > chunkSize * 0.4 ? lastSentence + 1 : -1;
       if (cut > 0) end = start + cut;
@@ -85,10 +91,15 @@ export async function extractPdfTextBrowser(file: File | Blob): Promise<{ text: 
   for (let p = 1; p <= pdf.numPages; p++) {
     const page = await pdf.getPage(p);
     const tc = await page.getTextContent();
-    const str = (tc.items as Array<{ str?: string }>)
-      .map((it) => it.str ?? "")
-      .join(" ");
-    parts.push(`[Page ${p}]\n${str}`);
+    // Preserve line breaks via hasEOL: joining everything with spaces
+    // fuses title/author/affiliation lines into one blob, which breaks
+    // downstream title detection (and degrades chunk boundaries).
+    let str = "";
+    for (const it of (tc.items as Array<{ str?: string; hasEOL?: boolean }>)) {
+      str += (it.str ?? "");
+      str += it.hasEOL ? "\n" : " ";
+    }
+    parts.push(`[Page ${p}]\n${str.trim()}`);
   }
   return { text: parts.join("\n\n"), pageCount: pdf.numPages };
 }

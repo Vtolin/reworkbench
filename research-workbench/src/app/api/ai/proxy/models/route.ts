@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { OPENAI_COMPAT_BASE, KNOWN_PROVIDERS, resolveApiKey } from "@/lib/ai/providers";
+import { OPENAI_COMPAT_BASE, KNOWN_PROVIDERS, resolveApiKey, upstreamError } from "@/lib/ai/providers";
 
 // GET /api/ai/proxy/models?provider=deepseek — live model list from the
 // provider, authenticated with the member's OWN stored key. Nothing hardcoded.
@@ -16,7 +16,10 @@ export async function GET(req: Request) {
       const upstream = await fetch("https://api.anthropic.com/v1/models?limit=50", {
         headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
       });
-      if (!upstream.ok) return NextResponse.json({ error: `Anthropic error: ${upstream.status}` }, { status: 502 });
+      if (!upstream.ok) {
+        const text = await upstream.text().catch(() => "");
+        return NextResponse.json({ error: upstreamError("Anthropic", upstream.status, text) }, { status: 502 });
+      }
       const data = await upstream.json();
       const models = ((data.data ?? []) as Array<{ id: string }>).map((m) => m.id).sort();
       return NextResponse.json({ models });
@@ -24,7 +27,10 @@ export async function GET(req: Request) {
     const upstream = await fetch(`${OPENAI_COMPAT_BASE[provider]}/models`, {
       headers: { Authorization: `Bearer ${apiKey}` },
     });
-    if (!upstream.ok) return NextResponse.json({ error: `${provider} error: ${upstream.status}` }, { status: 502 });
+    if (!upstream.ok) {
+      const text = await upstream.text().catch(() => "");
+      return NextResponse.json({ error: upstreamError(provider, upstream.status, text) }, { status: 502 });
+    }
     const data = await upstream.json();
     const models = ((data.data ?? []) as Array<{ id: string }>).map((m) => m.id).sort();
     return NextResponse.json({ models });

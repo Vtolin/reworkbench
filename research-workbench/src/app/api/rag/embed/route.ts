@@ -6,6 +6,11 @@ import { decryptApiKey } from "@/lib/ai/keys";
 // Server-side embedding (cloud mode). Uses the member's own key — stored
 // encrypted or forwarded per-request — never a shared workspace key.
 export async function POST(req: Request) {
+  // Authenticated-only even when the caller forwards their own key:
+  // anonymous use would turn this into an open relay on server egress.
+  const gate = await createServerSupabase();
+  const { data: gateUser } = await gate.auth.getUser();
+  if (!gateUser.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   let body: { text?: string; model?: string; apiKey?: string };
   try {
     body = await req.json();

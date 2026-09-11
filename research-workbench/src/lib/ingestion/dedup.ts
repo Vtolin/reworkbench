@@ -44,7 +44,11 @@ const DOI_RE = /10\.\d{4,9}\/[-._;()/:A-Z0-9]+/i;
 export function extractDoi(text: string | null | undefined): string | null {
   if (!text) return null;
   const m = DOI_RE.exec(text);
-  return m ? m[0].toLowerCase() : null;
+  if (!m) return null;
+  // Strip trailing punctuation the regex legitimately includes mid-DOI
+  // ("/", ";", "(", ")") — must agree with openalex.cleanDoi, kept inline
+  // here to avoid a dedup↔openalex import cycle.
+  return m[0].toLowerCase().replace(/[.,;)\]]+$/, "") || null;
 }
 
 export function titleFuzzyScore(a: string, b: string): number {

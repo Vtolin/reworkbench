@@ -1,6 +1,6 @@
 "use client";
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
-import type { OutlineChapter, SectionOutput, SectionPassage, MakalahReference } from "@/lib/wb/makalah";
+import type { OutlineChapter, SectionOutput, SectionPassage, MakalahReference, MakalahHybrid } from "@/lib/wb/makalah";
 
 /** Persisted per-section state (transient UI flags excluded). */
 export interface MakalahSecPersisted {
@@ -31,6 +31,8 @@ export interface MakalahSnapshot {
   maxSubs: number;
   targetWords: number;
   citationStyle: string;
+  /** Grounding mode for section drafting (off / 15/85 / 30/70). */
+  hybridMode: MakalahHybrid;
   cover: MakalahCover;
   outline: OutlineChapter[];
   coverageNotes: string;
@@ -60,6 +62,7 @@ export function blankSnapshot(): MakalahSnapshot {
     maxSubs: 5,
     targetWords: 300,
     citationStyle: "APA 7",
+    hybridMode: "15/85",
     cover: { title: "", author: "", nim: "", course: "", lecturer: "" },
     outline: [],
     coverageNotes: "",
@@ -97,6 +100,8 @@ type MakalahState = {
   drafts: MakalahDraft[];
   activeId: string | null;
   hydrated: boolean;
+  /** Non-null when the last autosave failed (e.g. localStorage quota). */
+  persistError: string | null;
   newDraft: () => string;
   selectDraft: (id: string) => void;
   deleteDraft: (id: string) => void;
@@ -111,7 +116,6 @@ const MakalahContext = createContext<MakalahState | null>(null);
 function uid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
-
 function freshDraft(): MakalahDraft {
   const now = Date.now();
   return { ...blankSnapshot(), id: uid(), createdAt: now, updatedAt: now };
@@ -133,6 +137,7 @@ function normalize(d: MakalahDraft): MakalahDraft {
   return {
     ...blankSnapshot(),
     ...d,
+    hybridMode: d.hybridMode === "off" || d.hybridMode === "30/70" ? d.hybridMode : "15/85",
     outline: Array.isArray(d.outline) ? d.outline : [],
     selected: Array.isArray(d.selected) ? d.selected : [],
     references: Array.isArray(d.references) ? d.references : [],
@@ -146,6 +151,7 @@ export function MakalahProvider({ children }: { children: React.ReactNode }) {
   const [drafts, setDrafts] = useState<MakalahDraft[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [persistError, setPersistError] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -172,8 +178,15 @@ export function MakalahProvider({ children }: { children: React.ReactNode }) {
     if (!hydrated) return;
     try {
       localStorage.setItem(KEY_DOCS, JSON.stringify(drafts));
-    } catch {
-      /* quota — keep in-memory */
+      setPersistError(null);
+    } catch (e) {
+      // Quota (or private-mode) failure: drafts live only in memory from
+      // here — surface it instead of silently losing work on reload.
+      setPersistError(
+        e instanceof Error && /quota|exceed/i.test(e.message)
+          ? "Penyimpanan browser penuh — draft hanya ada di memori tab ini. Export/Copy sekarang, lalu hapus draft lama."
+          : "Autosave gagal — draft hanya ada di memori tab ini. Export/Copy sekarang.",
+      );
     }
   }, [drafts, hydrated]);
 
@@ -213,7 +226,7 @@ export function MakalahProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <MakalahContext.Provider
-      value={{ drafts, activeId, hydrated, newDraft, selectDraft, deleteDraft, saveDraft }}
+      value={{ drafts, activeId, hydrated, persistError, newDraft, selectDraft, deleteDraft, saveDraft }}
     >
       {children}
     </MakalahContext.Provider>

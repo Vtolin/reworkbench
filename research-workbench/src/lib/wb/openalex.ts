@@ -21,6 +21,13 @@ export interface MetadataCandidate {
 
 const OPENALEX_BASE = "https://api.openalex.org";
 export const DOI_MATCH_CONFIDENCE = 0.97;
+/**
+ * Minimum title-match confidence for auto-accepting an OpenAlex candidate.
+ * Below this the caller should fall back to local extraction and let the
+ * human pick from `candidates` manually. This is deliberately generic
+ * (no topic lists): it only measures "does the record match what we asked".
+ */
+export const OPENALEX_MIN_CONFIDENCE = 0.65;
 
 export function cleanDoi(doi: string | null | undefined): string | null {
   if (!doi) return null;
@@ -171,6 +178,11 @@ export async function fetchMetadata(opts: {
     }
   }
   const best = candidates.length ? [...candidates].sort((a, b) => b.confidence - a.confidence)[0] : null;
-  if (best) return { proposal: best, candidates, error, offline: false };
+  // Generic confidence gate: a low-confidence "best" match is worse than no
+  // match, because accepting it locks wrong title/year/journal into the
+  // document row (and later into Daftar Pustaka). Fall back to local and
+  // keep the candidates so the human can pick manually.
+  if (best && best.confidence >= OPENALEX_MIN_CONFIDENCE)
+    return { proposal: best, candidates, error, offline: false };
   return { proposal: localCandidate(localFields), candidates, error, offline: error != null };
 }

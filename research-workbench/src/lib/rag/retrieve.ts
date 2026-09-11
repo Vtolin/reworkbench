@@ -176,7 +176,11 @@ export async function retrieveContext(opts: RagOptions): Promise<{
 
   if (scopeIds?.length) {
     const scoped = fusedPassages.filter((p) => scopeIds.includes(p.document_id));
-    fusedPassages = scoped.length ? scoped : fusedPassages;
+    // No silent fallback: zero in-scope hits returns []. Callers own the
+    // widening policy explicitly (makalah runOne broadens to `selected`;
+    // compare labels "no relevant excerpts"). Returning the unscoped fusion
+    // here misattributes other docs' passages to the scoped question.
+    fusedPassages = scoped;
   }
 
   // 7. Cross-Encoder Reranking
