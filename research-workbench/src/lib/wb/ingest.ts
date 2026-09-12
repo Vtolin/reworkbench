@@ -517,10 +517,11 @@ export async function confirmIngest(input: ConfirmInput): Promise<{
           });
           if (!res.ok) {
             const errBody = await res.json().catch(() => ({}));
-            throw new Error((errBody as { error?: string }).error ?? "Server embedding failed (requires OpenAI key in Settings)");
+            throw new Error((errBody as { error?: string }).error ?? "Server embedding failed (requires an OpenAI or Google key in Settings)");
           }
-          embedding = (await res.json()).embedding as number[];
-          embedModelName = "text-embedding-3-small";
+          const embedData = (await res.json()) as { embedding: number[]; model?: string };
+          embedding = embedData.embedding as number[];
+          embedModelName = embedData.model ?? "cloud-embedding-768d";
           // Schema is vector(768) for nomic-embed-text; a 1536d OpenAI vector
           // cannot be stored alongside. Fail loudly instead of leaving
           // chunks without embeddings that silently never match.

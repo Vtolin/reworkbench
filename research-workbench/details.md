@@ -74,7 +74,7 @@ Mobile contract (all pages): fixed 56px top bar on `<lg`, content offset with `m
 `retrieveContext()` (`src/lib/rag/retrieve.ts`) fuses three legs over RLS-gated server RPCs:
 
 1. **FTS leg** — `fts_search_chunks` (`websearch_to_tsquery` + `ts_rank_cd`, approved-only).
-2. **Vector leg** — `vector_search_chunks` (cosine `<=>`, approved-only); query embedded locally (`nomic-embed-text`, 768d) or via server embedding depending on `embedMode`. Embedding failure degrades to FTS/BM25-only with a surfaced diagnostic, never a silent wrong answer.
+2. **Vector leg** — `vector_search_chunks` (cosine `<=>`, approved-only); query embedded locally (`nomic-embed-text`, 768d) or via server embedding depending on `embedMode`. Server mode routes by the member's stored key (OpenAI `text-embedding-3-small` / Google `gemini-embedding-001`, both truncated to 768d so cloud and local vectors stay comparable in the `vector(768)` column); providers without an embedding API get a clear error instead of a silent wrong answer. Embedding failure degrades to FTS/BM25-only with a surfaced diagnostic, never a silent wrong answer.
 3. **BM25 leg** — Okapi BM25 (`src/lib/rag/bm25.ts`) scored over the candidate pool in-browser.
 4. **Fusion** — Reciprocal Rank Fusion, k=60 (`fusion.ts`), over `max(topN·3, 24)` candidates; optional `scopeIds` restriction (scoped ask / compare / per-section retrieval).
 5. **Rerank** — cross-encoder reranker (`rerank.ts`, LLM rerank available but off by default) down to `topN` (8, or 12 with Broad).
