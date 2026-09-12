@@ -2,7 +2,7 @@
 // confirm (Storage upload → rows → embeddings → pending approval).
 // Preserves the UploadFlow "AI proposes, human confirms" contract.
 import { createClient } from "@/lib/supabase/client";
-import { sha256Hex, chunkText } from "@/lib/ingestion/chunking";
+import { sha256Hex, chunkTextWithPages } from "@/lib/ingestion/chunking";
 import { extractDocumentText } from "@/lib/importing/docloaders";
 import { checkDuplicates, extractDoi } from "@/lib/ingestion/dedup";
 import { classifyDocumentType, suggestCollection } from "@/lib/ingestion/classify";
@@ -401,7 +401,9 @@ export async function confirmIngest(input: ConfirmInput): Promise<{
   });
   if (upErr) throw new Error(upErr.message);
 
-  const chunks = chunkText(preview.text);
+  // Page-aware: PDF markers become chunk.page ("h. X" citations) and are
+  // stripped from stored content. Non-PDF texts behave like chunkText.
+  const chunks = chunkTextWithPages(preview.text);
   const { data: doc, error: docErr } = await sb
     .from("documents")
     .insert({

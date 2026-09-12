@@ -8,7 +8,7 @@ export interface MakalahSecPersisted {
   passages: SectionPassage[];
   output: SectionOutput | null;
   error: string | null;
-  integrity: { total: number; valid: number; badIds: string[] } | null;
+  integrity: { total: number; valid: number; badIds: string[]; badPages: string[] } | null;
   claims: Array<{ verdict: string; reason: string }> | null;
 }
 
@@ -130,7 +130,14 @@ function normalize(d: MakalahDraft): MakalahDraft {
       passages: Array.isArray(s.passages) ? s.passages : [],
       output: s.output ?? null,
       error: typeof s.error === "string" ? s.error : null,
-      integrity: s.integrity ?? null,
+      integrity: s.integrity
+        ? {
+            total: Number(s.integrity.total) || 0,
+            valid: Number(s.integrity.valid) || 0,
+            badIds: Array.isArray(s.integrity.badIds) ? s.integrity.badIds : [],
+            badPages: Array.isArray(s.integrity.badPages) ? s.integrity.badPages : [],
+          }
+        : null,
       claims: Array.isArray(s.claims) ? s.claims : null,
     };
   }

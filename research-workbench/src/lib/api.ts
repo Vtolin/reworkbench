@@ -66,7 +66,7 @@ export interface InferenceSnapshot {
   makalahSectionStage: StageSnapshot;
   makalahThinking: boolean;
   makalahNumPredict: number;
-  makalahThinkLevel: "low" | "medium" | "high" | "max";
+  makalahThinkLevel: "minimal" | "low" | "medium" | "high" | "max";
   makalahThinkingBudget: number;
 }
 
@@ -120,6 +120,9 @@ export function readInference(): InferenceSnapshot {
       if (!CLOUD_PROVIDERS.has(p.cloudProvider as string)) p.cloudProvider = INFERENCE_DEFAULTS.cloudProvider;
       if (p.embedMode !== "local" && p.embedMode !== "server") p.embedMode = INFERENCE_DEFAULTS.embedMode;
       if (!Number.isFinite(p.numCtx) || p.numCtx <= 0) p.numCtx = INFERENCE_DEFAULTS.numCtx;
+      if (!["minimal", "low", "medium", "high", "max"].includes(p.makalahThinkLevel as string)) {
+        p.makalahThinkLevel = INFERENCE_DEFAULTS.makalahThinkLevel;
+      }
       if (p.summarizeMethod !== "stuff" && p.summarizeMethod !== "map_reduce") p.summarizeMethod = "stuff";
       for (const k of ["mapStage", "reduceStage", "synthesisStage", "makalahOutlineStage", "makalahSectionStage"] as const) {
         p[k] = saneStage(p[k], p.cloudProvider);
@@ -334,8 +337,12 @@ export const api = {
     handlers?: { onStatus?: (stage: string, detail?: string) => void },
     topK = 8,
     keepTop = 4,
-  ): Promise<SectionPassage[]> => wbMakalahRetrieve(query, scopeIds, toSel(), topK, keepTop, handlers?.onStatus),
-  makalahSection: (body: { topic: string; chapter_title: string; subsection_number: string; subsection_title: string; language: string; citation_style: string; passages: SectionPassage[]; target_length_words: number; source_titles?: Record<string, string>; outline_context?: { full_outline: string; prior_summaries: string; scope_note?: string }; grounding?: import("./wb/makalah").MakalahHybrid }, signal?: AbortSignal) =>
+    excludeKeys?: string[],
+  ): Promise<SectionPassage[]> => wbMakalahRetrieve(
+    query, scopeIds, toSel(), topK, keepTop, handlers?.onStatus,
+    excludeKeys?.length ? new Set(excludeKeys) : undefined,
+  ),
+  makalahSection: (body: { topic: string; chapter_title: string; subsection_number: string; subsection_title: string; language: string; citation_style: string; passages: SectionPassage[]; target_length_words: number; source_titles?: Record<string, string>; outline_context?: import("./wb/makalah").OutlineContext; grounding?: import("./wb/makalah").MakalahHybrid; temperature?: number }, signal?: AbortSignal) =>
     wbMakalahSection(body, toSel(), signal),
   makalahReferences: (document_ids: string[]) => wbMakalahReferences(document_ids),
   makalahClaimCheck: (paragraphText: string, citedPassages: SectionPassage[]) =>

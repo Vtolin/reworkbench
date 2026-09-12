@@ -14,6 +14,7 @@ import type { InferenceSelection, StageSelection } from "./ask";
 import { getWorkspaceId, type HydratedDoc } from "./library";
 import { docToCslItem, renderCitationPlain } from "@/lib/citations";
 import { titleFuzzyScore } from "@/lib/ingestion/dedup";
+import { sectionSimilarity, mmrSelect } from "@/lib/text/similarity";
 
 // ---------------------------------------------------------------------------
 // Schemas
@@ -35,6 +36,8 @@ export interface OutlineChapter {
   chapter_number: string;
   chapter_title: string;
   subsections: OutlineSubsection[];
+  /** Closing chapters synthesize prior sections: no new evidence allowed. */
+  synthesis_only?: boolean;
 }
 
 export interface MakalahOutline {
@@ -66,7 +69,6 @@ export interface SectionCitation {
   source_id: string;
   page: number | null;
 }
-
 export interface SectionParagraph {
   text: string;
   citations: SectionCitation[];
@@ -98,6 +100,10 @@ export interface QualityReport {
   redundant_pairs: Array<{ a: string; b: string; score: number }>;
   /** Paragraphs with zero citations (model-bridged under hybrid grounding). */
   ai_filled: number;
+  /** Citations with page numbers that don't match any retrieved passage for that source. */
+  citation_page_mismatches: string[];
+  /** Citations that omit the page on a page-verifiable source (soft signal). */
+  citation_missing_pages: string[];
 }
 
 /** Cheap broken-entry heuristic: author-less leading "(year)" or ".." doubling. */
@@ -198,9 +204,59 @@ function stripFences(text: string): string {
     .trim();
 }
 
-/** Remove trailing commas before } or ] — the most common LLM JSON defect. */
-function repairJson(text: string): string {
-  return text.replace(/,(\s*[}\]])/g, "$1");
+/** Escape raw/unescaped control characters (\n, \r, \t) inside double-quoted string literals. */
+function escapeControlCharsInStrings(text: string): string {
+  let inString = false;
+  let escaped = false;
+  let out = "";
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) {
+        out += ch;
+        escaped = false;
+      } else if (ch === "\\") {
+        out += ch;
+        escaped = true;
+      } else if (ch === '"') {
+        out += ch;
+        inString = false;
+      } else if (ch === "\n") {
+        out += "\\n";
+      } else if (ch === "\r") {
+        out += "\\r";
+      } else if (ch === "\t") {
+        out += "\\t";
+      } else {
+        out += ch;
+      }
+    } else {
+      if (ch === '"') {
+        inString = true;
+      }
+      out += ch;
+    }
+  }
+  return out;
+}
+
+/**
+ * Repair conservatively:
+ * 1. Escape raw unescaped control characters (\n, \r, \t) inside string
+ *    literals (LLMs emit literal newlines; JSON.parse rejects them).
+ * 2. Remove trailing commas before } or ] — the most common LLM JSON defect.
+ *
+ * Deliberately NOT normalizing single-quoted JSON: the '…'-to-"…" rewrite
+ * corrupts legitimate apostrophes (Today's, peneliti's) whenever a model
+ * answers with zero double-quotes, turning a recoverable parse into silent
+ * text corruption. A single-quoted answer fails fast with an actionable
+ * message instead.
+ */
+export function repairJson(text: string): string {
+  let res = text;
+  res = escapeControlCharsInStrings(res);
+  res = res.replace(/,(\s*[}\]])/g, "$1");
+  return res;
 }
 
 function extractJsonObject(text: string): Record<string, unknown> {
@@ -238,9 +294,10 @@ async function chatJson<T>(
   numPredict: number,
   parse: (t: string) => T,
   label: string,
-  think: boolean | "low" | "medium" | "high" | "max" = false,
+  think: boolean | "minimal" | "low" | "medium" | "high" | "max" = false,
   thinkingBudget?: number,
   signal?: AbortSignal,
+  temperature = 0,
 ): Promise<T> {
   let lastRaw = "";
   let lastErr = "";
@@ -254,11 +311,16 @@ async function chatJson<T>(
     const r = await provider.chat(
       [{ role: "system", content: system }, { role: "user", content: prompt }],
       {
-        model, temperature: 0, numCtx, numPredict, thinking: think !== false,
+        model, temperature, numCtx, numPredict, thinking: think !== false,
         ...(typeof think === "string" ? { thinkLevel: think } : {}),
         // A bare budget ENABLES thinking on Gemini — only send it together
-        // with thinking on, never on cold calls.
+        // with thinking on, never on cold calls. Cold calls send
+        // thinking:false explicitly so the proxy maps to minimal/0 instead
+        // of the provider default (medium on gemini-3.5-flash).
         ...(think !== false && typeof thinkingBudget === "number" ? { thinkingBudget } : {}),
+        // Structured output on cloud (OpenAI-compat response_format).
+        // Ollama ignores unknown flags — it enforces JSON via prompt.
+        jsonMode: true,
         ...(signal ? { signal } : {}),
       },
     );
@@ -325,14 +387,21 @@ export function buildOutlineUserPrompt(input: {
     `answers) and "must_not_cover" (topics owned by other subsections).\n\n` +
     `For each subsection, list which source ids plausibly support it (you are not ` +
     `writing content yet, only proposing structure and mapping likely evidence). ` +
-    `Copy each source id EXACTLY as shown above — never abbreviate, renumber, or ` +
-    `invent ids like "paper_01".\n\n` +
-    `Return JSON only, in this schema:\n` +
+    `Copy each source id EXACTLY as shown in the list above — paste the full ` +
+    `string verbatim. Never abbreviate, renumber, shorten, or invent ids.\n\n` +
+    `Return JSON only, in this schema (the likely_sources values below are ` +
+    `PLACEHOLDERS showing shape only — always replace them with real ids ` +
+    `pasted from the list above):\n` +
     `{"outline": [{"chapter_number": "BAB I", "chapter_title": "Pendahuluan", ` +
     `"subsections": [{"number": "1.1", "title": "Latar Belakang", ` +
     `"focus": "why this topic matters", "must_not_cover": ["detailed theory"], ` +
-    `"likely_sources": ["paper_01", "paper_04"]}]}], ` +
-    `"coverage_notes": "any themes in the sources not reflected in the outline, or gaps"}`
+    `"likely_sources": ["<paste-exact-id-from-list-above>", "<paste-another-exact-id>"]}]}, ` +
+    `{"chapter_number": "BAB III", "chapter_title": "Penutup", "synthesis_only": true, ` +
+    `"subsections": [...]}], ` +
+    `"coverage_notes": "any themes in the sources not reflected in the outline, or gaps"}\n\n` +
+    `Mark the final chapter (Penutup — conclusions and suggestions only) with ` +
+    `"synthesis_only": true: it must synthesize already-covered material and ` +
+    `receive no new evidence.`
   );
 }
 
@@ -345,6 +414,7 @@ export function parseOutlineJson(text: string): MakalahOutline {
     return {
       chapter_number: String(ch.chapter_number ?? ""),
       chapter_title: String(ch.chapter_title ?? ""),
+      ...(ch.synthesis_only === true ? { synthesis_only: true as const } : {}),
       subsections: rawSubs.map((s) => {
         const sub = s as Record<string, unknown>;
         const likely = Array.isArray(sub.likely_sources)
@@ -391,27 +461,49 @@ export function outlineSubLabel(chapter_number: string, sub: OutlineSubsection):
 }
 
 function outlineScopeText(sub: OutlineSubsection): string {
-  return [sub.title, sub.focus ?? "", ...(sub.must_not_cover ?? [])].join(" ");
+  // must_not_cover names OTHER sections' topics — including it would inflate
+  // every pair sharing vocabulary. Score what the section IS (title+focus).
+  return [sub.title, sub.focus ?? ""].join(" ");
 }
 
+type OutlineRole = "open" | "middle" | "close";
+
 /**
- * Generic outline-overlap gate (advisory, not blocking): pairwise
- * bigram similarity over title+focus. Flags pairs like "Tinjauan Umum X"
- * vs "Analisis Komprehensif Perkembangan X" for the human to re-split
- * before drafting. No topic knowledge — pure string similarity.
+ * Outline-overlap gate (advisory, not blocking), scored on content words —
+ * raw bigrams over Indonesian academic titles ("Perkembangan LLM",
+ * "Penggunaan LLM") routinely hit 0.5–0.7 with no real meaning overlap.
+ * Same-role pairs (esp. within Pembahasan, the real duplication zone) warn
+ * at `threshold`; cross-role pairs are partly structural (a scope preview in
+ * BAB I legitimately echoes a BAB II topic) and warn only above
+ * `crossRoleThreshold`. A genuinely leaky scope (preview ≈ full treatment)
+ * is then caught downstream by focus discipline and the P7 evidence-overlap
+ * indicator at drafting time. Detector quality scales with focus quality:
+ * empty Fokus leaves titles alone to discriminate on.
+ * Thresholds are set above the 0.85–0.88 boilerplate band observed on
+ * broad Indonesian topics so only genuine duplication warns.
  */
 export function findOutlineOverlaps(
   outline: OutlineChapter[],
-  threshold = 0.5,
+  threshold = 0.78,
+  crossRoleThreshold = 0.82,
 ): Array<{ a: string; b: string; score: number }> {
-  const flat = outline.flatMap((ch) =>
-    ch.subsections.map((sub) => ({ label: outlineSubLabel(ch.chapter_number, sub), text: outlineScopeText(sub) })),
+  const roleOf = (ci: number): OutlineRole =>
+    outline.length > 1 && ci === outline.length - 1 ? "close"
+    : ci === 0 ? "open"
+    : "middle";
+  const flat = outline.flatMap((ch, ci) =>
+    ch.subsections.map((sub) => ({
+      label: outlineSubLabel(ch.chapter_number, sub),
+      text: outlineScopeText(sub),
+      role: roleOf(ci),
+    })),
   );
   const out: Array<{ a: string; b: string; score: number }> = [];
   for (let i = 0; i < flat.length; i++) {
     for (let j = i + 1; j < flat.length; j++) {
-      const s = titleFuzzyScore(flat[i].text, flat[j].text);
-      if (s >= threshold) out.push({ a: flat[i].label, b: flat[j].label, score: Math.round(s * 100) / 100 });
+      const bar = flat[i].role === flat[j].role ? threshold : crossRoleThreshold;
+      const s = sectionSimilarity(flat[i].text, flat[j].text);
+      if (s >= bar) out.push({ a: flat[i].label, b: flat[j].label, score: Math.round(s * 100) / 100 });
     }
   }
   return out.sort((x, y) => y.score - x.score);
@@ -428,43 +520,51 @@ export function countAiFilled(output: SectionOutput | null | undefined): number 
 }
 
 /**
- * Generic cross-section duplication detector. Scores whole texts AND the
- * best-matching paragraph pair (duplication usually manifests as one
- * re-explained paragraph, which whole-text averaging dilutes). Calibrated
- * on real output: near-paraphrase paragraphs score ~0.8–0.9, topically
- * distinct paragraphs ~0.6 or below. Advisory — the UI lists pairs above
- * threshold for Regenerate/Edit.
+ * Generic cross-section duplication detector over content-word similarity
+ * (function words stripped — see lib/text/similarity). Pairs involving the
+ * closing chapter use a higher bar: Penutup restates by job description, so
+ * mid-0.8s there is role overlap, not evidence overlap. The default bar sits
+ * above the 0.85–0.88 Indonesian-boilerplate band seen on broad topics.
+ * Advisory — the UI lists pairs above threshold for Regenerate/Edit.
  */
 export function findRedundantPairs(
-  sections: Array<{ label: string; text: string }>,
-  threshold = 0.7,
+  sections: Array<{ label: string; text: string; isClosing?: boolean }>,
+  threshold = 0.88,
+  closingThreshold = 0.94,
 ): Array<{ a: string; b: string; score: number }> {
   // Bounded: quality recomputes on every secs change (autosave keystrokes),
-  // and chapters are unbounded — cap sections/paragraphs before the O(S²·P²)
-  // fuzzy comparison so a big draft can't wedge the render loop.
+  // and chapters are unbounded — cap sections before the O(S²·P²) comparison.
   const usable = sections.filter((s) => s.text.trim().length > 40).slice(0, 24);
-  const parasOf = (t: string): string[] =>
-    t.split(/\n\s*\n/).map((p) => p.trim()).filter((p) => p.length > 40).slice(0, 10);
-  const pairScore = (a: string, b: string): number => {
-    let best = titleFuzzyScore(a, b);
-    const pa = parasOf(a);
-    const pb = parasOf(b);
-    for (const x of pa) {
-      for (const y of pb) {
-        const s = titleFuzzyScore(x, y);
-        if (s > best) best = s;
-      }
-    }
-    return best;
-  };
   const out: Array<{ a: string; b: string; score: number }> = [];
   for (let i = 0; i < usable.length; i++) {
     for (let j = i + 1; j < usable.length; j++) {
-      const s = pairScore(usable[i].text, usable[j].text);
-      if (s >= threshold) out.push({ a: usable[i].label, b: usable[j].label, score: Math.round(s * 100) / 100 });
+      const bar =
+        usable[i].isClosing || usable[j].isClosing ? closingThreshold : threshold;
+      const s = sectionSimilarity(usable[i].text, usable[j].text);
+      if (s >= bar) out.push({ a: usable[i].label, b: usable[j].label, score: Math.round(s * 100) / 100 });
     }
   }
   return out.sort((x, y) => y.score - x.score);
+}
+
+/**
+ * Deterministic verbatim-sentence extractor for the negative list: leading
+ * sentences across paragraphs, capped. No LLM, no topic knowledge.
+ */
+export function buildNegativeList(output: SectionOutput, maxChars = 400): string {
+  const sents: string[] = [];
+  let len = 0;
+  for (const p of output.paragraphs) {
+    for (const s of p.text.split(/(?<=[.!?])\s+/)) {
+      const t = s.trim();
+      if (t.length < 20) continue;
+      sents.push(t);
+      len += t.length + 1;
+      if (len >= maxChars) break;
+    }
+    if (len >= maxChars) break;
+  }
+  return sents.join(" ").slice(0, maxChars);
 }
 
 export interface RefineResult {
@@ -607,6 +707,19 @@ export async function getSourceSummaries(docIds: string[]): Promise<SourceSummar
 // Retrieval per subsection — deterministic, no LLM
 // ---------------------------------------------------------------------------
 
+/**
+ * Stable identity for a retrieved passage. Single key space shared by the
+ * allocator (excludeKeys), the UI (used-tracking, overlap display) and the
+ * validator — never introduce a second key format.
+ */
+export function passageKey(p: {
+  source_id: string;
+  page: number | null;
+  paragraph: number | null;
+}): string {
+  return `${p.source_id}::${p.page ?? "?"}::${p.paragraph ?? "?"}`;
+}
+
 export async function retrieveForSection(
   query: string,
   scopeIds: string[] | undefined,
@@ -614,24 +727,50 @@ export async function retrieveForSection(
   topK = 8,
   keepTop = 4,
   onStatus?: (stage: string, detail?: string) => void,
+  excludeKeys?: Set<string>,
 ): Promise<SectionPassage[]> {
   const ws = await getWorkspaceId();
   onStatus?.("retrieving", query.slice(0, 80));
+  // Widen BEFORE selecting when exclusions exist: post-slice reordering can
+  // only permute an already-truncated set, so without a wider pool the
+  // "prefer fresh evidence" policy is cosmetic.
+  const fetchN = excludeKeys?.size ? Math.max(topK, keepTop * 3) : topK;
   const { passages } = await retrieveContext({
     workspaceId: ws,
     query,
-    topN: topK,
+    topN: fetchN,
     embedMode: sel.embedMode,
     scopeIds: scopeIds?.length ? scopeIds : undefined,
     onStatus,
   });
-  return passages.slice(0, keepTop).map((p) => ({
-    source_id: p.document_id,
-    page: p.page,
-    paragraph: p.chunk_index ?? null,
-    text: p.content,
-    score: p.score,
+  const pool = passages.map((p, i) => ({
+    passage: {
+      source_id: p.document_id,
+      page: p.page,
+      paragraph: p.chunk_index ?? null,
+      text: p.content,
+      score: p.score,
+    } as SectionPassage,
+    rank: i,
   }));
+  const fresh = excludeKeys?.size
+    ? pool.filter(({ passage }) => !excludeKeys.has(passageKey(passage)))
+    : pool;
+  // Starvation backfill: an exhausted pool reuses evidence in rank order
+  // rather than returning empty (empty would trigger the broaden-fallback
+  // loop). Callers detect this by comparing returned keys to excludeKeys.
+  const selectable = fresh.length ? fresh : pool;
+  const picked = mmrSelect(
+    selectable.map(({ passage, rank }) => ({
+      key: passageKey(passage),
+      relevance: passage.score,
+      rank,
+      text: passage.text,
+      passage,
+    })),
+    keepTop,
+  ).map((x) => (x as { passage: SectionPassage }).passage);
+  return picked;
 }
 
 // ---------------------------------------------------------------------------
@@ -720,6 +859,12 @@ const ALIAS_BARE_RE = new RegExp(`\\bS\\d+\\s*,\\s*${PAGE_MARK_SRC}\\s*\\d+`, "g
 // Leftover debris the strict shapes miss ("[S2;]", "[S1,]"). Runs AFTER the
 // strict patterns above; the [^A-Za-z…] middle keeps prose like "(S1 orang)" safe.
 const ALIAS_DEBRIS_RE = /[[(]\s*S\d+[^A-Za-z[\]()]*[\])]/gi;
+// Bare numeric brackets the model emits as pseudo-citations ("[483]",
+// "[6, 21]" — IEEE-looking echoes from small models). Never legit here:
+// attribution lives ONLY in the `citations` array, and rendered cites always
+// carry a title ("[Title, h. X]"), never a bare number. Paren-form "(483)"
+// is deliberately NOT matched — bare paren numbers collide with real prose.
+const NUMERIC_CITE_RE = /\[\s*\d+(?:\s*[,;]\s*\d+)*\s*\]/g;
 // Empty placeholder brackets the model emits when it wants a citation but
 // has none ("[]", "[;]", "( )"). Never legit in academic prose.
 const EMPTY_CITE_RE = /[[(]\s*[;,\s]*[\])]/g;
@@ -729,8 +874,9 @@ const AUTHORYEAR_LEAK_RE = /\(\s*[A-Z][\w\-]+(?:\s+et\.?\s*al\.?)?\s*,\s*\d{4}[a
 
 /**
  * Belt-and-suspenders: strip citation-shaped leakage the model baked into
- * prose (raw UUIDs, alias echoes like `(S1, p. 3)`, author-year echoes like
- * `(Faridah et al., 2021)`). Attribution lives in `citations`, never in text.
+ * prose (raw UUIDs, alias echoes like `(S1, p. 3)`, bare numeric echoes like
+ * `[483]` / `[6, 21]`, author-year echoes like `(Faridah et al., 2021)`).
+ * Attribution lives in `citations`, never in text.
  */
 export function stripLeakedCitations(text: string): string {
   return text
@@ -740,6 +886,7 @@ export function stripLeakedCitations(text: string): string {
     .replace(ALIAS_LEAK_RE, "")
     .replace(ALIAS_DEBRIS_RE, "")
     .replace(ALIAS_BARE_RE, "")
+    .replace(NUMERIC_CITE_RE, "")
     .replace(EMPTY_CITE_RE, "")
     .replace(AUTHORYEAR_LEAK_RE, "")
     .replace(/[ \t]{2,}/g, " ")
@@ -785,6 +932,77 @@ export function stripTitleEchoes(text: string, titles: string[]): string {
 }
 
 /**
+ * Post-generation defect detectors (deterministic, topic-generic).
+ * Used for one bounded correction retry: the model gets its defects listed
+ * back and one chance to fix them. Still app-controlled (max 1 extra call).
+ */
+
+/** Source-gap meta-sentences that belong in `gaps`, never in paragraph text.
+ *  Narrowly scoped to source-referencing phrases — paper-scope statements
+ *  ("Penelitian ini tidak akan membahas…") are legitimate and NOT matched. */
+const GAP_LEAK_PATTERNS: RegExp[] = [
+  /tidak\s+ditemukan\s+dalam\s+sumber/i,
+  /tidak\s+terdapat\s+dalam\s+(sumber|kutipan)/i,
+  /tidak\s+ditemukan\s+dalam\s+kutipan/i,
+  /sumber\s+tidak\s+(memuat|menyediakan|mencakup|memberikan)/i,
+  /dokumen\s+acuan\s+tidak/i,
+  /literatur\s+yang\s+tersedia[^.]{0,80}belum\s+merinci/i,
+  /not\s+found\s+in\s+the\s+(source|passage|citation)/i,
+  /not\s+mentioned\s+in\s+the\s+(source|passage|citation)/i,
+  /(sources?|passages?)\s+do\s+not\s+provide/i,
+  /no\s+information[^.]{0,60}in\s+the\s+passages/i,
+];
+
+export function containsGapLeak(text: string): boolean {
+  const t = text ?? "";
+  return GAP_LEAK_PATTERNS.some((re) => re.test(t));
+}
+
+/** True when prose still carries citation-shaped leakage (aliases, bare
+ *  numeric brackets, UUIDs, author-year echoes, empty placeholders). Runs on
+ *  raw model text BEFORE stripping — after stripping there is nothing left
+ *  to detect. */
+export function hasCitationLeak(text: string): boolean {
+  const t = text ?? "";
+  // All leak patterns are global (/g/): reset lastIndex before each test
+  // since .test() on a /g/ regex is stateful.
+  for (const re of [ALIAS_MULTI_RE, ALIAS_LEAK_RE, ALIAS_BARE_RE, NUMERIC_CITE_RE, UUID_RE, EMPTY_CITE_RE, AUTHORYEAR_LEAK_RE]) {
+    re.lastIndex = 0;
+    if (re.test(t)) {
+      re.lastIndex = 0;
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Citations with no usable source key (renders as "[, 61]").
+ *  Page hallucinations are deliberately NOT judged by absolute size here:
+ *  printed-page corpora (e.g. ACL Findings pp. 12834–12854) legitimately
+ *  exceed any fixed cap, so a `>5000` rule would false-positive and make the
+ *  correction retry "fix" a correct page. Wrong pages are caught exactly by
+ *  badPages instead (the cited page must occur in the retrieved passages for
+ *  that source; page-less sources stay unverifiable and unflagged). */
+export function hasEmptyCitation(output: SectionOutput): boolean {
+  for (const p of output.paragraphs ?? []) {
+    for (const c of p.citations ?? []) {
+      const key = (c.source_id ?? "").trim();
+      if (!key) return true;
+      if (/^[,;\s\d]+$/.test(key)) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * NOTE FOR FUTURE TUNERS:
+ * There is an intentional design tension between MAKALAH_SHARED_SYSTEM ("never invent facts... to fill a gap")
+ * and the 15/85 / 30/70 grounding blocks below ("use academic intelligence/insight when sources are thin").
+ * The mitigations in place (mandatory empty citations [] on unsupported paragraphs, ai_filled surfaced in
+ * the QualityReport, human verification before export) balance strict citation hygiene with drafting flow.
+ */
+
+/**
  * Base grounding rule per mode. Strict (off) forbids unsupported material;
  * hybrid modes budget a share of model intelligence but keep one hard rule:
  * no "source is missing" meta-sentences in paragraph text, and unsupported
@@ -811,15 +1029,27 @@ function groundingParagraph(mode: MakalahHybrid): string {
 
 function groundingBlock(mode: MakalahHybrid, language: string): string {
   if (mode === "off") return "";
+  const isID = language.toLowerCase().startsWith("id");
+  if (isID) {
+    return (
+      `PENTING: Jangan pernah menulis kalimat seperti "tidak ditemukan dalam sumber", ` +
+      `"tidak terdapat dalam kutipan", "sumber tidak memuat informasi", atau kalimat ` +
+      `senada di dalam teks paragraf. Jika sumber kurang lengkap, gunakan kecerdasan ` +
+      `dan wawasan akademik Anda untuk menulis pembahasan yang koheren, ilmiah, dan ` +
+      `relevan dari sudut pandang yang paling didukung sumber — dan catat kekurangannya ` +
+      `di "gaps" (dalam ${language}, untuk layar drafting penulis, tidak diterbitkan), ` +
+      `bukan di "text". Paragraf tanpa dukungan passages WAJIB memakai citations kosong ` +
+      `([]) agar laporan kualitas menandainya sebagai model-bridged.\n\n`
+    );
+  }
   return (
-    `PENTING: Jangan pernah menulis kalimat seperti "tidak ditemukan dalam sumber", ` +
-    `"tidak terdapat dalam kutipan", "sumber tidak memuat informasi", atau kalimat ` +
-    `senada di dalam teks paragraf. Jika sumber kurang lengkap, gunakan kecerdasan ` +
-    `dan wawasan akademik Anda untuk menulis pembahasan yang koheren, ilmiah, dan ` +
-    `relevan dari sudut pandang yang paling didukung sumber — dan catat kekurangannya ` +
-    `di "gaps" (dalam ${language}, untuk layar drafting penulis, tidak diterbitkan), ` +
-    `bukan di "text". Paragraf tanpa dukungan passages WAJIB memakai citations kosong ` +
-    `([]) agar laporan kualitas menandainya sebagai model-bridged.\n\n`
+    `IMPORTANT: Never write phrases like "not found in the source", "not mentioned in the citations", ` +
+    `"the sources do not provide information", or similar meta-commentary inside paragraph text. ` +
+    `If the sources are incomplete, use your academic intelligence and insight to write a coherent, ` +
+    `scholarly, and relevant discussion from the perspective best supported by the available sources — ` +
+    `and record any gaps in "gaps" (in ${language}, for the author's drafting view only, not published), ` +
+    `not in "text". Paragraphs without passage support MUST carry an empty citations array ` +
+    `([]) so the quality report marks them as model-bridged.\n\n`
   );
 }
 
@@ -838,39 +1068,80 @@ export function buildSectionUserPrompt(input: {
   prior_context?: string;
   /** This subsection's scope guard (focus + must_not_cover from the outline). */
   scope_note?: string;
+  /** Verbatim sentences from the most-similar drafted section: never repeat. */
+  negative_list?: string;
+  /** True for the closing chapter: synthesis contract, no new claims. */
+  is_last_chapter?: boolean;
   /** Grounding mode: off = strict, 15/85 = coherence bridging, 30/70 = synthesis. */
   grounding?: MakalahHybrid;
-}, thinkBudget: number | null = null): string {
+}, thinkBudget: number | null = null, thinkTags = true): string {
   const passages =
     input.passages
       .map((p) => `[${p.source_id}, p.${p.page ?? "?"}] ${cleanPassageForPrompt(p.text)}`)
       .join("\n\n") || "(no passages retrieved)";
+  // The exact alias range for this call — naming it kills invented S5/S6-style
+  // citations at the source (the validator can only flag them afterwards).
+  const validAliases = [...new Set(input.passages.map((p) => p.source_id))];
+  const hasPrior = !!input.prior_context?.trim() || !!input.negative_list?.trim();
   const docFrame =
     (input.full_outline?.trim() ? `Full paper outline: ${input.full_outline.trim()}\n` : "") +
+    // COVERED bullets read as constraints ("do not restate"), where the old
+    // prose summaries ("already covered… build on them") primed small models
+    // to echo the same sentences back. Number labels stay so the sanctioned
+    // one-clause reference ("As discussed in 1.1…") remains possible.
     (input.prior_context?.trim()
-      ? `Already covered in earlier sections (assume the reader has read them — DO NOT re-explain, ` +
-        `build on them; at most one clause like "As discussed in 1.1…" when you must refer back):\n` +
+      ? `COVERED — the following is already in the paper. Do not restate or paraphrase ` +
+        `any of it; assume the reader has read it. One short clause like "As discussed ` +
+        `in 1.1…" is allowed only when you must refer back:\n` +
         `${input.prior_context.trim()}\n`
+      : "") +
+    (input.negative_list?.trim()
+      ? `The following sentences already exist verbatim earlier in this paper. ` +
+        `Do not repeat or paraphrase them — write around them:\n` +
+        `${input.negative_list.trim()}\n`
+      : "") +
+    (input.is_last_chapter
+      ? `This is the closing chapter (Penutup): do not introduce new evidence or new ` +
+        `claims. Each paragraph must COMBINE findings from at least two earlier sections ` +
+        `into a new statement; do not reuse sentence structures or opening phrases from ` +
+        `earlier sections.\n`
       : "") +
     (input.scope_note?.trim()
       ? `Your scope for THIS section only: ${input.scope_note.trim()} ` +
         `Content belonging to other subsections is out of scope even if the passages mention it.\n`
+      : "") +
+    // Step-shaped instruction for the deliberation phase: norms ("don't
+    // re-explain") wash out under small thinking budgets, checklists survive.
+    // Provider-agnostic: useful with or without native thinking, so it is
+    // included whenever prior context exists (previously gated on thinking,
+    // which left cloud-cold calls without it).
+    (hasPrior
+      ? `Deliberation instruction: first list which retrieved passages overlap the ` +
+        `COVERED list above; plan this section only around the remaining passages.\n`
       : "");
   return (
     `Write section ${input.subsection_number} "${input.subsection_title}" of chapter ` +
     `"${input.chapter_title}" for an academic paper on "${input.topic}", in ${input.language}. ` +
     `Target length: about ${input.target_length_words} words.\n\n` +
     (docFrame ? `${docFrame}\n` : "") +
-    (thinkBudget !== null ?
+    (thinkBudget !== null && thinkTags ?
       `Thinking budget: you may spend AT MOST ${thinkBudget} tokens reasoning inside ` +
       `<think> tags before answering, then stop thinking and write the final JSON. ` +
       `Keep deliberation tight — a complete, valid answer matters more than long ` +
       `reasoning, and the total call is capped, so over-thinking truncates your answer.\n\n`
+    : thinkBudget !== null ?
+      // Cloud/native thinking: no <think> tags (the JSON parser strips them).
+      // Reason natively within budget, then output JSON only.
+      `Deliberation budget: reason natively within AT MOST ${thinkBudget} thinking tokens, ` +
+      `then stop and write the final JSON with no reasoning preamble and no ` +
+      `<think> tags. A complete, valid answer matters more than long reasoning.\n\n`
     : "") +
     groundingParagraph(input.grounding ?? "off") +
     groundingBlock(input.grounding ?? "off", input.language) +
     `Passages are labeled with short aliases (S1, S2, …). In the "citations" array, ` +
-    `refer to passages ONLY by alias.\n\n` +
+    `refer to passages ONLY by alias. ` +
+    `Valid aliases for THIS section: ${validAliases.join(", ") || "(none — emit every paragraph with an empty citations array)"}. ` +
+    `Never invent other aliases — unknown keys are rejected and the section is flagged.\n\n` +
     `Passages:\n${passages}\n\n` +
     `Attribution rule (strict): NEVER write a source alias, source id, author name, ` +
     `year, bracketed reference, or an empty placeholder like [] or [;] inside "text" — attribution belongs ONLY in the ` +
@@ -878,7 +1149,9 @@ export function buildSectionUserPrompt(input: {
     `Bad: "…model sangat besar []." ` +
     `Good: "…populasi termiskin."\n\n` +
     `Citation style: ${input.citation_style}. Every factual claim must carry an inline ` +
-    `citation pointing to one of the passages above by alias. If a paragraph has no ` +
+    `citation pointing to one of the passages above by alias. Always copy the page ` +
+    `number shown with each passage into "page"; use null only when the passage ` +
+    `shows none — never drop a shown page number. If a paragraph has no ` +
     `supporting passage, emit it with an empty citations array rather than citing an ` +
     `unrelated source.\n\n` +
     `Return JSON only:\n` +
@@ -910,6 +1183,17 @@ export function parseSectionJson(text: string): SectionOutput {
   };
 }
 
+/** Document-level context threaded into section drafting (all optional). */
+export interface OutlineContext {
+  full_outline: string;
+  prior_summaries: string;
+  scope_note?: string;
+  /** Verbatim sentences from the most-similar drafted section: never repeat. */
+  negative_list?: string;
+  /** True for the closing chapter (Penutup): synthesis contract, no new claims. */
+  is_last_chapter?: boolean;
+}
+
 export async function generateSection(
   input: {
     topic: string;
@@ -923,13 +1207,11 @@ export async function generateSection(
     /** Known source titles (id → title) for stripping title-echo leaks. */
     source_titles?: Record<string, string>;
     /** Document-level context (outline + already-drafted summaries + scope). */
-    outline_context?: {
-      full_outline: string;
-      prior_summaries: string;
-      scope_note?: string;
-    };
+    outline_context?: OutlineContext;
     /** Grounding mode for this section (default strict). */
     grounding?: MakalahHybrid;
+    /** Sampling temperature (default 0 = deterministic; small values only on explicit retry). */
+    temperature?: number;
   },
   sel: InferenceSelection,
   signal?: AbortSignal,
@@ -957,6 +1239,14 @@ export async function generateSection(
   const thinkingOn = sel.makalahThinking ?? false;
   const thinkBudget = thinkingOn ? makalahThinkBudget(sel) : null;
   const answerCap = makalahBudget(sel);
+  const answerTemp = input.temperature ?? 0;
+  // Native <think> tags are an Ollama convention. Cloud models reason via
+  // thinking_config and must never emit literal tags (the parser strips them).
+  const thinkTags = provider.id === "ollama";
+  const thinkLevel = sel.makalahThinkLevel ?? "low";
+  // Ollama has no "minimal" level (400 on unknown think values) — closest is
+  // a brief "low" trace. Cloud (Gemini 3) keeps "minimal" as closest-to-off.
+  const deliberationLevel = provider.id === "ollama" && thinkLevel === "minimal" ? "low" : thinkLevel;
   const baseUser = buildSectionUserPrompt(
     {
       ...input,
@@ -964,9 +1254,12 @@ export async function generateSection(
       full_outline: input.outline_context?.full_outline,
       prior_context: input.outline_context?.prior_summaries,
       scope_note: input.outline_context?.scope_note,
+      negative_list: input.outline_context?.negative_list,
+      is_last_chapter: input.outline_context?.is_last_chapter,
       grounding: input.grounding ?? "off",
     },
     thinkBudget,
+    thinkTags,
   );
   const finish = (parsed: SectionOutput): SectionOutput =>
     clean(resolveAliases(parsed, toReal));
@@ -990,14 +1283,66 @@ export async function generateSection(
     };
   };
 
+  // One bounded correction retry for deterministic defects (unknown ids,
+  // page mismatches, empty citations, citation leaks in prose, gap-leaks in
+  // prose). The model gets its defects listed back and one chance to fix
+  // them — still fully app-controlled (max 1 extra call, fixed prompt shape,
+  // no autonomy). Never throws: a failed correction keeps the first draft
+  // (only unparsable model output salvages, via salvage() at the call sites).
+  const defectList = (out: SectionOutput): string[] => {
+    const defects: string[] = [];
+    const v = validateSectionCitations(out, input.passages);
+    if (v.badIds.length) defects.push(`unknown source ids (not in retrieved passages): ${v.badIds.slice(0, 6).join(", ")}`);
+    if (v.badPages.length) defects.push(`pages not present in retrieved passages: ${v.badPages.slice(0, 6).join(", ")}`);
+    if (hasEmptyCitation(out)) defects.push('empty source key (renders as "[, N]")');
+    const leaked = (out.paragraphs ?? []).find((p) => containsGapLeak(p.text));
+    if (leaked) defects.push(`source-gap meta-sentence in paragraph text (belongs in "gaps", never in "text")`);
+    return defects;
+  };
+  // Leak check runs on PARSED output before clean(): finish() strips leaks,
+  // so checking the finished draft would always pass. A stripped leak still
+  // ships readable text, but the correction reinforces the attribution rule.
+  const rawHadLeak = (parsed: SectionOutput): boolean =>
+    (parsed.paragraphs ?? []).some((p) => hasCitationLeak(p.text));
+  const LEAK_DEFECT = `bracketed citation-shaped text inside paragraphs (aliases, bare numbers, years — attribution belongs ONLY in the "citations" array)`;
+  const maybeCorrect = async (first: SectionOutput, prompt: string, firstHadLeak = false): Promise<SectionOutput> => {
+    const defects = defectList(first);
+    if (firstHadLeak) defects.push(LEAK_DEFECT);
+    if (!defects.length || signal?.aborted) return first;
+    const correction =
+      `${prompt}\n\nCORRECTION — your previous draft had these defects:\n` +
+      defects.map((d) => `- ${d}`).join("\n") +
+      `\nFix them: cite ONLY aliases from the Valid aliases list with their shown page ` +
+      `numbers (copy exactly, never invent pages); never write bracketed references, ` +
+      `aliases, or years inside "text"; put source-gap commentary in "gaps", ` +
+      `never in "text"; every paragraph needs at least one valid citation or an empty ` +
+      `array. Output JSON only.`;
+    try {
+      const out = await chatJson(
+        provider, model, MAKALAH_SHARED_SYSTEM, correction,
+        sel.numCtx, answerCap, parseSectionJson, "Section correction", false,
+        undefined, signal, answerTemp,
+      );
+      const second = finish(out);
+      const secondDefects = defectList(second);
+      if (rawHadLeak(out)) secondDefects.push(LEAK_DEFECT);
+      // Keep whichever draft has fewer defects (never regress).
+      return secondDefects.length < defects.length ? second : first;
+    } catch (e) {
+      // User stop must propagate — never convert an abort into a kept draft.
+      if (signal?.aborted) throw e;
+      return first;
+    }
+  };
+
   if (thinkBudget === null) {
     try {
       const out = await chatJson(
         provider, model, MAKALAH_SHARED_SYSTEM, baseUser,
         sel.numCtx, answerCap, parseSectionJson, "Section generation", false,
-        undefined, signal,
+        undefined, signal, answerTemp,
       );
-      return finish(out);
+      return await maybeCorrect(finish(out), baseUser, rawHadLeak(out));
     } catch (e) {
       return salvage(e);
     }
@@ -1012,34 +1357,39 @@ export async function generateSection(
       ],
       {
         model, temperature: 0, numCtx: sel.numCtx, numPredict: thinkBudget,
-        thinking: true, thinkLevel: sel.makalahThinkLevel ?? "low",
+        thinking: true, thinkLevel: deliberationLevel,
         thinkingBudget: thinkBudget,
+        jsonMode: true,
         ...(signal ? { signal } : {}),
       },
     );
     const content = (deliberation.content ?? "").replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
     if (content) {
       try {
-        return finish(parseSectionJson(content));
+        const parsed = parseSectionJson(content);
+        return await maybeCorrect(finish(parsed), baseUser, rawHadLeak(parsed));
       } catch {
         /* well-formed trace but unusable draft — deliberate below from trace */
       }
     }
+    // Cloud parity: CloudProvider now returns a native `thinking` trace when
+    // the proxy surfaces one; Ollama returns it directly. Either way the
+    // trace is injected as context — never discarded.
     trace = (deliberation.thinking ?? "").trim();
   } catch (e) {
     if (signal?.aborted) throw e;
     trace = ""; // deliberation failed — cold fallback below
   }
   const finalUser = trace
-    ? `${baseUser}\n\nYour earlier deliberation (follow it; do not repeat it, output JSON only):\n${trace.slice(0, thinkBudget * 3)}`
+    ? `${baseUser}\n\nYour earlier deliberation (follow it; do not repeat it, output JSON only):\n${trace.slice(0, (thinkBudget ?? 1024) * 3)}`
     : baseUser;
   try {
     const out = await chatJson(
       provider, model, MAKALAH_SHARED_SYSTEM, finalUser,
       sel.numCtx, answerCap, parseSectionJson, "Section generation", false,
-      thinkBudget, signal,
+      thinkBudget, signal, answerTemp,
     );
-    return finish(out);
+    return await maybeCorrect(finish(out), finalUser, rawHadLeak(out));
   } catch (e) {
     return salvage(e);
   }
@@ -1052,19 +1402,42 @@ export async function generateSection(
 export function validateSectionCitations(
   output: SectionOutput,
   passages: SectionPassage[],
-): { ok: boolean; total: number; valid: number; badIds: string[] } {
+): { ok: boolean; total: number; valid: number; badIds: string[]; badPages: string[] } {
   const allowed = new Set(passages.map((p) => p.source_id));
+  const validPages = new Set(
+    passages
+      .filter((p) => p.page !== null && p.page !== undefined)
+      .map((p) => `${p.source_id}@p.${p.page}`),
+  );
+  // Sources whose passages carry no page info at all (legacy chunks ingested
+  // before page-aware chunking) cannot be page-verified — flagging every
+  // cited page for them is a false-positive wall, so skip those sources.
+  const unverifiable = new Set(
+    [...allowed].filter(
+      (id) => !passages.some((p) => p.source_id === id && p.page !== null && p.page !== undefined),
+    ),
+  );
   let total = 0;
   let valid = 0;
   const bad = new Set<string>();
+  const badPages = new Set<string>();
   for (const para of output.paragraphs) {
     for (const c of para.citations) {
       total += 1;
-      if (c.source_id && allowed.has(c.source_id)) valid += 1;
-      else if (c.source_id) bad.add(c.source_id);
+      if (c.source_id && allowed.has(c.source_id)) {
+        valid += 1;
+        if (c.page !== null && c.page !== undefined && !unverifiable.has(c.source_id)) {
+          const key = `${c.source_id}@p.${c.page}`;
+          if (!validPages.has(key)) {
+            badPages.add(key);
+          }
+        }
+      } else if (c.source_id) {
+        bad.add(c.source_id);
+      }
     }
   }
-  return { ok: bad.size === 0, total, valid, badIds: [...bad] };
+  return { ok: bad.size === 0, total, valid, badIds: [...bad], badPages: [...badPages] };
 }
 
 // ---------------------------------------------------------------------------

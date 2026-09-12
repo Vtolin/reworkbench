@@ -23,9 +23,9 @@ export interface InferenceSelection {
   temperature: number;
   numCtx: number;
   embedMode: "local" | "server";
-  thinking: boolean;
-  broad: boolean;
-  hybrid: "off" | "low" | "medium" | "high" | "maximum";
+  thinking?: boolean;
+  broad?: boolean;
+  hybrid?: "off" | "low" | "medium" | "high" | "maximum";
   memoryMessages?: ChatMessage[];
   summarizeMethod?: "stuff" | "map_reduce";
   mapStage?: StageSelection;
@@ -39,7 +39,7 @@ export interface InferenceSelection {
   /** Makalah per-call output cap (num_predict). */
   makalahNumPredict?: number;
   /** Makalah thinking effort level, sent when drafting with thinking on. */
-  makalahThinkLevel?: "low" | "medium" | "high" | "max";
+  makalahThinkLevel?: "minimal" | "low" | "medium" | "high" | "max";
   /** Makalah thinking-token budget for drafting (prompt-declared + capped). */
   makalahThinkingBudget?: number;
 }
@@ -89,7 +89,7 @@ function pickStageProvider(
   return { ...pickProvider(sel), label: stageLabel(sel) };
 }
 
-function hybridInstruction(hybrid: InferenceSelection["hybrid"]): string {
+function hybridInstruction(hybrid?: InferenceSelection["hybrid"]): string {
   switch (hybrid) {
     case "low":
       return "Ground every claim in the excerpts; you may sparingly (20%) use training knowledge to connect ideas, labeled as such.";

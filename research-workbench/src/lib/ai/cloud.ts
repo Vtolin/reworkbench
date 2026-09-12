@@ -28,9 +28,13 @@ export class CloudProvider implements AIProvider {
   ) {}
 
   async chat(messages: ChatMessage[], options: ChatOptions): Promise<ChatResult> {
-    // thinkingBudget/thinkLevel ride along for backends that support them
-    // (Google extra_body thinking_config); other providers ignore them.
-    const { thinkingBudget, thinkLevel } = options;
+    // Parity with Ollama: forward the explicit thinking switch (false maps
+    // to minimal/0 on Gemini instead of the provider default medium),
+    // the output cap as max_tokens, the effort level, and JSON mode.
+    // The proxy translates these per provider; others ignore what they
+    // don't support. Always return a native `thinking` trace when the
+    // proxy surfaces one, so two-phase drafting works on cloud too.
+    const { thinking, thinkingBudget, thinkLevel, jsonMode } = options;
     const res = await fetch(this.proxyUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -40,8 +44,11 @@ export class CloudProvider implements AIProvider {
         model: options.model,
         messages,
         temperature: options.temperature ?? 0.0,
+        ...(typeof thinking === "boolean" ? { thinking } : {}),
+        ...(typeof options.numPredict === "number" ? { maxTokens: options.numPredict } : {}),
         ...(typeof thinkingBudget === "number" ? { thinkingBudget } : {}),
         ...(typeof thinkLevel === "string" ? { thinkLevel } : {}),
+        ...(jsonMode ? { jsonMode: true } : {}),
       }),
     });
     if (!res.ok) {
@@ -49,7 +56,14 @@ export class CloudProvider implements AIProvider {
       throw new Error((err as { error?: string }).error ?? `Cloud proxy failed: ${res.status}`);
     }
     const data = await res.json();
-    return { content: data.content as string, provider: "cloud", model: options.model };
+    return {
+      content: (data.content as string) ?? "",
+      ...(typeof (data as { thinking?: unknown }).thinking === "string" && (data as { thinking: string }).thinking
+        ? { thinking: (data as { thinking: string }).thinking }
+        : {}),
+      provider: "cloud",
+      model: options.model,
+    };
   }
 
   async embed(text: string, options?: EmbedOptions): Promise<number[]> {

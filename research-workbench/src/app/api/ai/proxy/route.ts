@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { OPENAI_COMPAT_BASE, KNOWN_PROVIDERS, resolveApiKey, buildGoogleExtraBody, upstreamError, type GeminiThinkLevel } from "@/lib/ai/providers";
+import { OPENAI_COMPAT_BASE, KNOWN_PROVIDERS, resolveApiKey, buildGoogleExtraBody, isGemini3, upstreamError, type GeminiThinkLevel } from "@/lib/ai/providers";
 
-// POST /api/ai/proxy {provider, model, messages, temperature, apiKey?, thinkingBudget?, thinkLevel?}
+// POST /api/ai/proxy {provider, model, messages, temperature?, thinking?, maxTokens?, apiKey?, thinkingBudget?, thinkLevel?, jsonMode?}
 // Cloud-AI proxy (BYOK): resolves the caller's OWN stored key server-side
 // (ai_credentials, owner-only RLS + AES-GCM at rest) and forwards to the
 // cloud provider. Never uses a shared workspace key. Never logs keys.
-// thinkingBudget/thinkLevel are honored for Google (extra_body thinking_config)
-// and ignored for other providers.
+// thinking:false maps to minimal/0 on Google (never provider-default medium).
+// maxTokens caps output (makalahBudget); jsonMode requests strict JSON.
+// temperature is omitted for Gemini 3 (provider ignores it).
 export async function POST(req: Request) {
   // Authenticated-only: even BYOK-with-own-key callers must hold a session,
   // otherwise this is an open relay on Vercel egress/compute.
@@ -20,8 +21,11 @@ export async function POST(req: Request) {
     messages?: Array<{ role: string; content: string }>;
     temperature?: number;
     apiKey?: string; // optional client-held key (client-side-only mode)
+    thinking?: boolean;
+    maxTokens?: number;
     thinkingBudget?: number;
     thinkLevel?: GeminiThinkLevel;
+    jsonMode?: boolean;
   };
   try {
     body = await req.json();
@@ -43,15 +47,27 @@ export async function POST(req: Request) {
     if (compatBase) {
       const extra_body =
         body.provider === "google"
-          ? buildGoogleExtraBody({ model: body.model ?? "", thinkingBudget: body.thinkingBudget, thinkLevel: body.thinkLevel })
+          ? buildGoogleExtraBody({
+              model: body.model ?? "",
+              thinking: typeof body.thinking === "boolean" ? body.thinking : undefined,
+              thinkingBudget: body.thinkingBudget,
+              thinkLevel: body.thinkLevel,
+            })
           : undefined;
+      const maxTokens =
+        typeof body.maxTokens === "number" && Number.isFinite(body.maxTokens)
+          ? Math.min(16384, Math.max(128, Math.floor(body.maxTokens)))
+          : undefined;
+      const omitTemperature = body.provider === "google" && isGemini3(body.model ?? "");
       const upstream = await fetch(`${compatBase}/chat/completions`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
         body: JSON.stringify({
           model: body.model,
           messages: body.messages,
-          temperature: body.temperature ?? 0,
+          ...(omitTemperature ? {} : { temperature: body.temperature ?? 0 }),
+          ...(typeof maxTokens === "number" ? { max_tokens: maxTokens } : {}),
+          ...(body.jsonMode ? { response_format: { type: "json_object" } } : {}),
           ...(extra_body ? { extra_body } : {}),
         }),
       });
@@ -60,9 +76,22 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: upstreamError(body.provider, upstream.status, text) }, { status: 502 });
       }
       const data = await upstream.json();
-      return NextResponse.json({ content: data.choices?.[0]?.message?.content ?? "" });
+      const msg = data.choices?.[0]?.message ?? {};
+      const thinking =
+        (typeof msg.reasoning_content === "string" && msg.reasoning_content) ||
+        (typeof msg.reasoning === "string" && msg.reasoning) ||
+        (typeof msg.thinking === "string" && msg.thinking) ||
+        undefined;
+      return NextResponse.json({
+        content: msg.content ?? "",
+        ...(thinking ? { thinking } : {}),
+      });
     }
     // Anthropic native API.
+    const anthropicMax =
+      typeof body.maxTokens === "number" && Number.isFinite(body.maxTokens)
+        ? Math.min(8192, Math.max(256, Math.floor(body.maxTokens)))
+        : 2048;
     const upstream = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -72,7 +101,7 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({
         model: body.model,
-        max_tokens: 2048,
+        max_tokens: anthropicMax,
         messages: body.messages.filter((m) => m.role !== "system"),
         system: body.messages.find((m) => m.role === "system")?.content,
         temperature: body.temperature ?? 0,

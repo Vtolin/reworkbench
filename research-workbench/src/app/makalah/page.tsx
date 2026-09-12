@@ -17,6 +17,9 @@ import {
   sectionFullText,
   countAiFilled,
   refineOutline,
+  makalahStageLabels,
+  passageKey,
+  buildNegativeList,
   SECTION_SALVAGE_MARKER,
   type OutlineChapter,
   type OutlineSubsection,
@@ -26,6 +29,7 @@ import {
   type MakalahHybrid,
   type QualityReport,
 } from "@/lib/wb/makalah";
+import { sectionSimilarity } from "@/lib/text/similarity";
 
 const DEFAULT_CHAPTERS = "BAB I Pendahuluan\nBAB II Pembahasan\nBAB III Penutup";
 
@@ -35,7 +39,7 @@ interface SecState {
   passages: SectionPassage[];
   output: SectionOutput | null;
   error: string | null;
-  integrity: { total: number; valid: number; badIds: string[] } | null;
+  integrity: { total: number; valid: number; badIds: string[]; badPages: string[] } | null;
   claims: Array<{ verdict: string; reason: string }> | null;
   claimBusy: boolean;
   editing: boolean;
@@ -45,6 +49,26 @@ const freshSec = (): SecState => ({
   status: "idle", passages: [], output: null, error: null,
   integrity: null, claims: null, claimBusy: false, editing: false, editText: "",
 });
+
+/** Bounded-concurrency mapper that preserves input order. */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIdx = 0;
+  const worker = async () => {
+    while (true) {
+      const idx = nextIdx++;
+      if (idx >= items.length) break;
+      results[idx] = await fn(items[idx], idx);
+    }
+  };
+  const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
 
 const subKey = (chapter_number: string, number: string) => `${chapter_number}::${number}`;
 
@@ -77,20 +101,33 @@ function mergeReferences(prev: MakalahReference[], fresh: MakalahReference[]): M
   return [...prev, ...fresh.filter((f) => !have.has(f.id))];
 }
 
-/** Stable identity for a retrieved passage (no chunk_id survives this far). */
-function passageKey(p: SectionPassage): string {
-  return `${p.source_id}::${p.page ?? "?"}::${p.paragraph ?? "?"}`;
-}
-
 /** Deterministic extractive summary: first sentence of each paragraph, capped. */
 function summarizeOutput(output: SectionOutput, maxChars = 900): string {
   const bits: string[] = [];
   for (const p of output.paragraphs) {
     const first = p.text.split(/(?<=[.!?])\s+/)[0]?.trim() ?? "";
     if (first) bits.push(first.slice(0, 300));
-    if (bits.join(" | ").length >= maxChars) break;
+    if (bits.join("; ").length >= maxChars) break;
   }
-  return bits.join(" | ").slice(0, maxChars);
+  return bits.join("; ").slice(0, maxChars);
+}
+
+/**
+ * COVERED prior context as labeled bullets (constraints, not prose — prose
+ * summaries prime small models to echo the same sentences). Capped so the
+ * context can't drown the section's own evidence. Number labels stay so the
+ * model can still emit the sanctioned "As discussed in 1.1…" clause.
+ */
+function buildPrior(items: Array<{ label: string; summary: string }>, budget = 600): string {
+  const lines: string[] = [];
+  let len = 0;
+  for (const a of items) {
+    const line = `- [${a.label}]: ${a.summary}`;
+    if (len + line.length > budget && lines.length) break;
+    lines.push(line);
+    len += line.length + 1;
+  }
+  return lines.join("\n");
 }
 
 /** Generic scope guard from outline fields (no topic knowledge). */
@@ -106,11 +143,17 @@ function isQuotaError(msg: string): boolean {
   return /quota|429|rate.?limit|insufficient|exceed|credit|billing|resource_exhausted/i.test(msg);
 }
 
+interface MakalahDocItem {
+  id: string;
+  title: string | null;
+  original_filename: string | null;
+}
+
 export default function MakalahPage() {
   const { settings } = useInference();
   const { drafts, activeId, hydrated, persistError, newDraft, selectDraft, saveDraft } = useMakalah();
   const [step, setStep] = useState(1);
-  const [docs, setDocs] = useState<any[]>([]);
+  const [docs, setDocs] = useState<MakalahDocItem[]>([]);
   // bound history draft (null until context hydrates) + drawer
   const [docId, setDocId] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -141,6 +184,7 @@ export default function MakalahPage() {
   const [secs, setSecs] = useState<Record<string, SecState>>({});
   const [running, setRunning] = useState(false);
   const [runNote, setRunNote] = useState<string | null>(null);
+  const [autoRetryDup, setAutoRetryDup] = useState(false);
   const stopRef = useRef(false);
   // Mirror of secs for async callbacks (closures capture stale state mid-loop).
   const secsMirror = useRef<Record<string, SecState>>({});
@@ -451,7 +495,14 @@ export default function MakalahPage() {
     key: string,
     chTitle: string,
     sub: OutlineSubsection,
-    opts: { prior?: string; usedKeys?: Set<string>; collectPassages?: (psgs: SectionPassage[]) => void; signal?: AbortSignal } = {},
+    opts: {
+      prior?: string;
+      usedKeys?: Set<string>;
+      collectPassages?: (psgs: SectionPassage[]) => void;
+      signal?: AbortSignal;
+      negativeList?: string;
+      temperature?: number;
+    } = {},
   ): Promise<SectionOutput | null> => {
     const scope = resolvedIds(sub);
     // Keep last-good output/passages while (re)generating: autosave persists
@@ -460,13 +511,43 @@ export default function MakalahPage() {
     const prevOut = secsMirror.current[key]?.output ?? null;
     setSec(key, { status: "retrieving", error: null, integrity: null, claims: null });
     try {
-      // Distinctive query: the focus terms shift the embedding away from
-      // sibling subsections that share chapter/topic words.
-      const query = `${sub.title} ${sub.focus ?? ""} ${chTitle} ${topic}`.replace(/\s+/g, " ").trim();
-      let passages = await api.makalahRetrieve(
-        query, scope.length ? scope : selected,
-        undefined, 8, 4,
-      );
+      // Focus-first query: the distinctive span is doubled so the embedding
+      // centroid steers away from the chapter terms every sibling shares.
+      // Without focus the query collapses to title+chapter+topic (Mode B) —
+      // the Step-2 "tanpa fokus" hint nudges the human to fill it.
+      const distinctive = `${sub.title} ${sub.focus ?? ""}`.replace(/\s+/g, " ").trim();
+      const query = (sub.focus?.trim()
+        ? `${distinctive} ${distinctive} ${chTitle} ${topic}`
+        : `${distinctive} ${chTitle} ${topic}`
+      ).replace(/\s+/g, " ").trim();
+      // Evidence allocator: used keys go INTO retrieval (widen → exclude →
+      // MMR → slice inside retrieveForSection). Post-slice reordering cannot
+      // fix a truncated set, so nothing is sorted here. Single regenerations
+      // default to excluding every other section's passages (fresh mirror).
+      // Synthesis chapters skip the allocator entirely: their pool is the
+      // already-cited passages of drafted sections (no new evidence, no
+      // disjointness — forcing fresh evidence is what pushed 3.1 off-topic).
+      let passages: SectionPassage[];
+      if (isSynthesisKey(key)) {
+        passages = synthesisPool(key);
+        if (!passages.length) {
+          passages = await api.makalahRetrieve(
+            query, scope.length ? scope : selected,
+            undefined, 8, 4,
+          );
+        }
+      } else {
+        const usedForCall = opts.usedKeys ?? new Set(
+          Object.entries(secsMirror.current)
+            .filter(([k]) => k !== key)
+            .flatMap(([, s]) => s.passages.map(passageKey)),
+        );
+        const exclude = usedForCall.size ? [...usedForCall] : undefined;
+        passages = await api.makalahRetrieve(
+          query, scope.length ? scope : selected,
+          undefined, 8, 4, exclude,
+        );
+      }
       // Fallback: subsection dapat 0 passage — lebarkan ke chapter+topik
       // di semua dokumen terpilih sebelum menyerah ke mode hybrid.
       if (!passages.length) {
@@ -475,16 +556,6 @@ export default function MakalahPage() {
           selected.length ? selected : undefined,
           undefined, 8, 4,
         );
-      }
-      // Prefer passages no other section has used yet (stable reorder:
-      // unseen first, seen appended). Same evidence reused everywhere is
-      // the mechanical half of 1.1≈1.2≈2.1.
-      const used = opts.usedKeys ?? new Set(
-        Object.entries(secs).filter(([k]) => k !== key).flatMap(([, s]) => s.passages.map(passageKey)),
-      );
-      if (used.size) {
-        passages = [...passages].sort((a, b) =>
-          Number(used.has(passageKey(a))) - Number(used.has(passageKey(b))));
       }
       opts.collectPassages?.(passages);
       setSec(key, { status: "generating", passages });
@@ -497,9 +568,12 @@ export default function MakalahPage() {
       if (prior === undefined) {
         const idx = flat.findIndex((f) => f.key === key);
         const earlier = (idx >= 0 ? flat.slice(0, idx) : []).filter((f) => secs[f.key]?.output);
-        prior = earlier
-          .map((f) => `${f.sub.number} ${f.sub.title}: ${summarizeOutput(secs[f.key]!.output!)}`)
-          .join("\n");
+        prior = buildPrior(
+          earlier.map((f) => ({
+            label: `${f.sub.number} ${f.sub.title}`,
+            summary: summarizeOutput(secs[f.key]!.output!),
+          })),
+        );
       }
       const output = await api.makalahSection({
         topic: topic.trim(),
@@ -512,10 +586,13 @@ export default function MakalahPage() {
         target_length_words: targetWords,
         source_titles: allTitles,
         grounding: hybridMode,
+        temperature: opts.temperature,
         outline_context: {
           full_outline: fullOutline,
           prior_summaries: prior ?? "",
           scope_note: scopeNoteOf(sub),
+          negative_list: opts.negativeList,
+          is_last_chapter: isLastChapterKey(key),
         },
       }, opts.signal);
       setSec(key, {
@@ -562,23 +639,62 @@ export default function MakalahPage() {
     runSignal.current = null;
     setRunNote(null);
     const outputs: Record<string, SectionOutput | null> = {};
-    const acc: Array<{ label: string; summary: string }> = [];
+    const acc: Array<{ label: string; summary: string; text: string; output: SectionOutput; isClosing: boolean }> = [];
     const used = new Set<string>();
+    let retries = 0;
     for (const item of flat) {
       if (stopRef.current) { setRunNote("Stopped — generated sections are kept."); break; }
-      const prior = acc.map((a) => `${a.label}: ${a.summary}`).join("\n");
+      const prior = buildPrior(acc);
       const ctrl = new AbortController();
       runSignal.current = ctrl;
+      let lastCollected: string[] = [];
+      const collect = (psgs: SectionPassage[]) => {
+        lastCollected = psgs.map(passageKey);
+        for (const k of lastCollected) used.add(k);
+      };
       // eslint-disable-next-line no-await-in-loop
-      const out = await runOne(item.key, item.ch.chapter_title, item.sub, {
+      let out = await runOne(item.key, item.ch.chapter_title, item.sub, {
         prior,
         usedKeys: used,
-        collectPassages: (psgs) => { for (const p of psgs) used.add(passageKey(p)); },
+        collectPassages: collect,
         signal: ctrl.signal,
       });
+      // P3 (opt-in): in-loop correction, not post-hoc report. One bounded
+      // retry with changed inputs (fresh evidence + verbatim negative list).
+      // Diversity comes from fresh evidence + negative list (temperature is
+      // ignored by Gemini 3, so the old 0.3 bump was a no-op on cloud).
+      if (out && autoRetryDup && !stopRef.current && !ctrl.signal.aborted) {
+        const selfClosing = isLastChapterKey(item.key);
+        const selfText = sectionFullText(out);
+        let worst: { a: (typeof acc)[number]; s: number } | null = null;
+        for (const a of acc) {
+          const s = sectionSimilarity(selfText, a.text);
+          if (!worst || s > worst.s) worst = { a, s: s };
+        }
+        const bar = selfClosing || (worst && worst.a.isClosing) ? 0.94 : 0.88;
+        if (worst && worst.s >= bar) {
+          for (const k of lastCollected) used.delete(k);
+          // eslint-disable-next-line no-await-in-loop
+          const out2 = await runOne(item.key, item.ch.chapter_title, item.sub, {
+            prior,
+            usedKeys: used,
+            collectPassages: collect,
+            signal: ctrl.signal,
+            negativeList: buildNegativeList(worst.a.output),
+          });
+          retries += 1;
+          if (out2) out = out2;
+        }
+      }
       outputs[item.key] = out;
       if (out) {
-        acc.push({ label: `${item.sub.number} ${item.sub.title}`, summary: summarizeOutput(out) });
+        acc.push({
+          label: `${item.sub.number} ${item.sub.title}`,
+          summary: summarizeOutput(out),
+          text: sectionFullText(out),
+          output: out,
+          isClosing: isLastChapterKey(item.key),
+        });
       }
     }
     runSignal.current = null;
@@ -596,6 +712,9 @@ export default function MakalahPage() {
       setRunNote(
         `Incomplete — ${failed.length} section(s) failed: ${failed.map((f) => `${f.sub.number} ${f.sub.title}`).join(", ")}. Fix quota/model, Regenerate them, then Preview.`,
       );
+    }
+    if (retries > 0) {
+      setRunNote((prev) => `${prev ? `${prev} ` : ""}${retries}× auto-retry duplikasi dijalankan (evidence baru + daftar kalimat terlarang).`);
     }
   };
 
@@ -634,6 +753,11 @@ export default function MakalahPage() {
   // Export gate: a paper with missing or salvaged sections must never ship
   // as PDF/Markdown. Preview (step 4) stays viewable — export is blocked.
   // `refs` override lets export check AFTER topping up references.
+  //
+  // Product decision (Priority 3): citation page mismatches (badPages)
+  // default to warning-only and do NOT block export here (page misattribution
+  // is a softer defect than a fabricated source id or missing section).
+  // Surfaced in the quality report for author review.
   const exportBlockers = (refs: MakalahReference[] = references): string[] => {
     const missing = flat.filter(
       (item) => secs[item.key]?.status !== "ok" || !secs[item.key]?.output);
@@ -664,6 +788,12 @@ export default function MakalahPage() {
     let valid = 0;
     let aiFilled = 0;
     const unsupported: QualityReport["unsupported_claims"] = [];
+    const pageMismatches: string[] = [];
+    const missingPages: string[] = [];
+    // Hallucinated alias ids (S2, S5…) are reported as ✕ unknown below and
+    // must NOT also pollute "missing metadata" (they can never resolve to
+    // a bibliography entry).
+    const badIdSet = new Set<string>();
     let done = 0;
     for (const item of flat) {
       const st = secs[item.key];
@@ -681,11 +811,36 @@ export default function MakalahPage() {
         total += v.total;
         valid += v.valid;
         if (v.badIds.length) {
+          v.badIds.forEach((id) => badIdSet.add(id));
           unsupported.push({
             subsection: `${item.sub.number} ${item.sub.title}`,
             paragraph: -1,
             reason: `Cited unknown source id(s): ${v.badIds.join(", ")}`,
           });
+        }
+        if (v.badPages?.length) {
+          pageMismatches.push(
+            `${item.sub.number} ${item.sub.title}: ${v.badPages.join(", ")}`,
+          );
+        }
+        // Soft signal (not an error): citations that drop the page number on
+        // a page-verifiable source. Without this, omitting pages is an easy
+        // way to dodge the mismatch flag above.
+        {
+          const verifiable = new Set(
+            st.passages.filter((p) => p.page != null).map((p) => p.source_id),
+          );
+          const noPage = new Map<string, number>();
+          for (const para of st.output.paragraphs) {
+            for (const c of para.citations) {
+              if (c.page == null && c.source_id && verifiable.has(c.source_id)) {
+                noPage.set(c.source_id, (noPage.get(c.source_id) ?? 0) + 1);
+              }
+            }
+          }
+          for (const [src, n] of noPage) {
+            missingPages.push(`${item.sub.number} ${item.sub.title}: ${titleOf(src)} (${n} tanpa halaman)`);
+          }
         }
         if (!st.output.paragraphs.length) {
           unsupported.push({
@@ -703,12 +858,14 @@ export default function MakalahPage() {
       }
     }
     const refIds = new Set(references.map((r) => r.id));
+    const lastCh = outline.length > 1 ? outline[outline.length - 1] : null;
     const redundant_pairs = findRedundantPairs(
       flat
         .filter((item) => secs[item.key]?.output)
         .map((item) => ({
           label: `${item.sub.number} ${item.sub.title}`,
           text: sectionFullText(secs[item.key]!.output!),
+          isClosing: !!lastCh && item.ch === lastCh,
         })),
     );
     return {
@@ -716,11 +873,13 @@ export default function MakalahPage() {
       citation_integrity_pct: total ? Math.round((valid / total) * 100) : 100,
       citation_total: total,
       unsupported_claims: unsupported,
-      missing_references: citedIds.filter((id) => !refIds.has(id)),
+      missing_references: citedIds.filter((id) => !refIds.has(id) && !badIdSet.has(id)),
       unused_sources: selected.filter((id) => !citedIds.includes(id)),
       malformed_references: references.filter((r) => isMalformedReference(r.formatted_apa7)).map((r) => r.id),
       redundant_pairs,
       ai_filled: aiFilled,
+      citation_page_mismatches: pageMismatches,
+      citation_missing_pages: missingPages,
     };
   }, [flat, secs, references, citedIds, selected]);
 
@@ -729,19 +888,21 @@ export default function MakalahPage() {
     if (!st?.output || st.claimBusy) return;
     setSec(key, { claimBusy: true });
     try {
-      const results: Array<{ verdict: string; reason: string }> = [];
-      for (const para of st.output.paragraphs) {
-        // Match the exact cited evidence (source + page), not the whole
-        // document: sending every chunk of a cited doc as "support" makes
-        // the classifier rubber-stamp unrelated paragraphs as supported.
-        const cited = st.passages.filter((p) =>
-          para.citations.some((c) =>
-            c.source_id === p.source_id &&
-            (c.page == null || p.page == null || c.page === p.page)));
-        // eslint-disable-next-line no-await-in-loop
-        const r = await api.makalahClaimCheck(para.text, cited);
-        results.push({ verdict: r.verdict, reason: r.reason });
-      }
+      const results = await mapWithConcurrency(
+        st.output.paragraphs,
+        3,
+        async (para) => {
+          // Match the exact cited evidence (source + page), not the whole
+          // document: sending every chunk of a cited doc as "support" makes
+          // the classifier rubber-stamp unrelated paragraphs as supported.
+          const cited = st.passages.filter((p) =>
+            para.citations.some((c) =>
+              c.source_id === p.source_id &&
+              (c.page == null || p.page == null || c.page === p.page)));
+          const r = await api.makalahClaimCheck(para.text, cited);
+          return { verdict: r.verdict, reason: r.reason };
+        },
+      );
       setSec(key, { claims: results });
     } catch {
       setSec(key, { claims: [{ verdict: "not_supported", reason: "Claim check call failed" }] });
@@ -750,10 +911,152 @@ export default function MakalahPage() {
     }
   };
 
+  /**
+   * "Bukti baru": regenerate that provably diverges at temperature 0 by
+   * changing inputs instead of sampling — excludes every passage this and
+   * all other sections have used (forces fresh evidence via the allocator's
+   * widen→exclude→MMR path) and injects the verbatim negative list of the
+   * most-similar already-drafted section. Pool exhaustion (everything comes
+   * back excluded) surfaces as a run note instead of silently cycling.
+   */
+  const regenFresh = async (key: string, chTitle: string, sub: OutlineSubsection) => {
+    const mirror = secsMirror.current;
+    const others = flat.filter((f) => f.key !== key && mirror[f.key]?.output);
+    const used = new Set<string>();
+    for (const f of others) for (const p of mirror[f.key]!.passages) used.add(passageKey(p));
+    const own = mirror[key]?.passages ?? [];
+    for (const p of own) used.add(passageKey(p));
+    let negativeList: string | undefined;
+    const selfText = sectionFullText(mirror[key]?.output);
+    if (selfText.trim() && others.length) {
+      let bestS = 0.5;
+      let bestOut: SectionOutput | null = null;
+      for (const f of others) {
+        const t = sectionFullText(mirror[f.key]!.output!);
+        const s = sectionSimilarity(selfText, t);
+        if (s > bestS) { bestS = s; bestOut = mirror[f.key]!.output!; }
+      }
+      if (bestOut) negativeList = buildNegativeList(bestOut);
+    }
+    let collected: SectionPassage[] = [];
+    // Synthesis sections reuse the fixed cited pool by design, so evidence
+    // cannot diverge — variance comes from mild sampling on Ollama and from
+    // the verbatim negative list on cloud (Gemini 3 ignores temperature).
+    const synth = isSynthesisKey(key);
+    const out = await runOne(key, chTitle, sub, {
+      usedKeys: used,
+      collectPassages: (psgs) => { collected = psgs; },
+      negativeList,
+      temperature: synth ? 0.3 : undefined,
+    });
+    if (out && !synth && collected.length && used.size >= 4) {
+      const reused = collected.filter((p) => used.has(passageKey(p))).length;
+      if (reused === collected.length) {
+        setRunNote(
+          `Pool bukti untuk ${sub.number} ${sub.title} habis — hasil memakai ulang evidence lama. Pertajam Fokus atau tambah sumber.`,
+        );
+      }
+    }
+  };
+
   // ---- export --------------------------------------------------------------
 
   const isID = language.toLowerCase().startsWith("id");
   const docTitle = cover.title.trim() || topic.trim() || "Makalah";
+
+  /** True when the flat item belongs to the last outline chapter (Penutup). */
+  const isLastChapterKey = (key: string): boolean => {
+    const item = flat.find((f) => f.key === key);
+    // Single-chapter outlines have no "closing" role to play.
+    return !!item && outline.length > 1 && item.ch === outline[outline.length - 1];
+  };
+
+  /**
+   * Role-aware evidence policy. Synthesis chapters (explicit flag, else last
+   * position) must synthesize already-written sections — disjointness is
+   * wrong for them: forcing fresh evidence pushes 3.1 off-topic instead of
+   * de-duplicating it.
+   */
+  const isSynthesisKey = (key: string): boolean => {
+    const item = flat.find((f) => f.key === key);
+    if (!item || outline.length <= 1) return false;
+    return item.ch.synthesis_only ?? item.ch === outline[outline.length - 1];
+  };
+
+  /**
+   * Synthesis evidence pool: passages already CITED by drafted sections
+   * (matched by source+page, deduped, capped). No retrieval call, no new
+   * evidence — Penutup can only recombine what exists. Diversity first: one
+   * representative passage per drafted section (flat order), so minor
+   * sections cannot be silently dropped; remaining slots go to the
+   * most-cited passages.
+   */
+  const synthesisPool = (excludeKey?: string): SectionPassage[] => {
+    const cited = new Map<string, { p: SectionPassage; n: number; order: number; sec: number }>();
+    let order = 0;
+    flat.forEach((item, si) => {
+      if (excludeKey && item.key === excludeKey) return;
+      const st = secsMirror.current[item.key];
+      if (st?.status !== "ok" || !st.output) return;
+      const wanted = new Set<string>();
+      for (const para of st.output.paragraphs) {
+        for (const c of para.citations) {
+          if (c.source_id) wanted.add(`${c.source_id}::${c.page ?? "?"}`);
+        }
+      }
+      for (const p of st.passages) {
+        if (!wanted.has(`${p.source_id}::${p.page ?? "?"}`)) continue;
+        const k = passageKey(p);
+        const e = cited.get(k);
+        if (e) e.n += 1;
+        else cited.set(k, { p, n: 1, order: order++, sec: si });
+      }
+    });
+    const vals = [...cited.values()];
+    const picked: typeof vals = [];
+    const seenSec = new Set<number>();
+    for (const v of vals) {
+      if (!seenSec.has(v.sec)) {
+        seenSec.add(v.sec);
+        picked.push(v);
+      }
+    }
+    const ranked = [...vals].sort((a, b) => b.n - a.n || a.order - b.order);
+    for (const v of ranked) {
+      if (picked.length >= 8) break;
+      if (!picked.includes(v)) picked.push(v);
+    }
+    return picked.slice(0, 8).map((e) => e.p);
+  };
+
+  /**
+   * P7 — evidence-overlap leading indicator. Compares stored passages against
+   * every other section: predicts duplication before reading any text and
+   * separates "retrieval caused this" from "model caused this".
+   */
+  const overlapNote = (key: string): { text: string; hot: boolean } | null => {
+    // Synthesis chapters share evidence by design — never an alarm.
+    if (isSynthesisKey(key)) {
+      const n = secs[key]?.passages.length ?? 0;
+      return n ? { text: "sintesis — memakai evidence section sebelumnya", hot: false } : null;
+    }
+    const own = secs[key]?.passages ?? [];
+    if (!own.length) return null;
+    const ownKeys = new Set(own.map(passageKey));
+    const parts: string[] = [];
+    let hot = false;
+    for (const item of flat) {
+      if (item.key === key) continue;
+      const op = secs[item.key]?.passages ?? [];
+      if (!op.length) continue;
+      const shared = op.filter((p) => ownKeys.has(passageKey(p))).length;
+      if (shared > 0) {
+        if (shared / own.length > 0.5) hot = true;
+        parts.push(`${shared}/${own.length} shared dengan ${item.sub.number}`);
+      }
+    }
+    return parts.length ? { text: parts.join(" · "), hot } : null;
+  };
 
   // Chapter-grouped flat items: every renderer (Markdown, PDF, preview)
   // looks sections up by collision-free item.key — never by raw
@@ -768,15 +1071,7 @@ export default function MakalahPage() {
     return groups;
   }, [flat]);
 
-  const mainLabel = settings.provider === "ollama" ? `ollama:${settings.model}` : `${settings.cloudProvider}:${settings.cloudModel}`;
-  const resolveStageLabel = (st: { provider: string; model: string; cloudProvider: string; cloudModel: string } | undefined) =>
-    !st || st.provider === "inherit"
-      ? mainLabel
-      : st.provider === "ollama"
-        ? `ollama:${st.model || settings.model}`
-        : `${st.cloudProvider}:${st.cloudModel || settings.cloudModel}`;
-  const outlineModelLabel = resolveStageLabel(settings.makalahOutlineStage as unknown as { provider: string; model: string; cloudProvider: string; cloudModel: string } | undefined);
-  const sectionModelLabel = resolveStageLabel(settings.makalahSectionStage as unknown as { provider: string; model: string; cloudProvider: string; cloudModel: string } | undefined);
+  const { outline: outlineModelLabel, section: sectionModelLabel } = makalahStageLabels(settings);
 
   const buildMarkdown = (refs: MakalahReference[] = references): string => {
     const lines: string[] = [`# ${docTitle}`, ""];
@@ -1055,15 +1350,19 @@ export default function MakalahPage() {
               {coverageNotes && <div className="text-xs text-[#8e8e8e] border border-[#2f2f2f] bg-[#0a0a0a] rounded-xl px-3 py-2">Coverage notes: {coverageNotes}</div>}
               {outlineOverlaps.length > 0 && (
                 <div className="text-xs text-amber-300 border border-amber-800 bg-amber-950/30 rounded-xl px-3 py-2">
-                  Kemungkinan tumpang tindih outline: {outlineOverlaps.map((o) => `${o.a} ≈ ${o.b} (${o.score})`).join(" · ")} — pertajam Fokus di bawah atau gabung sebelum drafting.
+                  Kemungkinan tumpang tindih outline: {outlineOverlaps.slice(0, 3).map((o) => `${o.a} ≈ ${o.b} (${o.score})`).join(" · ")}
+                  {outlineOverlaps.length > 3 && ` (+${outlineOverlaps.length - 3} lainnya)`} — pertajam Fokus di bawah atau gabung sebelum drafting.
                 </div>
               )}
 
               {outline.map((ch, ci) => (
                 <div key={ci} className="rounded-2xl bg-[#0a0a0a] border border-[#2f2f2f] p-4 space-y-3">
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-center">
                     <input value={ch.chapter_number} onChange={(e) => patchChapter(ci, { chapter_number: e.target.value })} className="w-24 rounded-xl bg-[#212121] border border-[#2f2f2f] px-3 py-2 text-sm text-white" />
                     <input value={ch.chapter_title} onChange={(e) => patchChapter(ci, { chapter_title: e.target.value })} className="flex-1 min-w-0 rounded-xl bg-[#212121] border border-[#2f2f2f] px-3 py-2 text-sm text-white" />
+                    {(ch.synthesis_only ?? (outline.length > 1 && ci === outline.length - 1)) && (
+                      <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full border border-emerald-900 text-emerald-400" title="Bab sintesis: memakai ulang evidence yang sudah disitasi, tanpa bukti baru.">sintesis</span>
+                    )}
                     <button onClick={() => { setOutline((p) => p.filter((_, i) => i !== ci)); setApproved(false); }} className="text-xs text-red-400 px-2" title="Delete chapter" aria-label="Delete chapter">✕</button>
                   </div>
                   {(ch.subsections.length < minSubs || ch.subsections.length > maxSubs) && (
@@ -1084,6 +1383,9 @@ export default function MakalahPage() {
                         placeholder="Fokus — 1 kalimat: pertanyaan apa yang dijawab subbab ini? (dipakai untuk retrieval + anti-duplikasi)"
                         className="w-full rounded-lg bg-[#212121] border border-[#2f2f2f] px-2 py-1.5 text-xs text-white placeholder:text-[#5f5f5f]"
                       />
+                      {!sub.focus?.trim() && (
+                        <div className="text-[11px] text-amber-300/80">tanpa fokus — retrieval sulit dibedakan dari subbab lain; isi 1 kalimat.</div>
+                      )}
                       <div className="flex flex-wrap gap-1.5">
                         {selected.map((id) => {
                           const on = resolvedIds(sub).includes(id);
@@ -1118,6 +1420,10 @@ export default function MakalahPage() {
               {!approved && <div className="text-xs text-amber-300 border border-amber-800 bg-amber-950/30 rounded-xl px-3 py-2">Outline was edited after approval — review it in step 2, then approve again before drafting.</div>}
               <div className="flex gap-2 flex-wrap">
                 <button onClick={runAll} disabled={running || !approved} className="rounded-xl bg-white text-black px-5 py-2 text-sm font-medium disabled:opacity-40">{running ? "Drafting…" : "Generate all sections"}</button>
+                <label className="flex items-center gap-1.5 rounded-xl border border-[#2f2f2f] bg-[#212121] px-3 py-2 text-xs text-[#ececec]" title="Saat Generate-all: tiap section yang terdeteksi duplikat (>0.88, Penutup >0.94) otomatis di-retry SEKALI dengan evidence baru + daftar kalimat terlarang. Untuk batch tanpa pengawasan.">
+                  <input type="checkbox" checked={autoRetryDup} onChange={(e) => setAutoRetryDup(e.target.checked)} disabled={running} className="accent-white" />
+                  Auto-retry duplikat 1×
+                </label>
                 <select
                   value={hybridMode}
                   onChange={(e) => setHybridMode(e.target.value as MakalahHybrid)}
@@ -1146,11 +1452,28 @@ export default function MakalahPage() {
                       <button onClick={() => runOne(item.key, item.ch.chapter_title, item.sub)} disabled={running || st.status === "retrieving" || st.status === "generating" || !selected.length} title={!selected.length ? "Pilih minimal 1 sumber di Step 1" : undefined} className="text-[11px] text-[#8e8e8e] hover:text-white border border-[#2f2f2f] rounded-full px-2.5 py-1 bg-[#171717] disabled:opacity-40">
                         {st.status === "ok" ? "↻ Regenerate" : "Generate"}
                       </button>
+                      {st.status === "ok" && (
+                        <button
+                          onClick={() => regenFresh(item.key, item.ch.chapter_title, item.sub)}
+                          disabled={running}
+                          title="Regenerate dengan evidence yang belum dipakai section lain + daftar kalimat terlarang dari section paling mirip. Deterministik (suhu tetap 0; bab sintesis memakai ulang evidence + suhu 0.3)."
+                          className="text-[11px] text-[#8e8e8e] hover:text-white border border-[#2f2f2f] rounded-full px-2.5 py-1 bg-[#171717] disabled:opacity-40"
+                        >↻ Bukti baru</button>
+                      )}
                     </div>
                     <div className="text-[11px] text-[#5f5f5f]">
                       {item.ch.chapter_number} {item.ch.chapter_title} • sources: {resolvedIds(item.sub).length ? resolvedIds(item.sub).map(titleOf).join(", ") : (selected.length ? "all selected" : "⚠ no sources selected — pilih di Step 1")}
                       {st.passages.length > 0 && ` • ${st.passages.length} passages`}
                       {st.integrity && ` • citations ${st.integrity.valid}/${st.integrity.total} valid`}
+                      {st.integrity && st.integrity.badPages?.length > 0 && (
+                        <span className="text-amber-300"> • {st.integrity.badPages.length} page mismatch</span>
+                      )}
+                      {(() => {
+                        const ov = overlapNote(item.key);
+                        return ov ? (
+                          <span className={ov.hot ? "text-amber-300" : ""}> • 🧬 {ov.text}</span>
+                        ) : null;
+                      })()}
                     </div>
                     {st.error && <div className="text-xs text-red-400">{st.error}</div>}
                     {st.output?.gaps.includes(SECTION_SALVAGE_MARKER) && (
@@ -1158,6 +1481,9 @@ export default function MakalahPage() {
                     )}
                     {st.integrity && st.integrity.badIds.length > 0 && (
                       <div className="text-xs text-red-400">Hallucinated source id(s) rejected by validator: {st.integrity.badIds.join(", ")}</div>
+                    )}
+                    {st.integrity && st.integrity.badPages?.length > 0 && (
+                      <div className="text-xs text-amber-300">Citation page mismatch(es) (not found in retrieved passages): {st.integrity.badPages.join(", ")}</div>
                     )}
                     {st.output && !st.editing && (
                       <div className="rounded-xl bg-[#171717] border border-[#2f2f2f] px-4 py-3 text-sm leading-relaxed text-[#ececec] space-y-2">
@@ -1257,6 +1583,13 @@ export default function MakalahPage() {
                     ))}
                   </div>
                 )}
+                {quality.citation_page_mismatches.length > 0 && (
+                  <div className="space-y-1">
+                    {quality.citation_page_mismatches.map((m, i) => (
+                      <div key={i} className="text-xs text-amber-300">⚠ Page mismatch: {m} (page cited is not present in retrieved passages for this source)</div>
+                    ))}
+                  </div>
+                )}
                 {quality.missing_references.length > 0 && (
                   <div className="text-xs text-amber-300">Missing metadata for: {quality.missing_references.map(titleOf).join(", ")}</div>
                 )}
@@ -1267,13 +1600,16 @@ export default function MakalahPage() {
                   <div className="text-xs text-[#8e8e8e]">Selected but never cited: {quality.unused_sources.map(titleOf).join(", ")}</div>
                 )}
                 {quality.redundant_pairs.length > 0 && (
-                  <div className="text-xs text-amber-300">Kemungkinan duplikasi: {quality.redundant_pairs.map((p) => `${p.a} ≈ ${p.b} (${p.score})`).join(" · ")} — Regenerate section yang belakangan setelah Fokus dipertajam.</div>
+                  <div className="text-xs text-amber-300">Kemungkinan duplikasi: {quality.redundant_pairs.map((p) => `${p.a} ≈ ${p.b} (${p.score})`).join(" · ")} — tekan ↻ Bukti baru pada section yang belakangan (atau pertajam Fokus).</div>
                 )}
                 {quality.ai_filled > 0 && hybridMode === "off" && (
                   <div className="text-xs text-amber-300">{quality.ai_filled} paragraf tanpa sitasi dalam mode Strict — Regenerate dengan grounding 15/85, atau Edit manual.</div>
                 )}
                 {quality.ai_filled > 0 && hybridMode !== "off" && (
                   <div className="text-xs text-[#8e8e8e]">{quality.ai_filled} paragraf model-bridged (tanpa sitasi) — wajar di mode {hybridMode}; verifikasi manual sebelum final.</div>
+                )}
+                {quality.citation_missing_pages.length > 0 && (
+                  <div className="text-xs text-[#8e8e8e]">Tanpa halaman (sumbernya punya info halaman, sitasi membuangnya): {quality.citation_missing_pages.join(" · ")} — Regenerate atau tambah manual; bukan error, tapi melemahkan pinpoint.</div>
                 )}
                 <div className="flex gap-2 flex-wrap pt-1">
                   <button onClick={exportPDF} className="rounded-xl bg-white text-black px-5 py-2 text-sm font-medium">Export PDF (print)</button>                  <button onClick={copyMarkdown} className="rounded-xl border border-[#2f2f2f] bg-[#212121] px-5 py-2 text-sm text-white">{copied ? "✓ Copied" : "⧉ Copy Markdown"}</button>

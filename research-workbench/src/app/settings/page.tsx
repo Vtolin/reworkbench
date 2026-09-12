@@ -316,15 +316,16 @@ export default function SettingsPage(){
                 <label className="text-xs text-[#8e8e8e]">Thinking level (server trace bound)
                   <select
                     value={inf.makalahThinkLevel ?? "low"}
-                    onChange={(e) => setInf({ makalahThinkLevel: e.target.value as "low" | "medium" | "high" | "max" })}
+                    onChange={(e) => setInf({ makalahThinkLevel: e.target.value as "minimal" | "low" | "medium" | "high" | "max" })}
                     className="mt-1 w-full rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2 text-sm text-white"
                   >
+                    <option value="minimal">Minimal — closest to off (Gemini 3)</option>
                     <option value="low">Low — brief trace</option>
                     <option value="medium">Medium</option>
                     <option value="high">High — deep trace</option>
                     <option value="max">Max</option>
                   </select>
-                  <span className="text-[11px] text-[#5f5f5f]">Bounds the trace server-side (qwen3/deepseek families). Ollama has no hard numeric cap, so this pairs with the token budget below.</span>
+                  <span className="text-[11px] text-[#5f5f5f]">Bounds the trace server-side (qwen3/deepseek families, Gemini thinking_level). Ollama has no hard numeric cap, so this pairs with the token budget below.</span>
                 </label>
                 <label className="text-xs text-[#8e8e8e]">Thinking budget (tokens)
                   <input
@@ -344,7 +345,7 @@ export default function SettingsPage(){
                 onChange={(e) => setInf({ makalahNumPredict: Number(e.target.value) || 3072 })}
                 className="mt-1 w-full rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2 text-sm text-white"
               />
-              <span className="text-[11px] text-[#5f5f5f]">Caps outline + section answers. Raise if long sections truncate; lower to save VRAM/time.</span>
+              <span className="text-[11px] text-[#5f5f5f]">Caps outline + section answers (Ollama num_predict, cloud max_tokens). Raise if long sections truncate; lower to save VRAM/time.</span>
             </label>
           </div>
           {[["makalahOutlineStage","Outline — structure proposal (LLM call #1)"],["makalahSectionStage","Sections — drafting + claim check (LLM call #2)"]].map(([key,label])=>{

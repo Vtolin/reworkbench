@@ -31,8 +31,8 @@ export interface InferenceSettings {
   makalahThinking: boolean;
   /** Makalah per-call output cap (num_predict). */
   makalahNumPredict: number;
-  /** Makalah thinking effort level (Ollama low/medium/high/max). */
-  makalahThinkLevel: "low" | "medium" | "high" | "max";
+  /** Makalah thinking effort level (Ollama low/medium/high/max; minimal = Gemini 3 closest-to-off). */
+  makalahThinkLevel: "minimal" | "low" | "medium" | "high" | "max";
   /** Makalah thinking-token budget for section drafting. */
   makalahThinkingBudget: number;
 }
@@ -109,6 +109,9 @@ export function InferenceProvider({ children }: { children: ReactNode }) {
         // stored string construct a broken provider selection downstream.
         if (p.provider !== "ollama" && p.provider !== "cloud") p.provider = DEFAULTS.provider;
         if (!["openai", "anthropic", "google", "deepseek"].includes(p.cloudProvider)) p.cloudProvider = DEFAULTS.cloudProvider;
+        if (!["minimal", "low", "medium", "high", "max"].includes(p.makalahThinkLevel as string)) {
+          p.makalahThinkLevel = DEFAULTS.makalahThinkLevel;
+        }
         if (p.embedMode !== "local" && p.embedMode !== "server") p.embedMode = DEFAULTS.embedMode;
         if (!Number.isFinite(p.numCtx) || (p.numCtx as number) <= 0) p.numCtx = DEFAULTS.numCtx;
         setState(p);

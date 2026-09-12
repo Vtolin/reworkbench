@@ -19,12 +19,15 @@ export const KNOWN_PROVIDERS = [...Object.keys(OPENAI_COMPAT_BASE), "anthropic"]
 // Gemini 2.5 takes a token budget, Gemini 3 takes a categorical level; the
 // two overlap and must never be sent together. Levels map to budgets the way
 // Google's own OpenAI-compat docs map reasoning effort:
-// minimal/low → 1024, medium → 8192, high/max → 24576.
+// minimal → 0/off, low → 1024, medium → 8192, high/max → 24576.
+// Cold/deterministic calls MUST pass thinking:false explicitly so Gemini
+// does not fall back to its provider default (medium on 3.5-flash).
 // ---------------------------------------------------------------------------
 
-export type GeminiThinkLevel = "low" | "medium" | "high" | "max";
+export type GeminiThinkLevel = "minimal" | "low" | "medium" | "high" | "max";
 
 const GEMINI_LEVEL_TO_BUDGET: Record<GeminiThinkLevel, number> = {
+  minimal: 0,
   low: 1024,
   medium: 8192,
   high: 24576,
@@ -32,6 +35,7 @@ const GEMINI_LEVEL_TO_BUDGET: Record<GeminiThinkLevel, number> = {
 };
 
 const GEMINI_LEVEL_TO_L3: Record<GeminiThinkLevel, "minimal" | "low" | "medium" | "high"> = {
+  minimal: "minimal",
   low: "low",
   medium: "medium",
   high: "high",
@@ -44,22 +48,32 @@ export function isGemini3(model: string): boolean {
 
 export function buildGoogleExtraBody(opts: {
   model: string;
+  thinking?: boolean;
   thinkingBudget?: number;
   thinkLevel?: GeminiThinkLevel;
 }): Record<string, unknown> | undefined {
   const hasBudget = typeof opts.thinkingBudget === "number" && Number.isFinite(opts.thinkingBudget);
+  const hasLevel = typeof opts.thinkLevel === "string" && !!opts.thinkLevel;
   if (isGemini3(opts.model)) {
     // Gemini 3: levels only (budgets "may result in unexpected performance").
-    const level = opts.thinkLevel ? GEMINI_LEVEL_TO_L3[opts.thinkLevel] : undefined;
+    // Explicit thinking:false maps to `minimal` (closest to off — full off
+    // is unsupported on 3.x). Absent flag with no level/budget leaves the
+    // provider default untouched (medium on 3.5-flash).
+    if (opts.thinking === false) return { google: { thinking_config: { thinking_level: "minimal" } } };
+    const level = hasLevel ? GEMINI_LEVEL_TO_L3[opts.thinkLevel as GeminiThinkLevel] : undefined;
     if (!level) return undefined;
     return { google: { thinking_config: { thinking_level: level } } };
+  }
+  // Gemini 2.5 and earlier: numeric budget (0 disables thinking on Flash).
+  if (opts.thinking === false && !hasBudget && !hasLevel) {
+    return { google: { thinking_config: { thinking_budget: 0 } } };
   }
   if (hasBudget) {
     const n = Math.min(32768, Math.max(0, Math.floor(opts.thinkingBudget as number)));
     return { google: { thinking_config: { thinking_budget: n } } };
   }
-  if (opts.thinkLevel) {
-    return { google: { thinking_config: { thinking_budget: GEMINI_LEVEL_TO_BUDGET[opts.thinkLevel] } } };
+  if (hasLevel) {
+    return { google: { thinking_config: { thinking_budget: GEMINI_LEVEL_TO_BUDGET[opts.thinkLevel as GeminiThinkLevel] } } };
   }
   return undefined;
 }

@@ -16,8 +16,7 @@ export interface ChunkInput {
 export function chunkText(
   text: string,
   opts: { chunkSize?: number; chunkOverlap?: number } = {},
-): ChunkInput[] {
-  const chunkSize = opts.chunkSize ?? CHUNK_SIZE;
+): ChunkInput[] {  const chunkSize = opts.chunkSize ?? CHUNK_SIZE;
   const chunkOverlap = opts.chunkOverlap ?? CHUNK_OVERLAP;
   const clean = (text ?? "").replace(/\r\n/g, "\n");
   if (!clean.trim()) return [];
@@ -50,6 +49,45 @@ export function chunkText(
     start = Math.max(end - chunkOverlap, start + 1);
   }
   return chunks.filter((c) => c.content.length > 0);
+}
+
+/**
+ * Page-aware chunking for PDF-extracted text. The browser PDF extractor
+ * prefixes every page with a "[Page N]" marker; this splits on those markers
+ * so each chunk carries its real `page` (powering "h. X" pinpoint citations),
+ * and strips the markers from stored content (they otherwise pollute
+ * embeddings, FTS/BM25 text, and leak into prompts as fake citation keys).
+ * Texts without markers (Word/Excel/sheets/plain) behave exactly like
+ * chunkText — page stays null.
+ */
+export function chunkTextWithPages(
+  text: string,
+  opts: { chunkSize?: number; chunkOverlap?: number } = {},
+): ChunkInput[] {
+  const clean = (text ?? "").replace(/\r\n/g, "\n");
+  if (!clean.trim()) return [];
+  const parts = clean.split(/\[Page (\d+)\]\n?/);
+  // No markers → identical to chunkText.
+  if (parts.length < 3) return chunkText(text, opts);
+  const out: ChunkInput[] = [];
+  let index = 0;
+  // parts[0] is pre-marker lead text (usually empty); then (page, body) pairs.
+  if (parts[0].trim()) {
+    for (const c of chunkText(parts[0], opts)) out.push({ ...c, chunk_index: index++ });
+  }
+  for (let i = 1; i + 1 < parts.length; i += 2) {
+    const page = Number(parts[i]);
+    const body = parts[i + 1];
+    if (!body || !body.trim()) continue;
+    for (const c of chunkText(body, opts)) {
+      out.push({
+        ...c,
+        chunk_index: index++,
+        page: Number.isInteger(page) ? page : null,
+      });
+    }
+  }
+  return out.filter((c) => c.content.length > 0);
 }
 
 export async function sha256Hex(input: ArrayBuffer | string): Promise<string> {

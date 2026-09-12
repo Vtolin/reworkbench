@@ -235,6 +235,7 @@ layer. It does **not** provide the members' local AI compute.
   your Research and continue it with your own model. Deleting a published chat needs
   admin approval.
 - **RAG**: Postgres FTS + pgvector → RRF fusion → your own model (Ollama local or BYOK cloud). The shared system needs `nomic-embed-text`; generation models are each member's choice.
+- **Makalah**: outline first (Mode A proposes one from your sources for your approval, Mode B uses your own structure) → each section is drafted from retrieved passages with inline citations → built-in quality report flags citation, page, duplication, and bibliography issues → PDF/Markdown export stays blocked until every section is clean. It runs on Ollama or cloud: **Settings → Makalah pipeline** routes the cheap outline call and the heavy drafting calls to different models, plus a thinking toggle (drafting only) and a per-call output cap that apply to both backends.
 - **Keys**: personal BYOK, AES-GCM at rest (`ai_credentials`, owner-only RLS), never shared.
 
 ## Project layout

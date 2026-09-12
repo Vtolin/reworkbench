@@ -6,7 +6,7 @@ export const OLLAMA_BASE_URL = "http://localhost:11434";
 export const DEFAULT_CHAT_MODEL = "gemma4:26b-a4b-it-qat";
 export const DEFAULT_EMBED_MODEL = "nomic-embed-text";
 
-export type ThinkLevel = "low" | "medium" | "high" | "max";
+export type ThinkLevel = "minimal" | "low" | "medium" | "high" | "max";
 
 export interface OllamaChatOptions extends ChatOptions {
   thinking?: boolean;
@@ -61,8 +61,11 @@ export class OllamaProvider implements AIProvider {
     // `true` if provided — a server-side bound on the trace length. Numeric
     // budgets are NOT a stable Ollama feature (400 on 0.33.3), so token
     // budgets are enforced via prompt instruction + num_predict accounting.
+    // "minimal" is a cloud (Gemini 3) level — closest Ollama equivalent is a
+    // brief "low" trace.
     const wantThinking = thinking === true;
-    const thinkValue = thinking === undefined ? undefined : wantThinking ? (thinkLevel ?? true) : false;
+    const ollamaLevel = thinkLevel === "minimal" ? "low" : thinkLevel;
+    const thinkValue = thinking === undefined ? undefined : wantThinking ? (ollamaLevel ?? true) : false;
     const res = await fetch(`${this.baseUrl}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
