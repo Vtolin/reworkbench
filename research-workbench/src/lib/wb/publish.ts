@@ -23,38 +23,21 @@ function markPublished(localId: string, chatId: string): void {
   }
 }
 
-export async function publishConversation(conv: Conversation): Promise<string> {
-  if (!conv.messages.length) throw new Error("Nothing to publish in this chat");
-  const sb = createClient();
-  const { data: me } = await sb.auth.getUser();
-  if (!me.user) throw new Error("Not signed in");
+async function requireWorkspace(sb: ReturnType<typeof createClient>, userId: string): Promise<string> {
   const { data: m } = await sb
     .from("workspace_members")
     .select("workspace_id")
-    .eq("user_id", me.user.id)
+    .eq("user_id", userId)
     .eq("status", "active")
     .order("joined_at")
     .limit(1)
     .maybeSingle();
   if (!m) throw new Error("No workspace");
-  const wsId = (m as { workspace_id: string }).workspace_id;
+  return (m as { workspace_id: string }).workspace_id;
+}
 
-  const { data: chat, error: chatErr } = await sb
-    .from("chats")
-    .insert({
-      workspace_id: wsId,
-      owner_id: me.user.id,
-      title: conv.title || "Shared research",
-      visibility: "workspace",
-    })
-    .select("id")
-    .single();
-  if (chatErr || !chat) throw new Error(chatErr?.message ?? "Publish failed");
-  const chatId = (chat as { id: string }).id;
-
-  // Persist sources/thinking/model alongside content so the gallery renders
-  // the full result and imports restore it.
-  const rows = conv.messages
+function buildMessageRows(chatId: string, conv: Conversation) {
+  return conv.messages
     .filter((msg) => (msg.role === "user" || msg.role === "assistant") && msg.content.trim())
     .map((msg) => ({
       chat_id: chatId,
@@ -66,6 +49,35 @@ export async function publishConversation(conv: Conversation): Promise<string> {
           : {}),
       },
     }));
+}
+
+async function insertChat(
+  sb: ReturnType<typeof createClient>,
+  wsId: string,
+  ownerId: string,
+  title: string,
+  visibility: "workspace" | "private",
+): Promise<string> {
+  const { data: chat, error: chatErr } = await sb
+    .from("chats")
+    .insert({ workspace_id: wsId, owner_id: ownerId, title, visibility })
+    .select("id")
+    .single();
+  if (chatErr || !chat) throw new Error(chatErr?.message ?? "Publish failed");
+  return (chat as { id: string }).id;
+}
+
+export async function publishConversation(conv: Conversation): Promise<string> {
+  if (!conv.messages.length) throw new Error("Nothing to publish in this chat");
+  const sb = createClient();
+  const { data: me } = await sb.auth.getUser();
+  if (!me.user) throw new Error("Not signed in");
+  const wsId = await requireWorkspace(sb, me.user.id);
+  const chatId = await insertChat(sb, wsId, me.user.id, conv.title || "Shared research", "workspace");
+
+  // Persist sources/thinking/model alongside content so the gallery renders
+  // the full result and imports restore it.
+  const rows = buildMessageRows(chatId, conv);
   if (rows.length) {
     const { error: msgErr } = await sb.from("chat_messages").insert(rows);
     if (msgErr) {
@@ -74,6 +86,109 @@ export async function publishConversation(conv: Conversation): Promise<string> {
     }
   }
   markPublished(conv.id, chatId);
+  return chatId;
+}
+
+// Stored chats (hybrid opt-in sync) ------------------------------------------
+// A Stored chat is a private account-level backup of a local conversation:
+// same rows as a publish, but visibility 'private' so only the owner reads
+// it (existing chats_read_ws covers owner reads). Other devices download it
+// into their own local history. Last writer wins on re-sync (full replace).
+
+export async function uploadConversation(conv: Conversation): Promise<string> {
+  if (!conv.messages.length) throw new Error("Nothing to store in this chat");
+  const sb = createClient();
+  const { data: me } = await sb.auth.getUser();
+  if (!me.user) throw new Error("Not signed in");
+  const wsId = await requireWorkspace(sb, me.user.id);
+  const chatId = await insertChat(sb, wsId, me.user.id, conv.title || "Stored chat", "private");
+  const rows = buildMessageRows(chatId, conv);
+  if (rows.length) {
+    const { error: msgErr } = await sb.from("chat_messages").insert(rows);
+    if (msgErr) {
+      await sb.from("chats").delete().eq("id", chatId);
+      throw new Error(msgErr.message);
+    }
+  }
+  return chatId;
+}
+
+/** Full-replace re-sync of a Stored chat: title + messages rewritten from
+ *  the current local conversation. Ownership is verified first. */
+export async function pushConversationUpdate(chatId: string, conv: Conversation): Promise<void> {
+  const sb = createClient();
+  const { data: me } = await sb.auth.getUser();
+  if (!me.user) throw new Error("Not signed in");
+  const { data: chat } = await sb.from("chats").select("owner_id").eq("id", chatId).single();
+  if (!chat) throw new Error("Stored chat not found");
+  if ((chat as { owner_id: string }).owner_id !== me.user.id) throw new Error("Not your stored chat");
+  const { error: titleErr } = await sb.from("chats").update({ title: conv.title || "Stored chat" }).eq("id", chatId);
+  if (titleErr) throw new Error(titleErr.message);
+  const { error: delErr } = await sb.from("chat_messages").delete().eq("chat_id", chatId);
+  if (delErr) throw new Error(delErr.message);
+  const rows = buildMessageRows(chatId, conv);
+  if (rows.length) {
+    const { error: msgErr } = await sb.from("chat_messages").insert(rows);
+    if (msgErr) throw new Error(msgErr.message);
+  }
+}
+
+export async function listStoredChats(): Promise<SharedChat[]> {
+  const sb = createClient();
+  const { data: me } = await sb.auth.getUser();
+  if (!me.user) return [];
+  const { data: m } = await sb
+    .from("workspace_members")
+    .select("workspace_id")
+    .eq("user_id", me.user.id)
+    .eq("status", "active")
+    .order("joined_at")
+    .limit(1)
+    .maybeSingle();
+  if (!m) return [];
+  const { data, error } = await sb
+    .from("chats")
+    .select("id, title, owner_id, created_at")
+    .eq("workspace_id", (m as { workspace_id: string }).workspace_id)
+    .eq("owner_id", me.user.id)
+    .eq("visibility", "private")
+    .order("updated_at", { ascending: false })
+    .limit(50);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as SharedChat[];
+}
+
+export async function deleteStoredChat(chatId: string): Promise<void> {
+  const sb = createClient();
+  const { error } = await sb.from("chats").delete().eq("id", chatId);
+  if (error) throw new Error(error.message);
+}
+
+/** Publish a finished makalah draft into the shared gallery as one readable
+ *  assistant message (Markdown body + references). Gated by the caller with
+ *  the same export blockers as Copy/Export so a holey paper never ships. */
+export async function publishMakalah(input: {
+  title: string;
+  markdown: string;
+  topic: string;
+  language: string;
+}): Promise<string> {
+  if (!input.markdown.trim()) throw new Error("Nothing to publish");
+  const sb = createClient();
+  const { data: me } = await sb.auth.getUser();
+  if (!me.user) throw new Error("Not signed in");
+  const wsId = await requireWorkspace(sb, me.user.id);
+  const chatId = await insertChat(sb, wsId, me.user.id, input.title || "Makalah", "workspace");
+  const { error: msgErr } = await sb.from("chat_messages").insert({
+    chat_id: chatId,
+    role: "assistant",
+    content: input.markdown,
+    metadata_json: { kind: "makalah", topic: input.topic, language: input.language },
+  });
+  if (msgErr) {
+    await sb.from("chats").delete().eq("id", chatId);
+    throw new Error(msgErr.message);
+  }
   return chatId;
 }
 

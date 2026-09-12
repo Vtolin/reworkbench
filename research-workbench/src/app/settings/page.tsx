@@ -10,9 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 import { getWorkspaceId } from "@/lib/wb/library";
 
 export default function SettingsPage(){
-  const [settings, setSettings] = useState<any>({});
   const [health, setHealth] = useState<any>(null);
-  const [saving, setSaving] = useState(false);
   const { settings: inf, setSettings: setInf, ollamaModels, refreshOllamaModels, ollamaOnline } = useInference();
   const { workspace } = useSession();
   // Citation + import/export state
@@ -34,16 +32,11 @@ export default function SettingsPage(){
   const [exporting, setExporting] = useState(false);
 
   const load = async()=>{
-    const [s, h] = await Promise.all([api.settings(), api.health().catch(()=>null)]);
-    setSettings(s);
+    const h = await api.health().catch(()=>null);
     setHealth(h);
     api.citationStyles().then(r=>{ setCiteStyles(r.styles||[]); setCiteDefault(r.default||"apa"); }).catch(()=>{});
   };
   useEffect(()=>{ load(); },[]);
-  const save = async()=>{
-    setSaving(true);
-    try{ const r=await api.updateSettings(settings); setSettings(r); } finally{ setSaving(false); }
-  };
 
   const detect = async () => {
     setDetecting(true);
@@ -466,22 +459,6 @@ export default function SettingsPage(){
           <div className="mt-3">
             <Link href="/admin" className="rounded-xl border border-[#2f2f2f] bg-[#212121] px-4 py-2 text-sm text-white inline-block">Open admin dashboard</Link>
           </div>
-        </div>
-
-        <div className="rounded-2xl border border-[#2f2f2f] bg-[#0a0a0a] p-4 lg:p-5">
-          <div className="text-sm font-semibold text-white">Model configuration</div>
-          <div className="text-xs text-[#8e8e8e]">Advanced: embeddings and auto-organize thresholds. Changing the embedding model requires re-embedding documents.</div>
-          <div className="grid gap-4 mt-4 grid-cols-1 md:grid-cols-2">
-            {[
-              ["embedding_provider","Embedding provider"],
-              ["embedding_model","Embedding model"],
-              ["auto_organize_threshold_high","Auto-organize high threshold"],
-              ["auto_organize_threshold_low","Auto-organize low threshold"],
-            ].map(([key,label])=>(
-              <label key={key} className="text-xs font-medium text-[#ececec]">{label}<input value={settings[key]||""} onChange={e=>setSettings({...settings, [key]: e.target.value})} className="mt-1 w-full rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2 text-sm text-white" /></label>
-            ))}
-          </div>
-          <button onClick={save} disabled={saving} className="mt-4 rounded-xl bg-white text-black px-5 py-2.5 text-sm font-medium disabled:opacity-50">{saving? "Saving…":"Save settings"}</button>
         </div>
 
         <div className="rounded-2xl border border-[#2f2f2f] bg-[#0a0a0a] p-4 lg:p-5">

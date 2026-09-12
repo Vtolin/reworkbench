@@ -1004,9 +1004,9 @@ export default function ResearchPage(){
 
         {/* input - static footer */}
         <footer className="shrink-0 border-t border-[#2f2f2f] bg-black pb-[env(safe-area-inset-bottom)]">
-          <div className="max-w-3xl mx-auto px-4 py-4">
+          <div className="max-w-3xl mx-auto px-2 sm:px-4 py-2.5 sm:py-4">
             {mode==="ask" && (
-              <div className="rounded-2xl bg-[#212121] border border-[#2f2f2f] flex items-end gap-2 p-2 focus-within:border-[#404040]">
+              <div className="rounded-2xl bg-[#212121] border border-[#2f2f2f] flex items-end gap-1.5 sm:gap-2 p-1.5 sm:p-2 focus-within:border-[#404040]">
                 <textarea
                   ref={inputRef}
                   value={q}
@@ -1014,24 +1014,23 @@ export default function ResearchPage(){
                   onKeyDown={onKeyDown}
                   rows={1}
                   placeholder={selected.length? `Ask the ${selected.length} selected document(s)… (Shift+Enter newline)` : "Ask the library… (Shift+Enter newline)"}
-                  className="flex-1 bg-transparent text-white placeholder:text-[#8e8e8e] text-sm px-3 py-2.5 outline-none resize-none max-h-32"
-                  style={{ minHeight: "44px" }}
+                  className="flex-1 bg-transparent text-white placeholder:text-[#8e8e8e] text-[13px] sm:text-sm px-2 sm:px-3 py-2 sm:py-2.5 outline-none resize-none max-h-32 min-h-[40px] sm:min-h-[44px]"
                 />
                 {loading && streaming ? (
-                  <button onClick={stop} className="h-10 w-10 grid place-items-center rounded-xl bg-white text-black shrink-0 hover:bg-[#ececec]" title="Stop generating">
+                  <button onClick={stop} className="h-9 w-9 sm:h-10 sm:w-10 grid place-items-center rounded-xl bg-white text-black shrink-0 hover:bg-[#ececec]" title="Stop generating">
                     <span className="h-3.5 w-3.5 rounded-[3px] bg-black" />
                   </button>
                 ) : (
-                  <button onClick={ask} disabled={loading || !q.trim()} className="h-10 w-10 grid place-items-center rounded-xl bg-white text-black disabled:opacity-40 disabled:cursor-not-allowed shrink-0">
-                    <span className="text-lg">↑</span>
+                  <button onClick={ask} disabled={loading || !q.trim()} className="h-9 w-9 sm:h-10 sm:w-10 grid place-items-center rounded-xl bg-white text-black disabled:opacity-40 disabled:cursor-not-allowed shrink-0">
+                    <span className="text-base sm:text-lg">↑</span>
                   </button>
                 )}
               </div>
             )}
             {mode==="compare" && (
-              <div className="rounded-2xl bg-[#212121] border border-[#2f2f2f] flex items-end gap-2 p-2">
-                <textarea value={compareQ} onChange={e=>setCompareQ(e.target.value)} onKeyDown={onKeyDown} rows={1} placeholder={compareIds.length<2 ? "Select ≥2 docs first" : "How do they differ on... (Shift+Enter newline)"} className="flex-1 bg-transparent text-white placeholder:text-[#8e8e8e] text-sm px-3 py-2.5 outline-none resize-none" />
-                <button onClick={doCompare} disabled={compareLoading || !compareQ.trim() || compareIds.length<2} className="h-10 w-10 grid place-items-center rounded-xl bg-white text-black disabled:opacity-40">↑</button>
+              <div className="rounded-2xl bg-[#212121] border border-[#2f2f2f] flex items-end gap-1.5 sm:gap-2 p-1.5 sm:p-2">
+                <textarea value={compareQ} onChange={e=>setCompareQ(e.target.value)} onKeyDown={onKeyDown} rows={1} placeholder={compareIds.length<2 ? "Select ≥2 docs first" : "How do they differ on... (Shift+Enter newline)"} className="flex-1 bg-transparent text-white placeholder:text-[#8e8e8e] text-[13px] sm:text-sm px-2 sm:px-3 py-2 sm:py-2.5 outline-none resize-none" />
+                <button onClick={doCompare} disabled={compareLoading || !compareQ.trim() || compareIds.length<2} className="h-9 w-9 sm:h-10 sm:w-10 grid place-items-center rounded-xl bg-white text-black disabled:opacity-40">↑</button>
               </div>
             )}
             {mode==="summarize" && (
@@ -1041,13 +1040,18 @@ export default function ResearchPage(){
               <div className="text-xs text-[#8e8e8e] text-center py-2">Select documents above and click Build matrix. Each row is extracted by your own model; export as CSV / XLSX / Markdown.</div>
             )}
             {mode==="synthesis" && (
-              <div className="rounded-2xl bg-[#212121] border border-[#2f2f2f] flex items-end gap-2 p-2">
-                <textarea value={synthQ} onChange={e=>setSynthQ(e.target.value)} onKeyDown={onKeyDown} rows={1} placeholder={synthIds.length<2 ? "Select ≥2 docs first" : "What does the literature agree or disagree on? Where are the gaps? (Shift+Enter newline)"} className="flex-1 bg-transparent text-white placeholder:text-[#8e8e8e] text-sm px-3 py-2.5 outline-none resize-none" />
-                <button onClick={doSynthesis} disabled={synthLoading || !synthQ.trim() || synthIds.length<2} className="h-10 w-10 grid place-items-center rounded-xl bg-white text-black disabled:opacity-40">↑</button>
+              <div className="rounded-2xl bg-[#212121] border border-[#2f2f2f] flex items-end gap-1.5 sm:gap-2 p-1.5 sm:p-2">
+                <textarea value={synthQ} onChange={e=>setSynthQ(e.target.value)} onKeyDown={onKeyDown} rows={1} placeholder={synthIds.length<2 ? "Select ≥2 docs first" : "What does the literature agree or disagree on? Where are the gaps? (Shift+Enter newline)"} className="flex-1 bg-transparent text-white placeholder:text-[#8e8e8e] text-[13px] sm:text-sm px-2 sm:px-3 py-2 sm:py-2.5 outline-none resize-none" />
+                <button onClick={doSynthesis} disabled={synthLoading || !synthQ.trim() || synthIds.length<2} className="h-9 w-9 sm:h-10 sm:w-10 grid place-items-center rounded-xl bg-white text-black disabled:opacity-40">↑</button>
               </div>
             )}
-            <div className="text-[11px] text-[#5f5f5f] text-center mt-2 px-2">
-              {settings.provider === "ollama" ? `${settings.model} • ${settings.numCtx} ctx` : `${settings.cloudProvider}:${settings.cloudModel}`} • Hybrid FTS+BM25+vector • Cross-encoder reranked • {thinkingOn ? "Thinking on" : "Thinking off"} • {memoryOn ? "Memory on" : "Memory off"} • {hybridMode!=="off" ? `Hybrid source ${hybridMode}` : "Strict grounding"}
+            <div className="text-[11px] text-[#5f5f5f] text-center mt-1.5 sm:mt-2 px-2">
+              <span className="sm:hidden">
+                {settings.provider === "ollama" ? settings.model : `${settings.cloudProvider}:${settings.cloudModel}`} • {thinkingOn ? "Think on" : "Think off"} • {memoryOn ? "Mem on" : "Mem off"} • {hybridMode!=="off" ? hybridMode : "Strict"}
+              </span>
+              <span className="hidden sm:inline">
+                {settings.provider === "ollama" ? `${settings.model} • ${settings.numCtx} ctx` : `${settings.cloudProvider}:${settings.cloudModel}`} • Hybrid FTS+BM25+vector • Cross-encoder reranked • {thinkingOn ? "Thinking on" : "Thinking off"} • {memoryOn ? "Memory on" : "Memory off"} • {hybridMode!=="off" ? `Hybrid source ${hybridMode}` : "Strict grounding"}
+              </span>
             </div>
           </div>
         </footer>

@@ -26,6 +26,9 @@ export type Conversation = {
   createdAt: number;
   updatedAt: number;
   messages: ChatMessage[];
+  /** Linked Stored-chat row id when this conversation is synced to the
+   *  account (visibility 'private'). Absent = Local-only on this device. */
+  cloudId?: string | null;
 };
 
 type ChatState = {
@@ -44,7 +47,9 @@ type ChatState = {
   clearMemory: () => void;
   memoryCutoff: (id: string) => number;
   /** Import an external thread (e.g. a shared chat) as a new local conversation. */
-  importConversation: (title: string, messages: ChatMessage[]) => string;
+  importConversation: (title: string, messages: ChatMessage[], cloudId?: string | null) => string;
+  /** Link/unlink a local conversation to its Stored-chat row (sync state). */
+  markStored: (id: string, chatId: string | null) => void;
 };
 
 const KEY_CONV = "wb_conversations_v1";
@@ -217,7 +222,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     return readCutoffs()[id] ?? 0;
   }, []);
 
-  const importConversation = useCallback((title: string, messages: ChatMessage[]): string => {
+  const importConversation = useCallback((title: string, messages: ChatMessage[], cloudId?: string | null): string => {
     const now = Date.now();
     const c: Conversation = {
       id: uid(),
@@ -225,10 +230,17 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       createdAt: now,
       updatedAt: now,
       messages,
+      ...(cloudId ? { cloudId } : {}),
     };
     setConversations((prev) => [c, ...prev]);
     setActiveId(c.id);
     return c.id;
+  }, []);
+
+  const markStored = useCallback((id: string, chatId: string | null) => {
+    setConversations((prev) => prev.map((c) =>
+      c.id === id ? { ...c, cloudId: chatId, updatedAt: Date.now() } : c,
+    ));
   }, []);
 
   const clearMemory = useCallback(() => {
@@ -247,7 +259,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       conversations, activeId, activeConversation,
       removeMessage, updateMessage, truncateAfter,
       newConversation, selectConversation, deleteConversation, addMessage, clearActive,
-      clearMemory, memoryCutoff, importConversation,
+      clearMemory, memoryCutoff, importConversation, markStored,
     }}>
       {children}
     </ChatContext.Provider>

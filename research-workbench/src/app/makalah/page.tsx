@@ -30,6 +30,7 @@ import {
   type QualityReport,
 } from "@/lib/wb/makalah";
 import { sectionSimilarity } from "@/lib/text/similarity";
+import { publishMakalah } from "@/lib/wb/publish";
 
 const DEFAULT_CHAPTERS = "BAB I Pendahuluan\nBAB II Pembahasan\nBAB III Penutup";
 
@@ -198,6 +199,7 @@ export default function MakalahPage() {
   const [references, setReferences] = useState<MakalahReference[]>([]);
   const [copied, setCopied] = useState(false);
   const [exportNote, setExportNote] = useState<string | null>(null);
+  const [publishing, setPublishing] = useState(false);
   const [editingRef, setEditingRef] = useState<string | null>(null);
   const [refEditText, setRefEditText] = useState("");
 
@@ -1114,6 +1116,30 @@ export default function MakalahPage() {
     } catch {}
   };
 
+  const publishToShared = async () => {
+    if (publishing) return;
+    setExportNote(null);
+    setPublishing(true);
+    try {
+      const { refs, error } = await ensureReferences();
+      if (error) {
+        setExportNote(`Tidak bisa publish — Daftar Pustaka gagal dimuat: ${error}. Periksa koneksi lalu tekan Refresh references.`);
+        return;
+      }
+      const blockers = exportBlockers(refs);
+      if (blockers.length) {
+        setExportNote(`Tidak bisa publish — ${blockers.join(" ")}`);
+        return;
+      }
+      await publishMakalah({ title: docTitle, markdown: buildMarkdown(refs), topic: topic.trim(), language });
+      setExportNote("Published to shared chats ✓ — visible in Research → Shared and /chats.");
+    } catch (e) {
+      setExportNote(`Publish gagal: ${e instanceof Error ? e.message : "unknown error"}`);
+    } finally {
+      setPublishing(false);
+    }
+  };
+
   const exportPDF = async () => {
     setExportNote(null);
     const { refs, error } = await ensureReferences();
@@ -1612,7 +1638,7 @@ export default function MakalahPage() {
                   <div className="text-xs text-[#8e8e8e]">Tanpa halaman (sumbernya punya info halaman, sitasi membuangnya): {quality.citation_missing_pages.join(" · ")} — Regenerate atau tambah manual; bukan error, tapi melemahkan pinpoint.</div>
                 )}
                 <div className="flex gap-2 flex-wrap pt-1">
-                  <button onClick={exportPDF} className="rounded-xl bg-white text-black px-5 py-2 text-sm font-medium">Export PDF (print)</button>                  <button onClick={copyMarkdown} className="rounded-xl border border-[#2f2f2f] bg-[#212121] px-5 py-2 text-sm text-white">{copied ? "✓ Copied" : "⧉ Copy Markdown"}</button>
+                  <button onClick={exportPDF} className="rounded-xl bg-white text-black px-5 py-2 text-sm font-medium">Export PDF (print)</button>                  <button onClick={copyMarkdown} className="rounded-xl border border-[#2f2f2f] bg-[#212121] px-5 py-2 text-sm text-white">{copied ? "✓ Copied" : "⧉ Copy Markdown"}</button>                  <button onClick={publishToShared} disabled={publishing} className="rounded-xl border border-[#2f2f2f] bg-[#212121] px-5 py-2 text-sm text-white disabled:opacity-40" title="Publish this paper into Shared chats (same export gates as Copy/Export)">{publishing ? "Publishing…" : "Publish to shared ↑"}</button>
                   <button onClick={refreshReferences} className="rounded-xl border border-[#2f2f2f] bg-[#212121] px-5 py-2 text-sm text-white">↻ Refresh references</button>
                   <button onClick={() => setStep(3)} className="rounded-xl border border-[#2f2f2f] bg-[#212121] px-5 py-2 text-sm text-white">← Back to drafting</button>
                 </div>

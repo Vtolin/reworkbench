@@ -74,7 +74,7 @@ export async function POST(req: Request) {
           ...(model.startsWith("text-embedding-3-") ? { dimensions: 768 } : {}),
         }),
       });
-      if (!upstream.ok) return NextResponse.json({ error: `Embedding failed: ${upstream.status}` }, { status: 502 });
+      if (!upstream.ok) return NextResponse.json({ error: `Embedding failed (openai/${model}): ${upstream.status}` }, { status: 502 });
       const data = await upstream.json();
       const embedding = data.data?.[0]?.embedding as unknown;
       if (!Array.isArray(embedding) || !embedding.length) {
@@ -99,7 +99,7 @@ export async function POST(req: Request) {
       );
       if (!upstream.ok) {
         const text = await upstream.text().catch(() => "");
-        return NextResponse.json({ error: `Embedding failed: ${upstream.status} — ${text.slice(0, 200)}` }, { status: 502 });
+        return NextResponse.json({ error: `Embedding failed (google/${model}): ${upstream.status} — ${text.slice(0, 200)}` }, { status: 502 });
       }
       const data = await upstream.json();
       const embedding = (data.embedding as { values?: unknown } | undefined)?.values as unknown;

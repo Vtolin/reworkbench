@@ -117,7 +117,7 @@ Five modes sharing one chat stream, per-device conversation history (`ChatContex
 - **Matrix** — per-doc STRICT-JSON extraction via the member's model; CSV/MD/XLSX (SheetJS) client-side.
 - **Synthesis** — agreement / disagreement / gaps / claims-by-support across ≥2 docs with per-source attribution.
 
-Chat semantics (publish gallery model): **Shared chats** is read-only — nobody starts or continues a conversation there. **Publish**: Research history drawer → Publish ↑ (content + sources + thinking + model into `metadata_json`). **Import**: gallery → Open in Research, or drawer → Shared → Import ↓ (new local conversation; the member's own model continues it). **Delete**: owner files a `chat_deletion_requests` row; admin approves (deletes chat + messages, keeps request as audit) or rejects.
+Chat semantics (publish gallery model): **My chats** is per-device local history (never leaves the browser unless you say so). **Stored** is opt-in account sync: Store + uploads a private copy, Sync ↑ re-pushes it (last writer wins), Download pulls it onto the current device and links it, delete removes only the account copy. **Shared chats** is read-only — nobody starts or continues a conversation there. **Publish**: Research history drawer → Publish ↑ (content + sources + thinking + model into `metadata_json`); Makalah Step 4 → Publish to shared ↑ (full Markdown + references, same export gates as Copy/Export). **Import**: gallery → Open in Research, or drawer → Shared → Import ↓ (new local conversation; the member's own model continues it). **Delete**: owner files a `chat_deletion_requests` row; admin approves (deletes chat + messages, keeps request as audit) or rejects.
 
 ### 2.4 Makalah (`/makalah`)
 
