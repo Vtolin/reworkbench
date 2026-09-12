@@ -134,7 +134,7 @@ export default function ChatsPage() {
             </div>
           ) : (
             <>
-              <div className="px-4 lg:px-6 py-3 border-b border-[#2f2f2f] flex items-center gap-2">
+              <div className="px-2 sm:px-4 lg:px-6 py-3 border-b border-[#2f2f2f] flex items-center gap-2">
                 <h1 className="text-base font-semibold text-white truncate flex-1">{active.title}</h1>
                 <button
                   onClick={openInResearch}
@@ -155,12 +155,12 @@ export default function ChatsPage() {
                   )
                 )}
               </div>
-              <div className="flex-1 overflow-y-auto px-4 lg:px-6 py-4">
-                <div className="max-w-3xl mx-auto space-y-6">
+              <div className="flex-1 overflow-y-auto px-2 sm:px-4 lg:px-6 py-3 sm:py-4">
+                <div className="max-w-3xl mx-auto w-full space-y-6">
                   {messages.map((m, i) => (
-                    <div key={i} className={`flex gap-3 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div key={i} className={`flex gap-2 sm:gap-3 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                       {m.role === "assistant" && <div className="h-7 w-7 rounded-full bg-white text-black grid place-items-center text-xs font-bold shrink-0 mt-1">✦</div>}
-                      <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed break-words ${m.role === "user" ? "bg-[#212121] border border-[#2f2f2f] text-white" : "bg-transparent text-[#ececec]"}`}>
+                      <div className={`${m.role === "user" ? "max-w-[85%]" : "max-w-full sm:max-w-[85%] min-w-0 flex-1 sm:flex-none"} rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 text-sm leading-relaxed break-words ${m.role === "user" ? "bg-[#212121] border border-[#2f2f2f] text-white" : "bg-transparent text-[#ececec]"}`}>
                         {m.role === "assistant" && m.metadata_json?.thinking && (
                           <details className="mb-3 rounded-xl bg-[#0a0a0a] border border-[#2f2f2f] overflow-hidden">
                             <summary className="px-3 py-2 text-xs font-medium text-[#ab68ff] cursor-pointer select-none list-none">Thinking</summary>

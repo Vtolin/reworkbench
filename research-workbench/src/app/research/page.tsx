@@ -735,15 +735,21 @@ export default function ResearchPage(){
               </div>
             )}
 
-            {/* hybrid source disclaimer */}
+            {/* hybrid source disclaimer: full banner on desktop, collapsed on mobile */}
             {mode==="ask" && hybridMode!=="off" && (
-              <div className="mt-3 rounded-lg bg-amber-950/40 border border-amber-800/60 px-3 py-2 text-[11px] leading-relaxed text-amber-300 flex items-start gap-2">
-                <span className="shrink-0">⚠</span>
-                <span>
-                  Hybrid source is <b>on ({hybridMode})</b>. When the documents don&apos;t contain the answer, the model will draw on its training data —
-                  and it <b>may hallucinate</b>. Verify critical claims against the cited sources.
-                </span>
-              </div>
+              <>
+                <div className="hidden sm:flex mt-3 rounded-lg bg-amber-950/40 border border-amber-800/60 px-3 py-2 text-[11px] leading-relaxed text-amber-300 items-start gap-2">
+                  <span className="shrink-0">⚠</span>
+                  <span>
+                    Hybrid source is <b>on ({hybridMode})</b>. When the documents don&apos;t contain the answer, the model will draw on its training data —
+                    and it <b>may hallucinate</b>. Verify critical claims against the cited sources.
+                  </span>
+                </div>
+                <details className="sm:hidden mt-2 rounded-lg bg-amber-950/40 border border-amber-800/60 px-3 py-1.5 text-[11px] text-amber-300">
+                  <summary className="cursor-pointer select-none list-none">⚠ Hybrid {hybridMode} — may hallucinate ▸</summary>
+                  <div className="pt-1 leading-relaxed">When the documents don&apos;t contain the answer, the model draws on its training data. Verify critical claims against the cited sources.</div>
+                </details>
+              </>
             )}
           </div>
         </header>
