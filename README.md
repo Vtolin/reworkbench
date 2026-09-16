@@ -230,11 +230,12 @@ layer. It does **not** provide the members' local AI compute.
 ## Key flows
 
 - **Upload → approval**: member uploads (browser extracts/chunks/embeds, OpenAlex proposal, human confirms) → `pending` → admin approves in Admin dashboard → shared library.
-- **Chat**: Research history lives on your device; **Publish ↑** exports a thread to the
-  read-only **Shared chats** gallery for everyone. Import any shared chat back into
+- **Chat**: Research history lives on your device; **Stored** tab uploads a private account copy (Store/Sync/Download across your devices, last writer wins); **Publish ↑** exports a thread to the
+  read-only **Shared chats** gallery for everyone (Makalah can publish finished papers there too). Import any shared chat back into
   your Research and continue it with your own model. Deleting a published chat needs
   admin approval.
 - **RAG**: Postgres FTS + pgvector → RRF fusion → your own model (Ollama local or BYOK cloud). The shared system needs `nomic-embed-text`; generation models are each member's choice.
+- **Makalah**: outline first (Mode A proposes one from your sources for your approval, Mode B uses your own structure) → each section is drafted from retrieved passages with inline citations → built-in quality report flags citation, page, duplication, and bibliography issues → PDF/Markdown export stays blocked until every section is clean. It runs on Ollama or cloud: **Settings → Makalah pipeline** routes the cheap outline call and the heavy drafting calls to different models, plus a thinking toggle (drafting only) and a per-call output cap that apply to both backends.
 - **Keys**: personal BYOK, AES-GCM at rest (`ai_credentials`, owner-only RLS), never shared.
 
 ## Project layout
@@ -242,12 +243,12 @@ layer. It does **not** provide the members' local AI compute.
 ```
 research-workbench/
 ├── src/
-│   ├── app/            # /, /search, /research, /projects, /chats, /reader, /upload, /settings, /admin, /login, /register + /api/*
-│   ├── components/     # Sidebar, Topbar, DocDetail, UploadFlow, Markdown, ChatHistoryPanel, …
-│   ├── contexts/       # Session, Inference (local-only), Chat (per-device history)
+│   ├── app/            # /, /search, /research, /makalah, /projects, /chats, /reader, /upload, /settings, /admin, /login, /register + /api/*
+│   ├── components/     # Sidebar, Topbar, DocDetail, UploadFlow, Markdown, ChatHistoryPanel, MakalahHistoryPanel, …
+│   ├── contexts/       # Session, Inference (local-only), Chat + Makalah (per-device history)
 │   └── lib/
 │       ├── api.ts      # facade: original method names → Supabase + browser inference
-│       ├── wb/         # library, search, ask, projects, related, ingest, openalex
+│       ├── wb/         # library, search, ask, makalah, projects, related, ingest, openalex
 │       ├── ai/         # AIProvider, OllamaProvider, CloudProvider, key encryption
 │       ├── rag/        # FTS+pgvector retrieval + RRF fusion
 │       ├── citations/  # citeproc-js engine + serializers
