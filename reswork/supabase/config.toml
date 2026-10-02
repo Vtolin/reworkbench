@@ -1,0 +1,25 @@
+[project]
+name = "research-workbench"
+
+[api]
+enabled = true
+port = 54321
+
+[db]
+port = 54322
+
+[realtime]
+enabled = true
+
+[realtime.tables]
+# Live UI events: member joined/kicked, document uploaded/approved,
+# chat created/imported, project changed, collection/tag changed (Phase 2:
+# directory lists refresh from events; keep in sync with migration 0009).
+workspace_members = true
+documents = true
+chats = true
+chat_imports = true
+research_projects = true
+research_trail = true
+collections = true
+tags = true

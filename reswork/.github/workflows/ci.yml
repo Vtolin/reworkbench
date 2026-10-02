@@ -1,0 +1,35 @@
+# CI + deployment gate (Phase 8).
+#
+# Every gate from the ground rules runs here, in dependency order:
+# lint (0 errors) → typecheck → full unit suite → arch/boundary tests.
+# `npm test` already includes the arch suites, but test:arch runs separately
+# so boundary regressions are visible as their own check.
+#
+# Deployment gate: Vercel must use a build command that typechecks first,
+# e.g. `npm run typecheck && npm run build`, so broken types or failing
+# tests never reach production even if this workflow is skipped.
+name: CI
+
+on:
+  push:
+    branches: [main, "phase*"]
+  pull_request:
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: lint (0 errors)
+        run: npm run lint
+      - name: typecheck
+        run: npm run typecheck
+      - name: unit tests
+        run: npm test
+      - name: arch/boundary tests
+        run: npm run test:arch
