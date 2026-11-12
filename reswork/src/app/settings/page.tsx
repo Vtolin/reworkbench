@@ -6,6 +6,7 @@ import { SummarizationCard } from "./_components/SummarizationCard";
 import { MakalahPipelineCard } from "./_components/MakalahPipelineCard";
 import { CitationCard } from "./_components/CitationCard";
 import { ImportExportCard } from "./_components/ImportExportCard";
+import { AccountSecurityCard } from "./_components/AccountSecurityCard";
 import {
   PrivacyCard,
   ShortcutsCard,
@@ -23,7 +24,7 @@ export default function SettingsPage() {
     <div className="flex min-w-0 flex-1 flex-col bg-black">
       <Topbar
         title="Settings"
-        subtitle="Inference (this device) • Citation • Import/export • Workspace • Storage"
+        subtitle="Inference (this device) • Citation • Import/export • Account • Workspace • Storage"
       />
       <div className="mx-auto w-full max-w-4xl space-y-6 px-4 py-6 lg:px-6">
         <InferenceCard />
@@ -31,6 +32,7 @@ export default function SettingsPage() {
         <MakalahPipelineCard />
         <CitationCard settings={citation} />
         <ImportExportCard defaultStyle={citation.defaultStyle} />
+        <AccountSecurityCard />
         <WorkspaceCard />
         <PrivacyCard />
         <StorageCard />

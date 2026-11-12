@@ -63,7 +63,7 @@ function JoinGate({ onJoined }: { onJoined: () => void }) {
   );
 }
 
-const PUBLIC_ROUTES = ["/login", "/register"];
+const PUBLIC_ROUTES = ["/login", "/register", "/forgot-password", "/reset-password"];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
