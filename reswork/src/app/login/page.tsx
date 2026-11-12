@@ -39,7 +39,9 @@ export default function LoginPage() {
           <input
             className="w-full rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2.5 text-sm text-white placeholder:text-[#5f5f5f] outline-none focus:border-[#404040]"
             placeholder="Email"
+            aria-label="Email"
             type="email"
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -47,7 +49,9 @@ export default function LoginPage() {
           <input
             className="w-full rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2.5 text-sm text-white placeholder:text-[#5f5f5f] outline-none focus:border-[#404040]"
             placeholder="Password"
+            aria-label="Password"
             type="password"
+            autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required

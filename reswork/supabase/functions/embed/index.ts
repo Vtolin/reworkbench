@@ -33,7 +33,11 @@ Deno.serve(async (req: Request) => {
       "Content-Type": "application/json",
       Authorization: `Bearer ${body.apiKey}`,
     },
-    body: JSON.stringify({ model, input: body.text }),
+    body: JSON.stringify({
+      model,
+      input: body.text,
+      ...(model.startsWith("text-embedding-3") ? { dimensions: 768 } : {}),
+    }),
   });
   if (!upstream.ok) {
     return new Response(

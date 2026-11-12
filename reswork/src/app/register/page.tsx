@@ -78,13 +78,17 @@ export default function RegisterPage() {
           <input
             className={inputCls}
             placeholder="Display name (optional)"
+            aria-label="Display name"
+            autoComplete="name"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
           />
           <input
             className={inputCls}
             placeholder="Email"
+            aria-label="Email"
             type="email"
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -92,7 +96,9 @@ export default function RegisterPage() {
           <input
             className={inputCls}
             placeholder="Password"
+            aria-label="Password"
             type="password"
+            autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -106,6 +112,7 @@ export default function RegisterPage() {
               <input
                 className={inputCls}
                 placeholder="Admin registration key"
+                aria-label="Admin registration key"
                 type="password"
                 value={adminKey}
                 onChange={(e) => setAdminKey(e.target.value)}
@@ -114,6 +121,7 @@ export default function RegisterPage() {
               <input
                 className={inputCls}
                 placeholder="Workspace name (optional)"
+                aria-label="Workspace name"
                 value={workspaceName}
                 onChange={(e) => setWorkspaceName(e.target.value)}
               />

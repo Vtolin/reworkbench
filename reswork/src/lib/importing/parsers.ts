@@ -94,20 +94,45 @@ export function parseBibtex(text: string): ImportRecord[] {
   while ((m = ENTRY_RE.exec(text)) !== null) {
     const key = m[2].trim();
     const bodyStart = m.index + m[0].length;
-    let depth = 0;
+    const matchPrefix = m[0];
+    const openIndex = matchPrefix.search(/[{(]/);
+    const openChar = openIndex !== -1 ? matchPrefix[openIndex] : "{";
+
+    let outerDepth = 0;
+    let braceDepth = 0;
     let end = -1;
-    for (let i = m.index; i < text.length; i++) {
+    const searchStart = openIndex !== -1 ? m.index + openIndex : m.index;
+    for (let i = searchStart; i < text.length; i++) {
       const ch = text[i];
-      if (ch === "{") depth++;
-      else if (ch === "}") {
-        depth--;
-        if (depth === 0) {
-          end = i;
-          break;
+      if (openChar === "{") {
+        if (ch === "{") outerDepth++;
+        else if (ch === "}") {
+          outerDepth--;
+          if (outerDepth === 0) {
+            end = i;
+            break;
+          }
+        }
+      } else {
+        if (ch === "{") braceDepth++;
+        else if (ch === "}" && braceDepth > 0) braceDepth--;
+        else if (braceDepth === 0) {
+          if (ch === "(") outerDepth++;
+          else if (ch === ")") {
+            outerDepth--;
+            if (outerDepth === 0) {
+              end = i;
+              break;
+            }
+          }
         }
       }
     }
-    if (end === -1) break;
+    if (end === -1) {
+      // Malformed entry: skip past entry header so subsequent entries are not dropped
+      ENTRY_RE.lastIndex = bodyStart;
+      continue;
+    }
     const body = text.slice(bodyStart, end);
     const fields: Record<string, string> = {};
     let fpos = 0;
@@ -306,7 +331,7 @@ export function detectFormat(text: string): string {
   if (!stripped) return "unknown";
   if (stripped.startsWith("{") || stripped.startsWith("[")) return "csl-json";
   if (stripped.startsWith("<")) return "endnote-xml";
-  if (/^@\w+\s*[{]/m.test(stripped)) return "bibtex";
+  if (/^@\w+\s*[{()]/m.test(stripped)) return "bibtex";
   if (/^TY\s+-\s+/m.test(stripped)) return "ris";
   return "unknown";
 }

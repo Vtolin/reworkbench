@@ -148,6 +148,20 @@ describe("POST /api/auth/register-admin", () => {
     ]);
   });
 
+  it("returns generic 400 on invalid admin key (no oracle)", async () => {
+    const res = await POST(req({ email: "a@x.co", password: "pw", admin_key: "wrong-key" }));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "Registration failed" });
+    expect(mocks.calls).toEqual(["rpc:check_rate_limit"]);
+  });
+
+  it("returns generic 400 on missing fields (uniform error response)", async () => {
+    const res = await POST(req({ email: "", password: "pw", admin_key: KEY }));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "Registration failed" });
+    expect(mocks.calls).toEqual(["rpc:check_rate_limit"]);
+  });
+
   it("succeeds with no compensation on the happy path (retry-safe shape)", async () => {
     const res = await POST(req({ email: "a@x.co", password: "pw", admin_key: KEY }));
     expect(res.status).toBe(200);

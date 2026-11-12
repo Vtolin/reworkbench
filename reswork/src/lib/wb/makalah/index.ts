@@ -33,7 +33,22 @@ export {
   countAiFilled,
   findRedundantPairs,
   buildNegativeList,
+  buildQualityReport,
 } from "./quality";
+export type { QualitySectionState, QualityReportInput } from "./quality";
+
+export {
+  buildMarkdownDocument,
+  buildPrintHtml,
+} from "./document";
+export type {
+  CoverInfo,
+  DocumentGroup,
+  DocumentItem,
+  DocumentSectionState,
+  MarkdownDocumentInput,
+  PrintDocumentInput,
+} from "./document";
 
 export {
   MAKALAH_SHARED_SYSTEM,

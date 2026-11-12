@@ -36,7 +36,7 @@ async function requireWorkspace(sb: ReturnType<typeof createClient>, userId: str
   return (m as { workspace_id: string }).workspace_id;
 }
 
-function buildMessageRows(chatId: string, conv: Conversation) {
+export function buildMessageRows(chatId: string, conv: Conversation) {
   return conv.messages
     .filter((msg) => (msg.role === "user" || msg.role === "assistant") && msg.content.trim())
     .map((msg) => ({
@@ -45,7 +45,12 @@ function buildMessageRows(chatId: string, conv: Conversation) {
       content: msg.content,
       metadata_json: {
         ...(msg.role === "assistant"
-          ? { provider: "ollama", model: msg.model ?? null, sources: msg.sources ?? [], thinking: msg.thinking ?? null }
+          ? {
+              provider: (msg as { provider?: string }).provider || msg.metadata_json?.provider || "ollama",
+              model: msg.model ?? msg.metadata_json?.model ?? null,
+              sources: msg.sources ?? msg.metadata_json?.sources ?? [],
+              thinking: msg.thinking ?? msg.metadata_json?.thinking ?? null,
+            }
           : {}),
       },
     }));

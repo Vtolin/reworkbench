@@ -1,7 +1,16 @@
 // Makalah quality signals (structure, duplication, grounding).
 // Extracted verbatim from lib/wb/makalah.ts (Phase 7); behavior unchanged.
 import { sectionSimilarity } from "../../text/similarity";
-import type { SectionOutput } from "./types";
+import { validateSectionCitations } from "./validation";
+import {
+  SECTION_SALVAGE_MARKER,
+  type MakalahReference,
+  type OutlineChapter,
+  type OutlineSubsection,
+  type QualityReport,
+  type SectionOutput,
+  type SectionPassage,
+} from "./types";
 
 export function isMalformedReference(entry: string): boolean {
   const t = (entry ?? "").trim();
@@ -62,4 +71,141 @@ export function buildNegativeList(output: SectionOutput, maxChars = 400): string
     if (len >= maxChars) break;
   }
   return sents.join(" ").slice(0, maxChars);
+}
+
+/** Minimal section state the quality report needs (UI persists more). */
+export interface QualitySectionState {
+  status: string;
+  output: SectionOutput | null;
+  error?: string | null;
+  passages: SectionPassage[];
+  integrity: {
+    total: number;
+    valid: number;
+    badIds: string[];
+    badPages?: string[];
+  } | null;
+}
+
+export interface QualityReportInput {
+  /** Flat, collision-free section list (chapter + subsection + state key). */
+  sections: Array<{ key: string; ch: OutlineChapter; sub: OutlineSubsection }>;
+  states: Record<string, QualitySectionState | undefined>;
+  references: MakalahReference[];
+  citedIds: string[];
+  selected: string[];
+  outline: OutlineChapter[];
+  titleOf: (id: string) => string;
+}
+
+/**
+ * Build the full quality report from drafted section state. Pure: all
+ * identity/title lookups enter through arguments, so this is testable and
+ * deterministic for the same inputs.
+ */
+export function buildQualityReport({
+  sections,
+  states,
+  references,
+  citedIds,
+  selected,
+  outline,
+  titleOf,
+}: QualityReportInput): QualityReport {
+  let total = 0;
+  let valid = 0;
+  let aiFilled = 0;
+  const unsupported: QualityReport["unsupported_claims"] = [];
+  const pageMismatches: string[] = [];
+  const missingPages: string[] = [];
+  // Hallucinated alias ids (S2, S5…) are reported as ✕ unknown below and
+  // must NOT also pollute "missing metadata" (they can never resolve to
+  // a bibliography entry).
+  const badIdSet = new Set<string>();
+  let done = 0;
+
+  for (const item of sections) {
+    const st = states[item.key];
+    if (st?.status === "ok" && st.output) {
+      done += 1;
+      aiFilled += countAiFilled(st.output);
+      if (st.output.gaps.includes(SECTION_SALVAGE_MARKER)) {
+        unsupported.push({
+          subsection: `${item.sub.number} ${item.sub.title}`,
+          paragraph: -1,
+          reason: "raw-text fallback (no valid JSON, no citations) — verify manually or regenerate",
+        });
+      }
+      const v = st.integrity ?? validateSectionCitations(st.output, st.passages);
+      total += v.total;
+      valid += v.valid;
+      if (v.badIds.length) {
+        v.badIds.forEach((id) => badIdSet.add(id));
+        unsupported.push({
+          subsection: `${item.sub.number} ${item.sub.title}`,
+          paragraph: -1,
+          reason: `Cited unknown source id(s): ${v.badIds.join(", ")}`,
+        });
+      }
+      if (v.badPages?.length) {
+        pageMismatches.push(`${item.sub.number} ${item.sub.title}: ${v.badPages.join(", ")}`);
+      }
+      // Soft signal (not an error): citations that drop the page number on a
+      // page-verifiable source. Without this, omitting pages is an easy way
+      // to dodge the mismatch flag above.
+      {
+        const verifiable = new Set(st.passages.filter((p) => p.page != null).map((p) => p.source_id));
+        const noPage = new Map<string, number>();
+        for (const para of st.output.paragraphs) {
+          for (const c of para.citations) {
+            if (c.page == null && c.source_id && verifiable.has(c.source_id)) {
+              noPage.set(c.source_id, (noPage.get(c.source_id) ?? 0) + 1);
+            }
+          }
+        }
+        for (const [src, n] of noPage) {
+          missingPages.push(`${item.sub.number} ${item.sub.title}: ${titleOf(src)} (${n} tanpa halaman)`);
+        }
+      }
+      if (!st.output.paragraphs.length) {
+        unsupported.push({
+          subsection: `${item.sub.number} ${item.sub.title}`,
+          paragraph: -1,
+          reason: "Section generated no paragraphs",
+        });
+      }
+    } else if (st?.status === "error") {
+      unsupported.push({
+        subsection: `${item.sub.number} ${item.sub.title}`,
+        paragraph: -1,
+        reason: st.error ?? "Generation failed",
+      });
+    }
+  }
+
+  const refIds = new Set(references.map((r) => r.id));
+  const lastCh = outline.length > 1 ? outline[outline.length - 1] : null;
+  const redundantPairs = findRedundantPairs(
+    sections
+      .filter((item) => states[item.key]?.output)
+      .map((item) => ({
+        label: `${item.sub.number} ${item.sub.title}`,
+        text: sectionFullText(states[item.key]!.output!),
+        isClosing: !!lastCh && item.ch === lastCh,
+      })),
+  );
+
+  return {
+    structure_complete: sections.length > 0 && done === sections.length,
+    citation_integrity_pct: total ? Math.round((valid / total) * 100) : 100,
+    citation_total: total,
+    unsupported_claims: unsupported,
+    missing_references: citedIds.filter((id) => !refIds.has(id) && !badIdSet.has(id)),
+    unused_sources: selected.filter((id) => !citedIds.includes(id)),
+    malformed_references: references.filter((r) => isMalformedReference(r.formatted_apa7)).map((r) => r.id),
+    redundant_pairs: redundantPairs,
+    ai_filled: aiFilled,
+    citation_page_mismatches: pageMismatches,
+    citation_missing_pages: missingPages,
+  };
 }

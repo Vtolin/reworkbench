@@ -35,7 +35,14 @@ describe("resolveRateLimit", () => {
 });
 
 describe("getClientIp", () => {
-  it("takes the first forwarded address", () => {
+  it("prioritizes x-real-ip over x-forwarded-for to prevent spoofing", () => {
+    const req = new Request("http://x/", {
+      headers: { "x-forwarded-for": "1.2.3.4, 5.6.7.8", "x-real-ip": "9.9.9.9" },
+    });
+    expect(getClientIp(req)).toBe("9.9.9.9");
+  });
+
+  it("takes the first forwarded address when x-real-ip is absent", () => {
     const req = new Request("http://x/", { headers: { "x-forwarded-for": "1.2.3.4, 5.6.7.8" } });
     expect(getClientIp(req)).toBe("1.2.3.4");
   });

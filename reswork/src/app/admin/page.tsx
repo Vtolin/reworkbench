@@ -34,7 +34,7 @@ interface HealthRow {
 // kick (soft-remove + session invalidation), upload approval queue.
 // Server re-enforces everything via RLS + routes.
 export default function AdminPage() {
-  const { workspace, user } = useSession();
+  const { workspace, user, loading } = useSession();
   const [members, setMembers] = useState<Member[]>([]);
   const [limit, setLimit] = useState(10);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +53,7 @@ export default function AdminPage() {
   const [reindexProgress, setReindexProgress] = useState<[number, number] | null>(null);
 
   const load = async () => {
-    if (!workspace) return;
+    if (!workspace || workspace.role !== "admin") return;
     const res = await fetch(`/api/workspaces/members?workspaceId=${workspace.id}`);
     const data = await res.json();
     if (res.ok) {
@@ -85,9 +85,11 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    load();
+    if (workspace?.role === "admin") {
+      load();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspace?.id]);
+  }, [workspace?.id, workspace?.role]);
 
   // Live refresh: a member joining (or being kicked) while this page is open
   // shows up immediately instead of waiting for a manual reload.
@@ -97,7 +99,7 @@ export default function AdminPage() {
   // useId is stable per mount and pure (no render-phase ref/impure calls).
   const mountId = useId().replace(/[^a-zA-Z0-9]/g, "");
   useEffect(() => {
-    if (!workspace) return;
+    if (!workspace || workspace.role !== "admin") return;
     let cancelled = false;
     let client: SupabaseClient | null = null;
     let channel: RealtimeChannel | null = null;
@@ -119,13 +121,22 @@ export default function AdminPage() {
       if (client && channel) client.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspace?.id]);
+  }, [workspace?.id, workspace?.role]);
 
-  if (workspace && workspace.role !== "admin") {
+  if (loading) {
     return (
       <div className="flex-1 min-w-0 flex flex-col bg-black">
         <Topbar title="Admin" subtitle="Workspace administration" />
-        <div className="p-6 text-sm text-red-400">Admin only.</div>
+        <div className="p-6 text-sm text-[#8e8e8e]">Loading…</div>
+      </div>
+    );
+  }
+
+  if (!workspace || workspace.role !== "admin") {
+    return (
+      <div className="flex-1 min-w-0 flex flex-col bg-black">
+        <Topbar title="Admin" subtitle="Workspace administration" />
+        <div className="p-6 text-sm text-red-400">Admin only. Access denied.</div>
       </div>
     );
   }

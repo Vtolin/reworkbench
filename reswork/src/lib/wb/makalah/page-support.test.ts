@@ -32,6 +32,7 @@ describe("parseChapterLine", () => {
 describe("escapeHtml", () => {
   it("escapes markup-significant chars", () => {
     expect(escapeHtml("a&b <c> d")).toBe("a&amp;b &lt;c&gt; d");
+    expect(escapeHtml(`'quotes' & "double"`)).toBe("&#39;quotes&#39; &amp; &quot;double&quot;");
   });
 });
 

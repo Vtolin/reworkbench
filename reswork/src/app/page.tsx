@@ -16,6 +16,8 @@ function LibraryInner() {
   const [q, setQ] = useState("");
   const [docs, setDocs] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [collections, setCollections] = useState<any[]>([]);
   const [tags, setTags] = useState<any[]>([]);
@@ -27,16 +29,20 @@ function LibraryInner() {
   const activeCollection = searchParams.get("collection");
   const activeTag = searchParams.get("tag");
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (cursor?: string) => {
     const params: any = {};
     if (q) params.q = q;
     if (activeCollection) params.collection_id = activeCollection;
     if (activeTag) params.tag_id = activeTag;
     if (yearFilter) params.year = yearFilter;
     if (typeFilter) params.doc_type = typeFilter;
+    if (cursor) params.cursor = cursor;
     try {
       const r = await api.listDocuments(params);
-      setDocs(r.documents); setTotal(r.total);
+      if (cursor) setDocs((prev) => [...prev, ...r.documents]);
+      else setDocs(r.documents);
+      setTotal(r.total);
+      setNextCursor(r.nextCursor ?? null);
     } catch { /* signed out or no workspace yet */ }
   }, [q, activeCollection, activeTag, yearFilter, typeFilter]);
 
@@ -263,12 +269,28 @@ function LibraryInner() {
             )}
           </div>
 
+          {nextCursor && (
+            <div className="flex justify-center pb-2">
+              <button
+                disabled={loadingMore}
+                onClick={async () => {
+                  if (!nextCursor) return;
+                  setLoadingMore(true);
+                  try { await load(nextCursor); } finally { setLoadingMore(false); }
+                }}
+                className="rounded-xl border border-[#2f2f2f] bg-[#212121] px-6 py-2 text-sm text-white disabled:opacity-50 hover:bg-[#2f2f2f]"
+              >
+                {loadingMore ? "Loading…" : "Load more"}
+              </button>
+            </div>
+          )}
+
           <div className="text-xs text-[#5f5f5f] pb-4">Showing {docs.length} of {total} • <span className="font-mono">shared workspace library</span></div>
         </div>
       </div>
 
       {selected && (
-        <div className="fixed inset-x-0 bottom-0 top-[56px] z-50 flex lg:static lg:inset-auto">
+        <div className="fixed inset-x-0 bottom-0 top-14 z-50 flex lg:static lg:inset-auto">
           <button className="hidden lg:block flex-1 bg-black/60 backdrop-blur-sm" onClick={()=>setSelected(null)} aria-label="close" />
           <div className="w-full sm:w-120 lg:w-120 h-full">
             <DocDetail id={selected} onClose={()=>setSelected(null)} onUpdated={load} />

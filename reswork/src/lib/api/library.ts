@@ -10,7 +10,7 @@ import {
 
 export const libraryApi = {
   listDocuments: (params: Record<string, string | number | undefined> = {}) =>
-    listDocuments(params as { q?: string; collection_id?: string; tag_id?: string; year?: string; doc_type?: string; limit?: number; offset?: number }),
+    listDocuments(params as { q?: string; collection_id?: string; tag_id?: string; year?: string; doc_type?: string; limit?: number; offset?: number; cursor?: string }),
   getDocument: (id: string) => getDocument(id),
   updateDocument: (id: string, patch: Record<string, unknown>) => updateDocument(id, patch),
   deleteDocument: (id: string) => deleteDocument(id),
