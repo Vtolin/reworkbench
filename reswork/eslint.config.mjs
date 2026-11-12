@@ -38,6 +38,8 @@ export default defineConfig([
     "node_modules/**",
     "supabase/**",
     "next-env.d.ts",
+    "e2e/**",
+    "public/**",
   ]),
   ...nextVitals,
   ...nextTs,

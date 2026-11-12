@@ -117,6 +117,77 @@ export async function fetchByDoi(doi: string): Promise<MetadataCandidate | null>
   return normalizeOpenAlexWork(await res.json(), DOI_MATCH_CONFIDENCE);
 }
 
+export async function fetchByIsbn(isbn: string): Promise<MetadataCandidate | null> {
+  const clean = (isbn ?? "").replace(/[-\s]/g, "").toUpperCase();
+  if (!clean || (clean.length !== 10 && clean.length !== 13)) return null;
+  const res = await openalexFetch(`https://openlibrary.org/search.json?isbn=${encodeURIComponent(clean)}&limit=1`);
+  if (!res.ok) return null;
+  const data = (await res.json()) as { docs?: Array<Record<string, unknown>> };
+  const doc = (data.docs ?? [])[0];
+  if (!doc || !doc.title) return null;
+  const authors = Array.isArray(doc.author_name)
+    ? (doc.author_name as unknown[]).map(String).filter(Boolean)
+    : [];
+  const year =
+    typeof doc.first_publish_year === "number" ? (doc.first_publish_year as number) : null;
+  const publishers = Array.isArray(doc.publisher) ? (doc.publisher as unknown[]).map(String) : [];
+  return {
+    source: "openlibrary",
+    title: String(doc.title),
+    authors,
+    year,
+    doi: null,
+    journal: null,
+    volume: null,
+    issue: null,
+    pages:
+      typeof doc.number_of_pages_median === "number"
+        ? String(doc.number_of_pages_median)
+        : null,
+    publisher: publishers[0] ?? null,
+    abstract: null,
+    document_type: null,
+    confidence: 0.85,
+    extras: { isbn: clean, openlibrary_key: doc.key },
+  };
+}
+
+export async function fetchByPmid(pmid: string): Promise<MetadataCandidate | null> {
+  const clean = (pmid ?? "").trim();
+  if (!/^\d{5,9}$/.test(clean)) return null;
+  const res = await openalexFetch(
+    `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=${encodeURIComponent(clean)}&retmode=json`,
+  );
+  if (!res.ok) return null;
+  const data = (await res.json()) as { result?: Record<string, Record<string, unknown>> };
+  const result = data.result?.[clean];
+  if (!result || !result.title) return null;
+  const authors = Array.isArray(result.authors)
+    ? (result.authors as Array<{ name?: string }>).map((a) => a.name ?? "").filter(Boolean)
+    : [];
+  const yearMatch = String(result.pubdate ?? "").match(/\b(19|20)\d{2}\b/);
+  const year = yearMatch ? Number(yearMatch[0]) : null;
+  const articleIds = Array.isArray(result.articleids)
+    ? (result.articleids as Array<{ idtype?: string; value?: string }>)
+    : [];
+  const doiEntry = articleIds.find((a) => a.idtype === "doi");
+  return {
+    source: "pubmed",
+    title: String(result.title),
+    authors,
+    year,
+    doi: cleanDoi(doiEntry?.value),
+    journal: typeof result.source === "string" ? result.source : null,
+    volume: typeof result.volume === "string" ? result.volume : null,
+    issue: typeof result.issue === "string" ? result.issue : null,
+    pages: typeof result.pages === "string" ? result.pages : null,
+    publisher: null,
+    abstract: null,
+    document_type: "empirical",
+    confidence: 0.9,
+    extras: { pmid: clean },
+  };
+}
 export async function searchByTitle(title: string, authors: string[] = []): Promise<MetadataCandidate[]> {
   if (!title.trim()) return [];
   // Single retry layer (max 2 fetches): network/timeout/429/5xx retry, 4xx
@@ -172,9 +243,10 @@ export function localCandidate(fields: {
   };
 }
 
-// Orchestrator (port of fetch_metadata): DOI hit → title candidates → local fallback.
 export async function fetchMetadata(opts: {
   doi?: string | null;
+  isbn?: string | null;
+  pmid?: string | null;
   title?: string | null;
   authors?: string[];
   localFields?: Parameters<typeof localCandidate>[0];
@@ -182,15 +254,23 @@ export async function fetchMetadata(opts: {
   const localFields = opts.localFields ?? {};
   let error: string | null = null;
   const candidates: MetadataCandidate[] = [];
-  if (opts.doi) {
+  let proposal: MetadataCandidate | null = null;
+  let offline = false;
+
+  const tryLookup = async (fn: () => Promise<MetadataCandidate | null>) => {
     try {
-      const hit = await fetchByDoi(opts.doi);
-      if (hit) return { proposal: hit, candidates: [], error: null, offline: false };
+      const hit = await fn();
+      if (hit) proposal = hit;
     } catch (e) {
-      error = e instanceof Error ? e.message : "OpenAlex lookup failed";
+      error = e instanceof Error ? e.message : "Metadata lookup failed";
     }
-  }
-  if (opts.title) {
+  };
+
+  if (opts.doi && !proposal) await tryLookup(() => fetchByDoi(opts.doi!));
+  if (opts.isbn && !proposal) await tryLookup(() => fetchByIsbn(opts.isbn!));
+  if (opts.pmid && !proposal) await tryLookup(() => fetchByPmid(opts.pmid!));
+
+  if (!proposal && opts.title) {
     try {
       candidates.push(...(await searchByTitle(opts.title, opts.authors ?? [])));
     } catch (e) {
@@ -198,11 +278,11 @@ export async function fetchMetadata(opts: {
     }
   }
   const best = candidates.length ? [...candidates].sort((a, b) => b.confidence - a.confidence)[0] : null;
-  // Generic confidence gate: a low-confidence "best" match is worse than no
-  // match, because accepting it locks wrong title/year/journal into the
-  // document row (and later into Daftar Pustaka). Fall back to local and
-  // keep the candidates so the human can pick manually.
-  if (best && best.confidence >= OPENALEX_MIN_CONFIDENCE)
-    return { proposal: best, candidates, error, offline: false };
-  return { proposal: localCandidate(localFields), candidates, error, offline: error != null };
+  if (!proposal && best && best.confidence >= OPENALEX_MIN_CONFIDENCE) proposal = best;
+
+  if (proposal) {
+    return { proposal, candidates, error, offline };
+  }
+  if (error) offline = true;
+  return { proposal: localCandidate(localFields), candidates, error, offline };
 }

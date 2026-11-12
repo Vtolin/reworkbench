@@ -158,7 +158,9 @@ export async function listDocuments(params: {
   limit?: number;
   /** Zero-based offset into the created_at-desc ordering. Default 0. */
   offset?: number;
-} = {}): Promise<{ documents: HydratedDoc[]; total: number }> {
+  /** Opaque cursor (created_at|id) for keyset pagination. Takes precedence over offset. */
+  cursor?: string;
+} = {}): Promise<{ documents: HydratedDoc[]; total: number; nextCursor: string | null }> {
   const ws = await getWorkspaceId();
   const sb = supabase();
   // Explicit cardinality bound (Task E): the library list is user-facing and
@@ -167,15 +169,8 @@ export async function listDocuments(params: {
   // (first 200, newest first).
   const limit = Math.min(Math.max(params.limit ?? 200, 1), 200);
   const offset = Math.max(params.offset ?? 0, 0);
-  // Collection/tag filters as server-side semi-joins instead of the old
-  // two-step (fetch ALL link ids, then `.in("id", ids)`): the link prefetch
-  // had no LIMIT, so a large collection built an unbounded IN clause and
-  // pulled every link row into the browser. `!inner` keeps filtering
-  // set-based with the range applied server-side; the join PK guarantees one
-  // link per (document, collection/tag), so row counts are unaffected.
-  // The auxiliary nested keys are stripped before hydration to keep the
-  // HydratedDoc shape unchanged.
-  // Shared with grouped search (docFilters): one predicate implementation.
+  const cursor = params.cursor;
+  // Collection/tag filters as server-side semi-joins ...
   const linkFilter: DocLinkFilter = {
     ...(params.collection_id ? { collectionIds: [params.collection_id] } : {}),
     ...(params.tag_id ? { tagIds: [params.tag_id] } : {}),
@@ -186,21 +181,33 @@ export async function listDocuments(params: {
     .select(joins.length ? `${DOCUMENT_COLUMNS_SELECT}, ${joins.join(", ")}` : DOCUMENT_COLUMNS_SELECT, { count: "exact" })
     .eq("workspace_id", ws)
     .order("created_at", { ascending: false })
-    .range(offset, offset + limit - 1);
+    .order("id", { ascending: false });
+  if (cursor) {
+    const [ts, id] = String(cursor).split("|");
+    if (ts && id) {
+      query = query.or(`created_at.lt.${ts},and(created_at.eq.${ts},id.lt.${id})`);
+    }
+    query = query.limit(limit);
+  } else {
+    query = query.range(offset, offset + limit - 1);
+  }
   for (const call of linkFilterCalls(linkFilter)) query = query.in(call.column, call.values);
   if (params.q) query = query.ilike("title", `%${escapeLike(params.q)}%`);
   if (params.year) query = query.eq("year", Number(params.year));
   if (params.doc_type) query = query.eq("document_type", params.doc_type);
   const { data, error, count } = await query;
   if (error) throw new Error(error.message);
-  // `as unknown` first: the `!inner` join select defeats supabase-js's
-  // response-type inference (untyped schema), so `data` is not directly
-  // comparable to a record array.
   const cleaned = ((data ?? []) as unknown as Array<Record<string, unknown>>).map((r) => {
     const { document_collections, document_tags, ...rest } = r;
     return rest;
   });
-  return { documents: await hydrateDocs(cleaned), total: count ?? 0 };
+  const documents = await hydrateDocs(cleaned);
+  let nextCursor: string | null = null;
+  if (documents.length === limit && cleaned.length) {
+    const last = cleaned[cleaned.length - 1] as { created_at: string; id: string };
+    nextCursor = `${last.created_at}|${last.id}`;
+  }
+  return { documents, total: count ?? 0, nextCursor };
 }
 
 export async function getDocument(id: string): Promise<HydratedDoc> {

@@ -11,6 +11,9 @@ import { getDocument, getWorkspaceId, type HydratedDoc } from "../wb/library";
 import { recordQuery } from "../wb/projects";
 import { toSel } from "./inference";
 
+/** Stats emitted by the summarize pipeline (single source of truth). */
+export type SummaryStats = Awaited<ReturnType<typeof wbSummarize>>["stats"];
+
 export interface AskBody {
   query: string;
   document_ids?: string[];
@@ -88,7 +91,7 @@ export const researchApi = {
   },
   summarizeStream: async (
     body: { document_id: string },
-    handlers: { onStatus?: (stage: string, detail?: string, current?: number, total?: number) => void; onDone?: (data: { summary: string; stats: unknown }) => void; onError?: (err: string) => void },
+    handlers: { onStatus?: (stage: string, detail?: string, current?: number, total?: number) => void; onDone?: (data: { summary: string; stats: SummaryStats }) => void; onError?: (err: string) => void },
   ) => {
     try {
       handlers.onStatus?.("preparing");

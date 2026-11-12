@@ -12,6 +12,40 @@ import { getRequestId, withRequestId } from "@/app/api/_lib/request";
 // Authenticated workspace members only: the workspaceId comes from the
 // request body and must not be trusted on its own (explicit membership
 // check + RLS-gated RPCs as backstop).
+interface CachedSearch {
+  fts: unknown[];
+  vector: unknown[];
+  expiresAt: number;
+}
+const SEARCH_CACHE = new Map<string, CachedSearch>();
+const SEARCH_CACHE_TTL_MS = 30_000;
+const SEARCH_CACHE_MAX = 200;
+
+function searchCacheKey(workspaceId: string, query: string, queryEmbedding: number[] | null | undefined, topN: number): string {
+  const embKey = queryEmbedding && queryEmbedding.length
+    ? `${queryEmbedding.length}:${queryEmbedding.slice(0, 4).join(",")}:${queryEmbedding.slice(-4).join(",")}`
+    : "none";
+  return `${workspaceId}|${topN}|${embKey}|${query}`;
+}
+
+function searchCacheGet(key: string): { fts: unknown[]; vector: unknown[] } | null {
+  const entry = SEARCH_CACHE.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt < Date.now()) {
+    SEARCH_CACHE.delete(key);
+    return null;
+  }
+  return { fts: entry.fts, vector: entry.vector };
+}
+
+function searchCacheSet(key: string, value: { fts: unknown[]; vector: unknown[] }): void {
+  if (SEARCH_CACHE.size >= SEARCH_CACHE_MAX) {
+    const oldest = SEARCH_CACHE.keys().next().value;
+    if (oldest) SEARCH_CACHE.delete(oldest);
+  }
+  SEARCH_CACHE.set(key, { ...value, expiresAt: Date.now() + SEARCH_CACHE_TTL_MS });
+}
+
 export async function POST(req: Request) {
   let body: { workspaceId?: string; query?: string; queryEmbedding?: number[] | null; topN?: number };
   try {
@@ -45,6 +79,21 @@ export async function POST(req: Request) {
   if (limited) return withRequestId(limited, requestId);
   const member = await requireWorkspaceMember(supabase, body.workspaceId, auth.userId);
   if ("error" in member) return member.error;
+
+  const cacheKey = searchCacheKey(body.workspaceId, body.query, body.queryEmbedding, topN);
+  const cached = searchCacheGet(cacheKey);
+  if (cached) {
+    logEvent("info", "rag.search", {
+      requestId,
+      workspaceId: body.workspaceId,
+      topN,
+      hasEmbedding: !!(body.queryEmbedding && body.queryEmbedding.length > 0),
+      durationMs: 0,
+      ok: true,
+      cache: "hit",
+    });
+    return NextResponse.json({ fts: cached.fts, vector: cached.vector, cached: true });
+  }
 
   const started = Date.now();
   const { data: fts, error: ftsErr } = await supabase.rpc("fts_search_chunks", {
@@ -92,5 +141,6 @@ export async function POST(req: Request) {
     durationMs: Date.now() - started,
     ok: true,
   });
+  searchCacheSet(cacheKey, { fts: fts ?? [], vector });
   return NextResponse.json({ fts: fts ?? [], vector });
 }

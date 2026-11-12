@@ -42,11 +42,8 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
-  if (!keyMatches(body.admin_key, expected)) {
-    return NextResponse.json({ error: GENERIC_FAIL }, { status: 403 });
-  }
-  if (!body.email || !body.password) {
-    return NextResponse.json({ error: "email and password are required" }, { status: 400 });
+  if (!body.email || !body.password || !body.admin_key || !keyMatches(body.admin_key, expected)) {
+    return NextResponse.json({ error: GENERIC_FAIL }, { status: 400 });
   }
   const supabase = createServiceSupabase();
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, type Dispatch, type SetStateAction } from "react";
 
 // Shared localStorage hydrate/persist (Phase 6).
 //
@@ -121,6 +121,48 @@ export interface LocalStorageList<D> {
   persistError: string | null;
 }
 
+interface ListState<D> {
+  items: D[];
+  activeId: string | null;
+  hydrated: boolean;
+  persistError: string | null;
+}
+
+type ListAction<D> =
+  | { type: "hydrate"; items: D[]; activeId: string | null }
+  | { type: "setItems"; action: SetStateAction<D[]> }
+  | { type: "setActiveId"; action: SetStateAction<string | null> }
+  | { type: "persistResult"; error: string | null };
+
+/**
+ * Hydration + persistence transitions live in one reducer so the storage
+ * effect dispatches a single state transition instead of cascading setters.
+ * Functional updaters are applied against the reducer's current value, which
+ * preserves React's setState semantics.
+ */
+function listReducer<D>(state: ListState<D>, action: ListAction<D>): ListState<D> {
+  switch (action.type) {
+    case "hydrate":
+      return { ...state, items: action.items, activeId: action.activeId, hydrated: true };
+    case "setItems": {
+      const items =
+        typeof action.action === "function"
+          ? (action.action as (prev: D[]) => D[])(state.items)
+          : action.action;
+      return items === state.items ? state : { ...state, items };
+    }
+    case "setActiveId": {
+      const activeId =
+        typeof action.action === "function"
+          ? (action.action as (prev: string | null) => string | null)(state.activeId)
+          : action.action;
+      return activeId === state.activeId ? state : { ...state, activeId };
+    }
+    case "persistResult":
+      return state.persistError === action.error ? state : { ...state, persistError: action.error };
+  }
+}
+
 /**
  * useLocalStorageDoc-style hook for list+active documents (chats, drafts):
  * effect-hydrates once, persists items on change (quota-aware), persists the
@@ -138,41 +180,60 @@ export function useLocalStorageList<D>(opts: {
   messages: PersistMessages;
   store?: StorageLike | null;
 }): LocalStorageList<D> {
-  const [items, setItems] = useState<D[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [hydrated, setHydrated] = useState(false);
-  const [persistError, setPersistError] = useState<string | null>(null);
+  const [state, dispatch] = useReducer(listReducer<D>, {
+    items: [],
+    activeId: null,
+    hydrated: false,
+    persistError: null,
+  });
 
   useEffect(() => {
     const store = opts.store ?? browserStorage();
     const loaded = loadDocList({ ...opts, store });
-    setItems(loaded.items);
-    setActiveId(loaded.activeId);
-    setHydrated(true);
+    dispatch({ type: "hydrate", items: loaded.items, activeId: loaded.activeId });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Deps mirror the code this replaces ([items]/[activeId] + hydrated):
   // option objects are render-stable by convention (module constants).
   useEffect(() => {
-    if (!hydrated) return;
+    if (!state.hydrated) return;
     const store = opts.store ?? browserStorage();
-    setPersistError(persistErrorFor(writeJsonDoc(store, opts.itemsKey, items), opts.messages));
+    dispatch({
+      type: "persistResult",
+      error: persistErrorFor(writeJsonDoc(store, opts.itemsKey, state.items), opts.messages),
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, hydrated]);
+  }, [state.items, state.hydrated]);
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (!state.hydrated) return;
     const store = opts.store ?? browserStorage();
     try {
-      store?.setItem(opts.activeKey, activeId || "");
+      store?.setItem(opts.activeKey, state.activeId || "");
     } catch {
       /* active pointer is disposable; the list is the source of truth */
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId, hydrated]);
+  }, [state.activeId, state.hydrated]);
 
-  return { items, activeId, setItems, setActiveId, hydrated, persistError };
+  const setItems = useCallback<Dispatch<SetStateAction<D[]>>>(
+    (action) => dispatch({ type: "setItems", action }),
+    [],
+  );
+  const setActiveId = useCallback<Dispatch<SetStateAction<string | null>>>(
+    (action) => dispatch({ type: "setActiveId", action }),
+    [],
+  );
+
+  return {
+    items: state.items,
+    activeId: state.activeId,
+    setItems,
+    setActiveId,
+    hydrated: state.hydrated,
+    persistError: state.persistError,
+  };
 }
 
 export interface LocalStorageDoc<T> {
@@ -180,6 +241,33 @@ export interface LocalStorageDoc<T> {
   setValue: React.Dispatch<React.SetStateAction<T>>;
   hydrated: boolean;
   persistError: string | null;
+}
+
+interface DocState<T> {
+  value: T;
+  hydrated: boolean;
+  persistError: string | null;
+}
+
+type DocAction<T> =
+  | { type: "hydrate"; value: T }
+  | { type: "set"; action: SetStateAction<T> }
+  | { type: "persistResult"; error: string | null };
+
+function docReducer<T>(state: DocState<T>, action: DocAction<T>): DocState<T> {
+  switch (action.type) {
+    case "hydrate":
+      return { ...state, value: action.value, hydrated: true };
+    case "set": {
+      const value =
+        typeof action.action === "function"
+          ? (action.action as (prev: T) => T)(state.value)
+          : action.action;
+      return value === state.value ? state : { ...state, value };
+    }
+    case "persistResult":
+      return state.persistError === action.error ? state : { ...state, persistError: action.error };
+  }
 }
 
 /**
@@ -194,26 +282,48 @@ export function useLocalStorageDoc<T>(opts: {
   messages: PersistMessages;
   store?: StorageLike | null;
 }): LocalStorageDoc<T> {
-  const [value, setValueState] = useState<T>(opts.defaults);
-  const [hydrated, setHydrated] = useState(false);
-  const [persistError, setPersistError] = useState<string | null>(null);
+  const [state, dispatch] = useReducer(docReducer<T>, {
+    value: opts.defaults,
+    hydrated: false,
+    persistError: null,
+  });
+  // Hydration itself must not write: the first persist effect run is the
+  // hydration commit, matching the previous write-on-set-only behavior.
+  const hydratedOnce = useRef(false);
 
   useEffect(() => {
     const store = opts.store ?? browserStorage();
     const raw = readJsonDoc(store, opts.key);
-    if (raw !== undefined) setValueState(opts.sanitize(raw, opts.defaults));
-    setHydrated(true);
+    dispatch({
+      type: "hydrate",
+      value: raw !== undefined ? opts.sanitize(raw, opts.defaults) : opts.defaults,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const setValue: React.Dispatch<React.SetStateAction<T>> = (action) => {
-    setValueState((prev) => {
-      const next = typeof action === "function" ? (action as (p: T) => T)(prev) : action;
-      const store = opts.store ?? browserStorage();
-      setPersistError(persistErrorFor(writeJsonDoc(store, opts.key, next), opts.messages));
-      return next;
+  useEffect(() => {
+    if (!state.hydrated) return;
+    if (!hydratedOnce.current) {
+      hydratedOnce.current = true;
+      return;
+    }
+    const store = opts.store ?? browserStorage();
+    dispatch({
+      type: "persistResult",
+      error: persistErrorFor(writeJsonDoc(store, opts.key, state.value), opts.messages),
     });
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.value, state.hydrated]);
 
-  return { value, setValue, hydrated, persistError };
+  const setValue = useCallback<Dispatch<SetStateAction<T>>>(
+    (action) => dispatch({ type: "set", action }),
+    [],
+  );
+
+  return {
+    value: state.value,
+    setValue,
+    hydrated: state.hydrated,
+    persistError: state.persistError,
+  };
 }

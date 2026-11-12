@@ -59,15 +59,16 @@ export function resolveRateLimit(scope: RateLimitScope): RateLimitConfig {
   };
 }
 
-/** First client IP from proxy headers. Pure. */
+/** Client IP from trusted proxy headers. Prioritizes x-real-ip over x-forwarded-for to prevent spoofing. Pure. */
 export function getClientIp(req: Request): string | null {
+  const real = req.headers.get("x-real-ip")?.trim();
+  if (real) return real;
   const forwarded = req.headers.get("x-forwarded-for");
   if (forwarded) {
     const first = forwarded.split(",")[0]?.trim();
     if (first) return first;
   }
-  const real = req.headers.get("x-real-ip")?.trim();
-  return real || null;
+  return null;
 }
 
 /** Bucket subject: per-IP for anonymous scopes, per-user otherwise. Pure. */
