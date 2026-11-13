@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 // Member-limit race (Phase 3): the limit is enforced by the atomic
-// join_workspace() RPC (migration 0011: advisory lock + recount + insert in
+// join_workspace() RPC (0001_init.sql: advisory lock + recount + insert in
 // one transaction). These tests pin the wiring: the route delegates to that
 // single RPC (no standalone insert = no check-then-act window) and maps every
 // outcome to the pre-existing UX messages. True multi-connection atomicity is
@@ -143,7 +143,7 @@ describe("join race closure (static guards)", () => {
         "..",
         "supabase",
         "migrations",
-        "0011_workspace_join_limit.sql",
+        "0001_init.sql",
       ),
       "utf8",
     );

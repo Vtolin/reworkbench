@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import type { ExportScope } from "@/lib/api/imports";
 import { downloadText } from "@/lib/browser/download";
 import { Panel, buttonClass, fieldClass } from "@/components/ui/Panel";
+import ZoteroCapturePanel from "./ZoteroCapturePanel";
 
 /** Reference import/export (BibTeX, RIS, EndNote XML, CSL-JSON). */
 export function ImportExportCard({ defaultStyle }: { defaultStyle: string }) {
@@ -11,6 +13,31 @@ export function ImportExportCard({ defaultStyle }: { defaultStyle: string }) {
   const [format, setFormat] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [collections, setCollections] = useState<Array<{ id: string; name: string }>>([]);
+  const [projects, setProjects] = useState<Array<{ id: string; name: string }>>([]);
+  const [scopeKind, setScopeKind] = useState<"all" | "collection" | "project">("all");
+  const [scopeId, setScopeId] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([
+      api.collections().catch(() => []),
+      api.projects().catch(() => []),
+    ]).then(([cols, projs]) => {
+      if (!active) return;
+      setCollections((cols as Array<{ id: string; name: string }>).map((c) => ({ id: c.id, name: c.name })));
+      setProjects((projs as Array<{ id: string; name: string }>).map((p) => ({ id: p.id, name: p.name })));
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const currentScope = (): ExportScope | undefined => {
+    if (scopeKind === "collection" && scopeId) return { collectionId: scopeId };
+    if (scopeKind === "project" && scopeId) return { projectId: scopeId };
+    return undefined;
+  };
 
   const doImport = async () => {
     setBusy(true);
@@ -42,17 +69,18 @@ export function ImportExportCard({ defaultStyle }: { defaultStyle: string }) {
   };
 
   const doExport = async (fmt: string) => {
-    const r = await api.exportRefs(fmt);
+    const r = await api.exportRefs(fmt, currentScope());
     const ext = fmt === "csl-json" ? "json" : fmt === "ris" ? "ris" : "bib";
     downloadText(r.data, `library.${ext}`, fmt === "csl-json" ? "application/json" : "text/plain");
   };
 
   const doExportBibliography = async () => {
-    const r = await api.exportBibliography(defaultStyle);
+    const r = await api.exportBibliography(defaultStyle, currentScope());
     downloadText(r.bibliography.join("\n\n"), `bibliography-${defaultStyle}.txt`, "text/plain");
   };
 
   return (
+    <>
     <Panel
       title="Import / Export"
       description="Interoperate with existing tools: Zotero → RIS export → import here → research → export BibTeX → LaTeX. Imports land as pending records for admin approval."
@@ -101,7 +129,49 @@ export function ImportExportCard({ defaultStyle }: { defaultStyle: string }) {
         {message ? <div className="mt-2 text-[#8e8e8e]">{message}</div> : null}
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <select
+          aria-label="Export scope"
+          value={scopeKind}
+          onChange={(e) => {
+            const next = e.target.value as "all" | "collection" | "project";
+            setScopeKind(next);
+            setScopeId("");
+          }}
+          className={fieldClass}
+        >
+          <option value="all">Whole library</option>
+          <option value="collection">By collection</option>
+          <option value="project">By research project</option>
+        </select>
+        {scopeKind === "collection" && (
+          <select
+            aria-label="Collection scope"
+            value={scopeId}
+            onChange={(e) => setScopeId(e.target.value)}
+            className={fieldClass}
+          >
+            <option value="">Choose collection…</option>
+            {collections.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        )}
+        {scopeKind === "project" && (
+          <select
+            aria-label="Project scope"
+            value={scopeId}
+            onChange={(e) => setScopeId(e.target.value)}
+            className={fieldClass}
+          >
+            <option value="">Choose project…</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        )}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
         <button onClick={() => doExport("bibtex")} className={buttonClass}>
           Export BibTeX
         </button>
@@ -116,5 +186,7 @@ export function ImportExportCard({ defaultStyle }: { defaultStyle: string }) {
         </button>
       </div>
     </Panel>
+    <ZoteroCapturePanel onImported={(msg) => setMessage(msg)} />
+  </>
   );
 }

@@ -85,12 +85,13 @@ describe("size-cap wiring", () => {
     expect(text).toContain("tooLargeResponse");
   });
 
-  it("caps documents-bucket uploads in storage policy", () => {
+  it("caps documents-bucket uploads and enforces folder-segment match in storage policy", () => {
     const sql = fs.readFileSync(
-      path.join(API, "..", "..", "..", "supabase", "migrations", "0012_storage_size_cap.sql"),
+      path.join(API, "..", "..", "..", "supabase", "migrations", "0001_init.sql"),
       "utf8",
     );
     expect(sql).toContain("documents_bucket_insert_members");
     expect(sql).toContain("52428800");
+    expect(sql).toContain("(storage.foldername(name))[1] = m.workspace_id::text");
   });
 });

@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import Topbar from "@/components/Topbar";
 import DocDetail from "@/components/DocDetail";
+import DuplicateMergerModal from "@/components/DuplicateMergerModal";
 import { useSession } from "@/contexts/SessionContext";
 import { subscribeWorkspace } from "@/lib/supabase/realtime";
 import { startFallbackPoll } from "@/lib/supabase/fallbackPoll";
@@ -16,6 +17,7 @@ function LibraryInner() {
   const [q, setQ] = useState("");
   const [docs, setDocs] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
+  const [showDuplicates, setShowDuplicates] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
@@ -119,6 +121,7 @@ function LibraryInner() {
       <div className="flex-1 min-w-0 flex flex-col bg-black">
         <Topbar title="Library" subtitle={filteredInfo || `${total} documents • shared workspace library`} actions={
           <div className="flex items-center gap-2">
+            <button onClick={()=>setShowDuplicates(true)} className="rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2 text-sm text-[#ececec] hover:bg-[#212121]">Check duplicates</button>
             <button onClick={()=>router.push("/upload")} className="rounded-xl bg-white text-black px-4 py-2 text-sm font-medium hover:bg-[#ececec]">+ Upload</button>
             {(activeCollection || activeTag || yearFilter || typeFilter) && <button onClick={()=>{ router.push("/"); setYearFilter(""); setTypeFilter(""); setQ(""); }} className="rounded-xl border border-[#2f2f2f] bg-[#171717] px-4 py-2 text-sm text-[#ececec]">Clear</button>}
           </div>
@@ -297,6 +300,7 @@ function LibraryInner() {
           </div>
         </div>
       )}
+      <DuplicateMergerModal open={showDuplicates} onClose={() => setShowDuplicates(false)} onMerged={() => void load()} />
     </div>
   );
 }

@@ -330,13 +330,13 @@ export function SummarizePicker({
   docId: string | null;
   onDocChange: (id: string | null) => void;
   loading: boolean;
-  armed: "pdf" | "html" | null;
-  exportingFmt: "pdf" | "html" | null;
+  armed: "pdf" | "html" | "docx" | null;
+  exportingFmt: "pdf" | "html" | "docx" | null;
   note: { ok: boolean; msg: string } | null;
   onSummarize: () => void;
-  onExportPress: (fmt: "pdf" | "html") => void;
+  onExportPress: (fmt: "pdf" | "html" | "docx") => void;
 }) {
-  const armClass = (fmt: "pdf" | "html") =>
+  const armClass = (fmt: "pdf" | "html" | "docx") =>
     `rounded-xl border px-4 py-2 text-sm disabled:opacity-40 ${
       armed === fmt ? "border-white bg-white font-medium text-black" : "border-[#2f2f2f] bg-[#212121] text-white"
     }`;
@@ -386,6 +386,18 @@ export function SummarizePicker({
           className={armClass("html")}
         >
           {exportingFmt === "html" ? "Exporting…" : `Export HTML${armed === "html" ? " ✓" : ""}`}
+        </button>
+        <button
+          onClick={() => onExportPress("docx")}
+          disabled={!docId || loading || exportingFmt !== null}
+          title={
+            armed === "docx"
+              ? "Armed — Word (.docx) will export when summarization finishes (press again to disarm)"
+              : "Arm Word (.docx) export for when summarization finishes"
+          }
+          className={armClass("docx")}
+        >
+          {exportingFmt === "docx" ? "Exporting…" : `Export DOCX${armed === "docx" ? " ✓" : ""}`}
         </button>
       </div>
       {note ? (

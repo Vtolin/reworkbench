@@ -39,6 +39,8 @@ export default function AdminPage() {
   const [limit, setLimit] = useState(10);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingDoc[]>([]);
+  const [autoApprove, setAutoApprove] = useState(false);
+  const [autoApproveBusy, setAutoApproveBusy] = useState(false);
   const [delRequests, setDelRequests] = useState<Array<{ id: string; chat_id: string | null; chat_title?: string; requested_by: string; created_at: string }>>([]);
   const [note, setNote] = useState<string | null>(null);
   // Ingest health (Phase 4): error + FTS-only/partial documents via one RPC,
@@ -61,6 +63,15 @@ export default function AdminPage() {
       setLimit(workspace.member_limit);
     }
     try {
+      const aaRes = await fetch(`/api/workspaces/auto-approve?workspaceId=${workspace.id}`);
+      if (aaRes.ok) {
+        const aaData = (await aaRes.json()) as { auto_approve_uploads?: boolean };
+        setAutoApprove(Boolean(aaData.auto_approve_uploads));
+      }
+    } catch {
+      /* ignore */
+    }
+    try {
       const { api } = await import("@/lib/api");
       const r = await api.listDocuments({}) as { documents: Array<PendingDoc & { status: string }> };
       setPending(r.documents.filter((d) => d.status === "pending"));
@@ -78,7 +89,7 @@ export default function AdminPage() {
       setHealth(await fetchIngestHealth());
       setHealthError(null);
     } catch (e) {
-      // Migration 0013 not applied (or RPC blocked): panel shows the hint.
+      // Schema / ingest_health RPC missing or blocked: panel shows the hint.
       setHealth([]);
       setHealthError(e instanceof Error ? e.message : "Ingest health unavailable");
     }
@@ -184,6 +195,49 @@ export default function AdminPage() {
     }
   };
 
+  const toggleAutoApprove = async () => {
+    if (!workspace || autoApproveBusy) return;
+    setAutoApproveBusy(true);
+    setError(null);
+    const next = !autoApprove;
+    try {
+      const res = await fetch("/api/workspaces/auto-approve", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspaceId: workspace.id, auto_approve_uploads: next }),
+      });
+      const data = (await res.json()) as { auto_approve_uploads?: boolean; error?: string };
+      if (!res.ok) {
+        setError(data.error ?? "Failed to update auto-approve setting");
+      } else {
+        setAutoApprove(Boolean(data.auto_approve_uploads));
+        flash(next ? "Auto-approve enabled for new uploads" : "Manual approval queue re-enabled");
+      }
+    } finally {
+      setAutoApproveBusy(false);
+    }
+  };
+
+  const approveAllPending = async () => {
+    if (pending.length === 0 || busy) return;
+    setBusy("approve-all");
+    try {
+      let approvedCount = 0;
+      for (const d of pending) {
+        const res = await fetch("/api/documents/approve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ documentId: d.id, decision: "approved" }),
+        });
+        if (res.ok) approvedCount++;
+      }
+      await load();
+      flash(`Approved ${approvedCount} pending upload(s)`);
+    } finally {
+      setBusy(null);
+    }
+  };
+
   // Idempotent repair: embeds exactly the chunks missing vectors (skips the
   // rest), flips error→ready when fully covered. Uses this device's embed
   // mode, like uploads do.
@@ -270,8 +324,36 @@ export default function AdminPage() {
         {note && <div className="text-xs text-emerald-400">{note}</div>}
 
         <div className="rounded-2xl border border-[#2f2f2f] bg-[#0a0a0a] p-4 lg:p-5">
-          <div className="text-sm font-semibold text-white">Approval queue ({pending.length})</div>
-          <div className="text-xs text-[#8e8e8e] mt-1">Member uploads wait here. Approving admits them to the shared library for everyone.</div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="text-sm font-semibold text-white">Approval queue ({pending.length})</div>
+              <div className="text-xs text-[#8e8e8e] mt-1">Member uploads wait here unless auto-approve is enabled. Approving admits them to the shared library for everyone.</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={autoApproveBusy}
+                onClick={() => void toggleAutoApprove()}
+                className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+                  autoApprove
+                    ? "border-emerald-700 bg-emerald-950/50 text-emerald-300"
+                    : "border-[#2f2f2f] bg-[#171717] text-[#ececec]"
+                }`}
+              >
+                Auto-approve uploads: {autoApprove ? "ON" : "OFF"}
+              </button>
+              {pending.length > 0 && (
+                <button
+                  type="button"
+                  disabled={busy !== null}
+                  onClick={() => void approveAllPending()}
+                  className="rounded-lg bg-white text-black px-3 py-1.5 text-xs font-medium disabled:opacity-40"
+                >
+                  {busy === "approve-all" ? "Approving…" : "Approve all"}
+                </button>
+              )}
+            </div>
+          </div>
           <div className="mt-3 space-y-2">
             {pending.map((d) => (
               <div key={d.id} className="flex items-center gap-3 rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2">
@@ -312,7 +394,7 @@ export default function AdminPage() {
             </button>
             {reindexScope === "full" && <span className="text-[11px] text-amber-300/80">Clears vectors first — retry refills gaps if embedding fails mid-run.</span>}
           </div>
-          {healthError && <div className="mt-2 text-xs text-red-400">Health check unavailable: {healthError} (apply migration 0013).</div>}
+          {healthError && <div className="mt-2 text-xs text-red-400">Health check unavailable: {healthError} (ensure `0001_init.sql` / `ingest_health` RPC is applied).</div>}
           <div className="mt-3 space-y-2">
             {health.map((d) => {
               const ftsOnly = d.chunks > 0 && d.embedded === 0;

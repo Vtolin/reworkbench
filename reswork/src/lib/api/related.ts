@@ -5,7 +5,8 @@
 import { createClient } from "../supabase/client";
 import { getDocument, getWorkspaceId } from "../wb/library";
 import {
-  relatedDocuments, documentReferences, listAnnotations, createAnnotation as wbCreateAnnotation,
+  relatedDocuments, documentReferences, listAnnotations,
+  createAnnotation as wbCreateAnnotation, deleteAnnotation as wbDeleteAnnotation,
   legalRefresh as wbLegalRefresh, citedCases as wbCitedCases,
 } from "../wb/related";
 
@@ -18,6 +19,7 @@ export const relatedApi = {
   annotations: (docId: string) => listAnnotations(docId),
   createAnnotation: (docId: string, body: { page?: number; selected_text: string; note?: string; color?: string }) =>
     wbCreateAnnotation(docId, body),
+  deleteAnnotation: (docId: string, annotationId: string) => wbDeleteAnnotation(docId, annotationId),
   patchAnnotation: async (docId: string, aid: string, body: { note?: string; color?: string; page?: number; tags?: string[]; project_id?: string; claim_id?: string }) => {
     const patch: Record<string, unknown> = {};
     if (body.note !== undefined) patch.note = body.note;

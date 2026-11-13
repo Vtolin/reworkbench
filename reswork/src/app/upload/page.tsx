@@ -2,7 +2,8 @@
 import Topbar from "@/components/Topbar";
 import UploadFlow from "@/components/UploadFlow";
 import BulkUploadFlow from "@/components/BulkUploadFlow";
-import { useState } from "react";
+import QuickAddByIdentifier from "@/components/QuickAddByIdentifier";
+import { Suspense, useState } from "react";
 
 export default function UploadPage(){
   const [key] = useState(0);
@@ -11,6 +12,9 @@ export default function UploadPage(){
       <Topbar title="Upload & Ingest" subtitle="" />
       <div className="px-4 lg:px-6 py-6 max-w-4xl w-full mx-auto space-y-8">
         <UploadFlow key={key} onDone={()=>{}} />
+        <Suspense fallback={<div className="text-xs text-[#8e8e8e]">Loading quick add…</div>}>
+          <QuickAddByIdentifier />
+        </Suspense>
         <div className="border-t border-[#2f2f2f] pt-8">
           <BulkUploadFlow />
         </div>

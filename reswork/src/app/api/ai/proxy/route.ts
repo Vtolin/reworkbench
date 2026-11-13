@@ -36,7 +36,7 @@ export async function POST(req: Request) {
   let body: {
     provider?: string;
     model?: string;
-    messages?: Array<{ role: string; content: string }>;
+    messages?: Array<{ role: string; content: string | Array<Record<string, unknown>> }>;
     temperature?: number;
     apiKey?: string; // optional client-held key (client-side-only mode)
     thinking?: boolean;
@@ -148,8 +148,31 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         model: body.model,
         max_tokens: anthropicMax,
-        messages: body.messages.filter((m) => m.role !== "system"),
-        system: body.messages.find((m) => m.role === "system")?.content,
+        messages: body.messages
+          .filter((m) => m.role !== "system")
+          .map((m) => {
+            if (!Array.isArray(m.content)) return m;
+            return {
+              role: m.role,
+              content: m.content.map((part) => {
+                if (part.type === "image_url" && typeof (part.image_url as { url?: unknown })?.url === "string") {
+                  const rawUrl = (part.image_url as { url: string }).url;
+                  const match = /^data:([^;]+);base64,(.+)$/.exec(rawUrl);
+                  if (match) {
+                    return {
+                      type: "image",
+                      source: { type: "base64", media_type: match[1], data: match[2] },
+                    };
+                  }
+                }
+                return part;
+              }),
+            };
+          }),
+        system: (() => {
+          const sys = body.messages.find((m) => m.role === "system")?.content;
+          return typeof sys === "string" ? sys : undefined;
+        })(),
         temperature: body.temperature ?? 0,
       }),
     }, UPSTREAM_TIMEOUT_MS);

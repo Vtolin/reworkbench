@@ -11,6 +11,7 @@ import { fetchMetadata } from "./openalex";
 import { getWorkspaceId, listCollections } from "./library";
 import { chunkArray, mapWithLimit } from "@/lib/async/pool";
 import { errorCategory, logEvent } from "@/lib/observability/log";
+import { resolveInitialDocumentStatus, shouldAutoApproveWorkspace } from "./autoApprove";
 import { ensureAuthorIds } from "./taxonomy";
 import { OllamaProvider } from "@/lib/ai/ollama";
 import { CloudProvider } from "@/lib/ai/cloud";
@@ -310,6 +311,7 @@ export async function confirmIngest(input: ConfirmInput): Promise<{
   // Chunking runs in the ingest worker (direct fallback) so long books do
   // not block the UI thread.
   const chunks = await chunkTextOffThread(preview.text);
+  const initialStatus = resolveInitialDocumentStatus(await shouldAutoApproveWorkspace(sb, ws));
   const { data: doc, error: docErr } = await sb
     .from("documents")
     .insert({
@@ -337,7 +339,7 @@ export async function confirmIngest(input: ConfirmInput): Promise<{
       metadata_source: input.metadataSource,
       metadata_confidence: input.metadataConfidence,
       metadata_verified: true,
-      status: "pending",
+      status: initialStatus,
       uploaded_by: me.user.id,
     })
     .select("id, title")

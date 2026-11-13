@@ -261,14 +261,25 @@ export function SynthesisPanel({
   answer,
   onCopy,
   copied,
+  onExportDocx,
 }: {
   answer: string;
   onCopy: () => void;
   copied: boolean;
+  onExportDocx?: () => void;
 }) {
   return (
     <div className="py-6">
-      <div className="mb-2 flex justify-end">
+      <div className="mb-2 flex justify-end gap-2">
+        {onExportDocx ? (
+          <button
+            onClick={onExportDocx}
+            className="rounded-full border border-[#2f2f2f] bg-[#171717] px-2.5 py-1 text-[11px] text-[#8e8e8e] hover:text-white"
+            title="Download synthesis as Word (.docx)"
+          >
+            Export DOCX
+          </button>
+        ) : null}
         <button
           onClick={onCopy}
           className="rounded-full border border-[#2f2f2f] bg-[#171717] px-2.5 py-1 text-[11px] text-[#8e8e8e] hover:text-white"

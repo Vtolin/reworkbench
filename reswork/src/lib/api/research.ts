@@ -108,6 +108,10 @@ export const researchApi = {
     const doc = await getDocument(document_id);
     const r = await wbSummarize(doc, toSel());
     const title = doc.original_filename || doc.title || "summary";
+    if (format === "docx") {
+      const { buildResearchDocx } = await import("../export/docx");
+      return buildResearchDocx(title, r.summary, "Document Summary");
+    }
     if (format === "html") {
       const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(title)} — summary</title></head><body style="font-family:sans-serif;max-width:70ch;margin:2rem auto;line-height:1.6"><h1>${escapeHtml(title)}</h1><pre style="white-space:pre-wrap">${escapeHtml(r.summary)}</pre></body></html>`;
       return new Blob([html], { type: "text/html" });

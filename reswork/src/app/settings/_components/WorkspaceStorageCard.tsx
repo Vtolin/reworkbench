@@ -16,6 +16,21 @@ type Health = Awaited<ReturnType<typeof api.health>>;
 /** Workspace membership + the (read-only) admin entry point. */
 export function WorkspaceCard() {
   const { workspace } = useSession();
+  const [autoApprove, setAutoApprove] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!workspace?.id) return;
+    let cancelled = false;
+    fetch(`/api/workspaces/auto-approve?workspaceId=${workspace.id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { auto_approve_uploads?: boolean } | null) => {
+        if (!cancelled && d) setAutoApprove(Boolean(d.auto_approve_uploads));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [workspace?.id]);
 
   return (
     <Panel
@@ -34,6 +49,11 @@ export function WorkspaceCard() {
       <p className="mt-1 text-xs leading-relaxed text-[#8e8e8e]">
         Member management, the member limit and the upload approval queue live in the admin dashboard.
       </p>
+      {autoApprove !== null && (
+        <div className="mt-2 inline-block rounded-full border border-[#2f2f2f] bg-black px-2.5 py-0.5 text-[11px] text-[#d4d4d4]">
+          Upload policy: {autoApprove ? "Auto-approve enabled" : "Manual admin approval"}
+        </div>
+      )}
       <div className="mt-3">
         <Link href="/admin" className={`${buttonClass} inline-block`}>
           Open admin dashboard

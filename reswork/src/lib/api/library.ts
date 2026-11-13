@@ -7,6 +7,9 @@ import {
   listTags, createTag, libraryStats, chunkCount,
   documentFileUrl as wbDocumentFileUrl,
 } from "../wb/library";
+import {
+  findLibraryDuplicates, mergeDuplicateDocuments, quickAddDocument, type QuickAddInput,
+} from "../wb/quickAddAndMerge";
 
 export const libraryApi = {
   listDocuments: (params: Record<string, string | number | undefined> = {}) =>
@@ -29,6 +32,10 @@ export const libraryApi = {
     const chunks = await chunkCount();
     return { documents: s.total, collections: s.collections, tags: s.tags, chroma_chunks: chunks, chroma_status: "ready", engine: "supabase" };
   },
+  quickAdd: (input: QuickAddInput) => quickAddDocument(input),
+  findDuplicates: () => findLibraryDuplicates(),
+  mergeDuplicates: (primaryId: string, secondaryId: string, patch: Record<string, unknown>) =>
+    mergeDuplicateDocuments(primaryId, secondaryId, patch),
 };
 
 export const documentFileUrl = (doc: { storage_path?: string | null }) => wbDocumentFileUrl(doc);

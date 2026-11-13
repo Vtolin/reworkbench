@@ -23,15 +23,15 @@ ownership gates** — except for pending documents (see below).
 | documents status flip / delete | denied | allow | Approve route + `documents_update`/`_delete` enforce admin |
 | sources, authors, collections, tags + joins | full CRUD | full CRUD | Shared tagging/curation; no owner gate |
 | research_projects, claims, citations, evidence, annotations, saved_searches | full CRUD | full CRUD | Workspace-wide curation |
-| research_trail, research_queries | insert + read | + update/delete | Append-only history for members (migration 0006) |
-| document_chunks | insert + read | + update/delete | Ingest inserts; repair is admin-only (0006) |
-| document_embeddings | read (+insert via ingest path) | + update | No `workspace_id`; membership resolves via parent chunk |
-| chats (workspace-visible) | read | read | Visibility `workspace` or owner or admin |
-| chats (private) | owner-only | read via admin override on select | Insert/update owner-only; delete owner-or-admin |
-| chat_messages | owner writes | admin delete | Reads follow parent chat visibility (tightened by migration 0008 — membership-only before; private/stored chats leaked to any member holding the chat id) |
-| ai_credentials | own rows only | own rows only | `(user_id, provider)` PK (migration 0005); admins have NO access |
+| research_trail, research_queries | insert + read | + update/delete | Append-only history for members (`0001_init.sql`) |
+| document_chunks | insert + read | + update/delete | Ingest inserts; repair is admin-only (`0001_init.sql`) |
+| document_embeddings | read (+insert via ingest path) | + update | Membership resolves via parent chunk (`workspace_id` stamped by trigger) |
+| chats (workspace-visible) | read | read | Visibility `workspace` or owner |
+| chats (private) | owner-only | denied (owner-only) | Select strictly owner-only (`0001_init.sql`); insert/update owner-only; delete owner-or-admin |
+| chat_messages | owner writes | admin delete | Reads follow parent chat visibility (owner-only for private/stored chats) |
+| ai_credentials | own rows only | own rows only | `(user_id, provider)` PK (`0001_init.sql`); admins have NO access |
 | profiles | own write; co-member read | — | |
-| storage `documents/<ws>/…` | read + upload to own ws prefix | + delete | Prefix matched exactly (0006); signed URLs only after RLS row check |
+| storage `documents/<ws>/…` | read + upload to own ws prefix | + delete | Prefix matched by folder segment + 50MB cap; signed URLs only after RLS row check |
 | workspace_members | read | manage | Admin-only write; kick additionally invalidates session server-side |
 
 ## Invariants (enforced in RLS + API guards + probe suite)
@@ -55,5 +55,5 @@ ownership gates** — except for pending documents (see below).
 
 Implementing any of these requires: schema (owner columns), RLS policy
 changes, API authorization updates, UI gating (never an RLS-only change —
-working buttons must not become RLS errors), probe coverage, and a migration.
-See migration 0006's header for why shared tables were deliberately left open.
+working buttons must not become RLS errors), probe coverage, and a schema update.
+See `supabase/migrations/0001_init.sql` for why shared tables were deliberately left open.

@@ -156,6 +156,7 @@ export default function DocDetail({ id, onClose, onUpdated }: { id: string | nul
 
             <div className="flex gap-2">
               <button onClick={save} disabled={saving} className="flex-1 rounded-xl bg-white text-black py-2.5 text-sm font-medium disabled:opacity-50">{saving? "Saving…":"Save changes"}</button>
+              <button onClick={() => window.location.assign(`/reader/${doc.id}`)} className="rounded-xl border border-[#2f2f2f] bg-[#212121] px-4 py-2.5 text-sm text-white hover:bg-[#2f2f2f]">Reader</button>
               <button onClick={openPdf} className="rounded-xl border border-[#2f2f2f] bg-[#212121] px-4 py-2.5 text-sm text-white hover:bg-[#2f2f2f]">Open PDF ↗</button>
             </div>
 
@@ -339,26 +340,46 @@ function toAnnotationView(r: Record<string, unknown>): AnnotationView {
 
 function AnnotationsPanel({ docId }: { docId:string }) {
   const [items, setItems] = useState<AnnotationView[]>([]);
+  const [page, setPage] = useState(1);
   const [text, setText] = useState("");
   const [note, setNote] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const load = ()=> api.annotations(docId).then((rows)=>setItems(rows.map(toAnnotationView))).catch(()=>{});
   useEffect(()=>{ load(); },[docId]);
   const add = async()=>{
     if(!text.trim()) return;
-    await api.createAnnotation(docId, { page: 1, selected_text: text, note, color: "#facc15" });
+    await api.createAnnotation(docId, { page: Math.max(1, page || 1), selected_text: text, note, color: "#facc15" });
     setText(""); setNote(""); load();
+  };
+  const remove = async (annotationId: string) => {
+    setDeletingId(annotationId);
+    try {
+      await api.deleteAnnotation(docId, annotationId);
+      setItems((prev) => prev.filter((item) => item.id !== annotationId));
+    } finally {
+      setDeletingId(null);
+    }
   };
   return (
     <div className="space-y-3">
       <div className="rounded-xl border border-[#2f2f2f] bg-[#171717] p-3 space-y-2">
-        <input value={text} onChange={e=>setText(e.target.value)} placeholder="Selected text…" className="w-full rounded-lg border border-[#2f2f2f] bg-black px-3 py-2 text-sm text-white placeholder:text-[#5f5f5f]" />
+        <div className="flex items-center gap-2">
+          <input value={text} onChange={e=>setText(e.target.value)} placeholder="Selected text…" className="flex-1 rounded-lg border border-[#2f2f2f] bg-black px-3 py-2 text-sm text-white placeholder:text-[#5f5f5f]" />
+          <input type="number" min={1} value={page} onChange={e=>setPage(Math.max(1, Number.parseInt(e.target.value || "1", 10) || 1))} title="Page number" className="w-20 rounded-lg border border-[#2f2f2f] bg-black px-2.5 py-2 text-sm text-white" />
+        </div>
         <input value={note} onChange={e=>setNote(e.target.value)} onKeyDown={e=>e.key==="Enter" && add()} placeholder="Note (optional)…" className="w-full rounded-lg border border-[#2f2f2f] bg-black px-3 py-2 text-sm text-white placeholder:text-[#5f5f5f]" />
         <button onClick={add} className="rounded-xl bg-white text-black px-4 py-2 text-sm font-medium">Add highlight</button>
       </div>
       <div className="space-y-2">
         {items.map(a=>(
           <div key={a.id} className="rounded-xl border border-[#2f2f2f] bg-[#171717] p-3">
-            <div className="text-xs text-[#8e8e8e]">p. {a.page} • {a.category} • {new Date(a.created_at).toLocaleString()}</div>
+            <div className="flex items-center justify-between gap-2 text-xs text-[#8e8e8e]">
+              <span>p. {a.page} • {a.category} • {new Date(a.created_at).toLocaleString()}</span>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => window.location.assign(`/reader/${docId}?page=${a.page}`)} className="text-white hover:underline">Jump p. {a.page}</button>
+                <button type="button" disabled={deletingId === a.id} onClick={() => void remove(a.id)} className="text-[#fca5a5] hover:underline disabled:opacity-40">Delete</button>
+              </div>
+            </div>
             <div className="text-sm mt-1 text-white">“{a.selected_text}”</div>
             {a.note && <div className="text-sm mt-1 text-[#ececec] bg-black rounded-lg px-2 py-1 border border-[#2f2f2f]">{a.note}</div>}
           </div>

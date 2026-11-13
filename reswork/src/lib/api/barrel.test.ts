@@ -10,6 +10,7 @@ const EXPECTED_KEYS = [
   "listDocuments", "getDocument", "updateDocument", "deleteDocument",
   "setCollections", "setTags", "collections", "createCollection",
   "tags", "createTag", "stats", "health",
+  "quickAdd", "findDuplicates", "mergeDuplicates",
   // search
   "search", "searches", "createSearch", "deleteSearch", "runSearch",
   // research
@@ -25,9 +26,9 @@ const EXPECTED_KEYS = [
   "citationStyles", "citationStyleDefault", "citationStyleCustom",
   "citationStyleFetch", "citations",
   // imports
-  "importRefs", "importFile", "exportRefs", "exportBibliography",
+  "importRefs", "importFile", "importZotero", "exportRefs", "exportBibliography",
   // related
-  "related", "references", "annotations", "createAnnotation",
+  "related", "references", "annotations", "createAnnotation", "deleteAnnotation",
   "patchAnnotation", "legalRefresh", "citedCases", "casesCiting",
   // projects
   "projects", "createProject", "getProject", "deleteProject",

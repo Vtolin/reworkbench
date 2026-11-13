@@ -14,6 +14,7 @@ import {
 import { buildMarkdownDocument, buildPrintHtml } from "@/lib/wb/makalah/document";
 import { citedIdsOf, mergeReferences } from "@/lib/wb/makalah/page-support";
 import { publishMakalah } from "@/lib/wb/publish";
+import { downloadBlob } from "@/lib/browser/download";
 import type { MakalahDraftModel } from "./useMakalahDraft";
 
 export function useMakalahExport(draft: MakalahDraftModel) {
@@ -245,6 +246,36 @@ export function useMakalahExport(draft: MakalahDraftModel) {
     w.print();
   };
 
+  const exportDOCX = async () => {
+    setExportNote(null);
+    const { refs, error } = await ensureReferences();
+    if (error) {
+      setExportNote(
+        `Tidak bisa export — Daftar Pustaka gagal dimuat: ${error}. Periksa koneksi lalu tekan Refresh references.`,
+      );
+      return;
+    }
+    const blockers = exportBlockers(refs);
+    if (blockers.length) {
+      setExportNote(`Tidak bisa export — ${blockers.join(" ")}`);
+      return;
+    }
+    const { buildMakalahDocx } = await import("@/lib/export/docx");
+    const blob = await buildMakalahDocx({
+      docTitle,
+      isID,
+      language,
+      cover,
+      outline,
+      groups: flatByChapter,
+      states: secs,
+      refs,
+      titleOf,
+    });
+    const safeName = docTitle.replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "_").slice(0, 48) || "makalah";
+    downloadBlob(blob, `${safeName}.docx`);
+  };
+
   const startEditRef = (ref: MakalahReference) => {
     setEditingRef(ref.id);
     setRefEditText(ref.formatted_apa7);
@@ -289,6 +320,7 @@ export function useMakalahExport(draft: MakalahDraftModel) {
     copyMarkdown,
     publishToShared,
     exportPDF,
+    exportDOCX,
     openPreview,
   };
 }

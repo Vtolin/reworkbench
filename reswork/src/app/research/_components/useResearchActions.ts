@@ -72,9 +72,9 @@ export function useResearchActions({ docs, addMessage, setAutoFollow }: ActionsD
   const [summarizeDoc, setSummarizeDoc] = useState<string | null>(null);
   const [summarizeLoading, setSummarizeLoading] = useState(false);
   const [summarizeStatus, setSummarizeStatus] = useState<TimedStatus | null>(null);
-  const [armedExport, setArmedExport] = useState<"pdf" | "html" | null>("pdf");
+  const [armedExport, setArmedExport] = useState<"pdf" | "html" | "docx" | null>("pdf");
   const [lastSummaryDoc, setLastSummaryDoc] = useState<string | null>(null);
-  const [exportingFmt, setExportingFmt] = useState<"pdf" | "html" | null>(null);
+  const [exportingFmt, setExportingFmt] = useState<"pdf" | "html" | "docx" | null>(null);
   const [exportNote, setExportNote] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const flashExportNote = (ok: boolean, msg: string) => {
@@ -82,7 +82,7 @@ export function useResearchActions({ docs, addMessage, setAutoFollow }: ActionsD
     window.setTimeout(() => setExportNote((cur) => (cur?.msg === msg ? null : cur)), 10_000);
   };
 
-  const doManualExport = async (fmt: "pdf" | "html") => {
+  const doManualExport = async (fmt: "pdf" | "html" | "docx") => {
     if (!summarizeDoc || summarizeLoading || exportingFmt) return;
     setExportingFmt(fmt);
     setExportNote(null);
@@ -108,7 +108,7 @@ export function useResearchActions({ docs, addMessage, setAutoFollow }: ActionsD
   // Export buttons double as arm-toggles: pressing one arms that format
   // (button lights up) so the export fires when summarization finishes.
   // If the selected doc was already summarized, it exports immediately.
-  const onExportPress = (fmt: "pdf" | "html") => {
+  const onExportPress = (fmt: "pdf" | "html" | "docx") => {
     if (summarizeLoading || exportingFmt) return;
     if (lastSummaryDoc === summarizeDoc && summarizeDoc) {
       void doManualExport(fmt);
@@ -261,6 +261,17 @@ export function useResearchActions({ docs, addMessage, setAutoFollow }: ActionsD
     }
   };
 
+  const doSynthesisDocx = async () => {
+    if (!synthAns) return;
+    const { buildResearchDocx } = await import("@/lib/export/docx");
+    const blob = await buildResearchDocx(
+      "Cross-Paper Synthesis",
+      synthAns,
+      synthQ.trim() ? `Question: ${synthQ.trim()}` : undefined,
+    );
+    downloadBlob(blob, "cross_paper_synthesis.docx");
+  };
+
   return {
     compare: {
       q: compareQ,
@@ -298,6 +309,7 @@ export function useResearchActions({ docs, addMessage, setAutoFollow }: ActionsD
       loading: synthLoading,
       status: synthStatus,
       run: doSynthesis,
+      exportDocx: doSynthesisDocx,
     },
   };
 }

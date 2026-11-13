@@ -390,6 +390,7 @@ export default function ResearchPage() {
                     answer={actions.synthesis.answer}
                     onCopy={() => void copyToClipboard("synth", actions.synthesis.answer ?? "")}
                     copied={copiedId === "synth"}
+                    onExportDocx={() => void actions.synthesis.exportDocx()}
                   />
                 ) : null}
 

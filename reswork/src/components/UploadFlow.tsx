@@ -9,6 +9,7 @@ import {
 } from "@/lib/wb/ingest";
 import { cleanDoi, type MetadataCandidate } from "@/lib/wb/openalex";
 import type { ConfirmedDocument } from "@/lib/wb/ingest";
+import ScannedPdfOcrCard from "./ScannedPdfOcrCard";
 
 interface UploadEditForm {
   title: string;
@@ -287,12 +288,18 @@ export default function UploadFlow({ onDone }: { onDone?: ()=>void }) {
             </div>
           )}
 
-          {preview.noText && !preview.extractionError && (
-            <div className="mx-5 mt-4 rounded-xl bg-amber-950/30 border border-amber-800 p-3 text-sm text-amber-300">
-              ⚠ No extractable text found in this file. If it is a scanned PDF (photos of pages),
-              the library cannot search or answer from it until it is OCR&apos;d elsewhere and
-              re-uploaded. Accepting will file it as metadata only.
-            </div>
+          {preview.noText && !preview.extractionError && file && (
+            <ScannedPdfOcrCard
+              file={file}
+              onTextRecovered={(recovered) =>
+                setPreview({
+                  ...preview,
+                  text: recovered,
+                  textSnippet: recovered.slice(0, 600),
+                  noText: false,
+                })
+              }
+            />
           )}
 
           {preview.extractionError && (

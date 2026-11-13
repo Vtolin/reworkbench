@@ -3,20 +3,62 @@
 import { createClient } from "../supabase/client";
 import { DOCUMENT_COLUMNS_SELECT, getWorkspaceId, type HydratedDoc } from "../wb/library";
 import { parseReferences, type ImportRecord } from "../importing/parsers";
+import { fetchZoteroItems, type ZoteroSyncTarget } from "../importing/zotero";
 import { checkDuplicates } from "../ingestion/dedup";
+import { resolveInitialDocumentStatus, shouldAutoApproveWorkspace } from "../wb/autoApprove";
 import { ensureAuthorIds } from "../wb/taxonomy";
 import {
   docToCslItem, renderBibliography, bibtexEntry, risEntry, plainCitation,
 } from "../citations/csl";
 
-async function exportDocs(ids?: string[]): Promise<HydratedDoc[]> {
+export interface ExportScope {
+  ids?: string[];
+  collectionId?: string;
+  projectId?: string;
+}
+
+async function resolveScopedIds(scope?: ExportScope): Promise<string[] | undefined> {
+  if (!scope) return undefined;
+  const sb = createClient();
+  let scoped: Set<string> | null = scope.ids?.length ? new Set(scope.ids) : null;
+
+  if (scope.collectionId) {
+    const { data, error } = await sb
+      .from("document_collections")
+      .select("document_id")
+      .eq("collection_id", scope.collectionId)
+      .limit(1000);
+    if (error) throw new Error(error.message);
+    const colIds = new Set(((data ?? []) as Array<{ document_id: string }>).map((r) => r.document_id));
+    scoped = scoped ? new Set([...scoped].filter((id) => colIds.has(id))) : colIds;
+  }
+
+  if (scope.projectId) {
+    const { data, error } = await sb
+      .from("research_project_documents")
+      .select("document_id")
+      .eq("project_id", scope.projectId)
+      .limit(1000);
+    if (error) throw new Error(error.message);
+    const projIds = new Set(((data ?? []) as Array<{ document_id: string }>).map((r) => r.document_id));
+    scoped = scoped ? new Set([...scoped].filter((id) => projIds.has(id))) : projIds;
+  }
+
+  return scoped ? [...scoped] : undefined;
+}
+
+async function exportDocs(scope?: string[] | ExportScope): Promise<HydratedDoc[]> {
+  const normalized: ExportScope | undefined = Array.isArray(scope) ? { ids: scope } : scope;
+  const targetIds = await resolveScopedIds(normalized);
+  if (targetIds && targetIds.length === 0) return [];
+
   const ws = await getWorkspaceId();
   const sb = createClient();
   // Bounded export window (1000 newest): user-triggered, intentionally capped
   // rather than paginated — a full-workspace dump for larger libraries is
   // future work (see exportWorkspace). Explicit columns: skip the fts vector.
   let q = sb.from("documents").select(DOCUMENT_COLUMNS_SELECT).eq("workspace_id", ws).eq("status", "approved").order("created_at", { ascending: false }).limit(1000);
-  if (ids?.length) q = q.in("id", ids);
+  if (targetIds?.length) q = q.in("id", targetIds);
   const { data, error } = await q;
   if (error) throw new Error(error.message);
   const { hydrateDocs } = await import("../wb/library");
@@ -61,6 +103,7 @@ async function importRecords(records: ImportRecord[]): Promise<{ imported: numbe
     if (colId) collectionIdByName.set(cname, colId);
     return colId;
   }
+  const initialStatus = resolveInitialDocumentStatus(await shouldAutoApproveWorkspace(sb, ws));
   let imported = 0;
   let skipped = 0;
   for (const r of records) {
@@ -87,7 +130,7 @@ async function importRecords(records: ImportRecord[]): Promise<{ imported: numbe
         publisher: r.publisher,
         abstract: r.abstract,
         ingestion_status: "metadata_only",
-        status: "pending",
+        status: initialStatus,
         uploaded_by: me.user?.id ?? null,
       })
       .select("id")
@@ -133,8 +176,12 @@ export const importsApi = {
     const fmt = ext === "bib" ? "bibtex" : ext === "ris" ? "ris" : ext === "json" ? "csl-json" : ext === "xml" ? "endnote-xml" : undefined;
     return importRecords(parseReferences(text, fmt));
   },
-  exportRefs: async (format: string, ids?: string[]) => {
-    const docs = await exportDocs(ids);
+  importZotero: async (target: ZoteroSyncTarget) => {
+    const records = await fetchZoteroItems(target);
+    return importRecords(records);
+  },
+  exportRefs: async (format: string, scope?: string[] | ExportScope) => {
+    const docs = await exportDocs(scope);
     const fmt = format.toLowerCase();
     if (fmt === "ris") return { data: docs.map(risEntry).join("\n") };
     if (fmt === "csl-json" || fmt === "csl_json" || fmt === "json") {
@@ -142,8 +189,8 @@ export const importsApi = {
     }
     return { data: docs.map(bibtexEntry).join("\n\n") };
   },
-  exportBibliography: async (style: string, ids?: string[]) => {
-    const docs = await exportDocs(ids);
+  exportBibliography: async (style: string, scope?: string[] | ExportScope) => {
+    const docs = await exportDocs(scope);
     const entries = await renderBibliography(docs.map(docToCslItem), style).catch(() => docs.map((d) => plainCitation(d)));
     return { bibliography: entries };
   },

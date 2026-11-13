@@ -16,7 +16,7 @@ service client is module-cached (see `lib/supabase/server.ts`).
   own `statement_timeout`. Transaction mode is therefore safe and gives the
   highest concurrency. Do NOT use Session mode unless a future migration
   requires advisory locks held across statements visible to the pooler —
-  `pg_advisory_xact_lock` (migration 0011) is transaction-scoped by design
+  `pg_advisory_xact_lock` (`join_workspace` in `0001_init.sql`) is transaction-scoped by design
   and works in Transaction mode.
 - **Pool size:** start with the Supabase default (matches the plan); raise
   only if `pg_stat_activity` shows pool waits during peak ingest.
@@ -34,7 +34,7 @@ service client is module-cached (see `lib/supabase/server.ts`).
   requests would leak sessions — never cache it.
 - `createServiceSupabase()` is module-cached: no cookies, no token refresh,
   key from server-only env. Safe to reuse.
-- Migrations 0010–0014 keep transactions short (single-statement DDL,
+- Future schema additions should keep transactions short (single-statement DDL,
   index builds without `CONCURRENTLY` are fast catalog writes on these
   small tables; revisit with `CONCURRENTLY` only if a table outgrows
   maintenance windows — note it cannot run inside the migration

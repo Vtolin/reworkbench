@@ -4,18 +4,8 @@
 -- superuser (postgres): these checks verify MIGRATIONS, not RLS.
 -- RLS behavior is probed by files 10-50, which switch identity explicitly.
 --
--- APPLY ORDER (Supabase dashboard -> SQL editor, in order; each file is
--- idempotent — safe to re-run):
+-- APPLY ORDER (Supabase dashboard -> SQL editor; file is idempotent — safe to re-run):
 --   1. supabase/migrations/0001_init.sql
---   2. supabase/seed.sql
---   3. supabase/migrations/0002_storage.sql
---   4. supabase/migrations/0003_rls_hardening.sql
---   5. supabase/migrations/0004_deletion_requests.sql
---   6. supabase/migrations/0005_ai_credentials_provider.sql
---   7. supabase/migrations/0006_rls_least_privilege.sql
---   8. supabase/migrations/0007_scalability_indexes_counts.sql
---   9. supabase/migrations/0008_rls_private_messages.sql
---   10. realtime `alter publication ...` snippet from details.md
 --
 -- STAGING FIXTURE needed before files 10-50 (create via the app):
 --   WS_A      : primary workspace uuid

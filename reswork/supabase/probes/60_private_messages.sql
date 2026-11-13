@@ -1,9 +1,7 @@
 -- ============================================================================
--- 60_private_messages.sql — private chat message visibility (migration 0008).
--- FAILS on 0001–0007, passes with 0008: chat_messages SELECT was gated on
--- workspace membership alone, so any member holding a chat_id could read
--- PRIVATE chats (stored backups). 0008 mirrors chats_read_ws on the message
--- policy (workspace-visible, owner, or admin).
+-- 60_private_messages.sql — private chat message visibility.
+-- chat_messages SELECT mirrors chats_read_ws (workspace-visible or owner only —
+-- no admin override on private chats).
 -- Run in ONE execution. Reruns are safe (namespaced fixture, full cleanup).
 -- ============================================================================
 
@@ -71,7 +69,7 @@ BEGIN
   IF n <> 0 THEN RAISE EXCEPTION 'PROBE FAIL [M2]: member read % private message rows (0008 missing?)', n; END IF;
 END $$;
 
--- M3: admin override preserved (repair/audit still works). --------------------
+-- M3: non-owner admin must NOT read another member's private messages. -------
 SET request.jwt.claims TO '{"sub":"55555555-5555-5555-5555-555555555555","role":"authenticated"}';
 DO $$
 DECLARE
@@ -79,7 +77,7 @@ DECLARE
 BEGIN
   SELECT count(*) INTO n FROM public.chat_messages
   WHERE content = 'probe60-secret';
-  IF n <> 1 THEN RAISE EXCEPTION 'PROBE FAIL [M3]: admin read % private rows, expected 1', n; END IF;
+  IF n <> 0 THEN RAISE EXCEPTION 'PROBE FAIL [M3]: admin read % private rows, expected 0 (owner-only)', n; END IF;
 END $$;
 
 -- M4: workspace-visible messages still readable by a member. ------------------
@@ -100,4 +98,4 @@ DELETE FROM public.workspace_members
 WHERE workspace_id = '11111111-1111-1111-1111-111111111111'
   AND user_id = '44444444-4444-4444-4444-444444444444';
 
-DO $$ BEGIN RAISE NOTICE 'probe 60 ok: private messages visible to owner/admin, hidden from members'; END $$;
+DO $$ BEGIN RAISE NOTICE 'probe 60 ok: private messages visible strictly to owner, hidden from other members and admins'; END $$;

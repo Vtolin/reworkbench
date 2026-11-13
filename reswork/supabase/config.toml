@@ -14,7 +14,7 @@ enabled = true
 [realtime.tables]
 # Live UI events: member joined/kicked, document uploaded/approved,
 # chat created/imported, project changed, collection/tag changed (Phase 2:
-# directory lists refresh from events; keep in sync with migration 0009).
+# directory lists refresh from events; keep in sync with 0001_init.sql).
 workspace_members = true
 documents = true
 chats = true

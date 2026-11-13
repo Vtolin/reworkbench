@@ -200,9 +200,10 @@ No FastAPI, no SQLite, no Chroma, no `pfolder/`, no watch-folder daemon.
 This section is only for people working on the code. Normal members: you don't
 need any of this — see **Using the deployed version** above.
 
-1. Create a Supabase project, then in **SQL Editor** run in order:
-   `supabase/migrations/0001_init.sql` → `supabase/seed.sql` → `supabase/migrations/0002_storage.sql` → `0003_rls_hardening.sql` → `0004_deletion_requests.sql` → `0005_ai_credentials_provider.sql` → `0006_rls_least_privilege.sql`,
-   plus the realtime `alter publication …` snippet from `details.md`.
+1. Create a Supabase project, then in **SQL Editor** run
+   `supabase/migrations/0001_init.sql` once (it creates all tables, indexes,
+   RPCs, RLS policies, the private `documents` storage bucket, and Realtime
+   publication entries).
 2. Copy `.env.example` to `.env.local` and fill it (Supabase URL/keys from
    Project Settings → Data API; invent `ADMIN_REGISTRATION_KEY` and `CREDENTIALS_ENCRYPTION_KEY`).
 3. `npm install && npm run dev` → http://localhost:3000
@@ -216,7 +217,7 @@ Normal members do **not** need to do any of this.
 1. Import the repository into Vercel.
 2. Set the Root Directory to `research-workbench`.
 3. Create/configure the Supabase project.
-4. Run the migrations and seed (see above, in order).
+4. Run `supabase/migrations/0001_init.sql` in the SQL Editor.
 5. Add the required environment variables from `.env.example` in
    Vercel → Project → Settings → Environment Variables.
 6. Deploy.
@@ -255,7 +256,7 @@ research-workbench/
 │       ├── importing/  # BibTeX/RIS/EndNote/CSL-JSON parsers
 │       ├── legal/      # deterministic case/citation extraction
 │       └── ingestion/  # dedup, classify, chunking (4700/880)
-├── supabase/           # migrations, seed, config, edge functions
+├── supabase/           # unified schema (migrations/0001_init.sql), probes, config, edge functions
 ├── public/csl/         # vendored CSL styles + en-US locale
 ├── README.md
 └── details.md          # full technical reference

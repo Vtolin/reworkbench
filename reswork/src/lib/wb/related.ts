@@ -193,6 +193,16 @@ export async function createAnnotation(docId: string, body: { page?: number; sel
   if (error) throw new Error(error.message);
 }
 
+export async function deleteAnnotation(docId: string, annotationId: string): Promise<void> {
+  const sb = createClient();
+  const { error } = await sb
+    .from("annotations")
+    .delete()
+    .eq("id", annotationId)
+    .eq("document_id", docId);
+  if (error) throw new Error(error.message);
+}
+
 // Legal graph refresh (deterministic part of POST .../legal/refresh): reads
 // chunk text, extracts case metadata + cited identifiers, writes sources +
 // source_citations rows, patches documents.citation_metadata.
