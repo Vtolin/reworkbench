@@ -1,265 +1,181 @@
-# Research Workbench - Cloud Version
+# Research Workbench (Cloud Version)
 
-Multi-user, cloud-coordinated, locally-executed AI research workspace.
+Multi-user, cloud-coordinated, locally executed AI research workspace built with Next.js 16 and Supabase.
 
-> **Supabase owns the collaborative research state. The browser owns the AI connection.**
+> **Supabase owns the collaborative research state. Your browser owns the AI connection.**
 
-The same Research Workbench UI (Library, Search, Research, Projects, Reader,
-Upload, Settings) runs through Supabase + a browser-side AI connection instead
-of the original FastAPI + SQLite + Chroma stack.
+Instead of a single-machine FastAPI + SQLite + Chroma server, the full Research Workbench (Library, Search, Reader, Research, Makalah, Projects, Shared Chats, Upload, Settings, Admin) runs on Vercel/Next.js + Supabase while connecting directly to each member's own AI setup.
 
 ---
 
-## Using the deployed version
+## Key Capabilities
 
-If someone has already deployed the Workbench for your team, **you do not
-need to install the project, Node.js, Next.js, or Supabase locally.**
-You don't clone anything, run anything, or configure any server.
+- **Shared Library & Duplicate Merger (`/`)**: Workspace document library with collections, tags, type/year filters, citation graphs, legal citation extraction (including Indonesian legislation/putusan structure), side-by-side duplicate detection & merging, and citeproc-js bibliographies.
+- **Interactive PDF Reader (`/reader/[id]`)**: `pdfjs-dist` canvas renderer paired with a synchronized selectable text pane, fallback modes, page-aware highlights (`Jump p. N`), annotation deletion, and an inline AI Q&A drawer.
+- **Hybrid Retrieval & Search (`/search`)**: Reciprocal Rank Fusion across Supabase full-text search, `pgvector` semantic similarity (768d), and in-browser Okapi BM25 + cross-encoder reranking, with saved searches.
+- **Research Workspace (`/research`)**:
+  - **Ask**: Streaming answers with **Thinking** toggle, conversation **Memory**, **Broad** retrieval, **Hybrid** strictness (`off` to `maximum`), and an optional **Web** toggle (unlocked only after saving a Web Search API key in Settings) with Anti-AI-Slop domain/content filtering.
+  - **Compare**, 3-stage **Summarize** (`stuff` / `map_reduce` + deterministic regex fact extraction), **Matrix** (CSV/Markdown/XLSX), and **Synthesis**, with PDF print, HTML, Markdown, and native OpenXML `.docx` exports.
+- **Makalah Paper Pipeline (`/makalah`)**: Deterministic 4-step academic paper generator (Setup, Outline, Drafting, Result) with MMR passage allocation, opaque citation aliases against ID leakage, two-phase thinking controls, automated quality/citation integrity checks, and PDF/Markdown/DOCX export.
+- **Ingestion, OCR, Zotero & Web Clipper (`/upload`, `/settings`)**: Client-side parsing for PDF, DOCX, XLSX/XLS, PPTX, RTF, TXT/MD/CSV/HTML; bulk upload (up to 10 files); bounded Vision OCR for scanned PDFs (up to 10 pages via local Ollama Vision or BYOK cloud Vision); Quick Add by DOI/ISBN/PMID/title (OpenAlex); BYOK Zotero Web API v3 import; and a Browser Web Clipper bookmarklet.
+- **Workspace Governance & Auth (`/admin`, `/login`, `/register`, `/forgot-password`, `/reset-password`)**: Admin bootstrap, invite/member cap (`<= 10`), member kick, upload approval queue with an **Auto-approve uploads** toggle, ingest health & missing/full vector reindexing, orphan storage sweep, chat-deletion approvals, and email-based password reset.
 
-You only need:
+---
 
-- An account in the Workbench (the admin registers you, or you register yourself)
-- The Workbench's deployed URL
-- Ollama on your computer **OR** a supported cloud AI API key
+## Using the Deployed Version (For Workspace Members)
 
-> **Each computer has its own AI runtime. The deployed website does not run
-> Ollama for you.** Your AI requests go directly from your browser to
-> `http://localhost:11434` (or to your cloud provider) - the Vercel server
-> never sees your local model's inference.
+If someone has already deployed the Workbench for your team, **you do not need to clone the repo or install Node.js or Supabase locally**. You only need:
 
-### Option A - Local AI with Ollama
+1. An account in the deployed Workbench URL
+2. Local Ollama on your computer **or** your own Cloud AI API key (BYOK)
 
-Recommended for privacy.
+> **Each computer runs its own AI runtime.** The deployed site does not run Ollama for Workspace members. Local Ollama requests go directly from your browser to `http://localhost:11434`.
 
-1. Open the Workbench's deployed URL.
-2. Create your account or sign in.
-3. Install Ollama on your computer (ollama.com - Windows, macOS Apple Silicon,
-   or Linux via `curl -fsSL https://ollama.com/install.sh | sh`).
-4. Pull the models you want to use. The **only required model** is
-   `nomic-embed-text` (it powers search); chat models are your own choice
-   and depend on your hardware:
+### Option A: Local AI with Ollama (Private, Recommended)
+
+1. Install Ollama for your OS (`ollama.com` for Windows/macOS, or `curl -fsSL https://ollama.com/install.sh | sh` on Linux) and start it.
+2. Pull `nomic-embed-text` (required for semantic search/indexing) plus any chat model suited to your hardware:
    ```bash
    ollama pull nomic-embed-text
    ollama pull qwen2.5:7b
    ```
-   Stronger machines can use larger models (e.g. `gemma4:26b-a4b-it-qat`);
-   weaker ones should stick to small ones (e.g. `qwen2.5:7b`, `qwen3.5:4b`).
-5. Open Ollama once and make sure it is running.
-6. In Workbench, open **Settings → Chat**.
-7. Select **Ollama**.
-8. Click **Auto-detect Ollama models**.
-9. If you are using the deployed `vercel.app` site (not `localhost:3000`),
-   configure `OLLAMA_ORIGINS` once as described in **Joining on a new laptop**
-   below - otherwise the browser cannot reach your local Ollama.
-
-### Option B - Cloud AI
-
-No Ollama installation is required.
-
-1. Open **Settings → Chat**.
-2. Select **Cloud**.
-3. Choose your provider (OpenAI, DeepSeek, Google, or Anthropic).
-4. Enter your own API key.
-5. Save the key.
-6. Click **↻ Models** and choose a model.
-
-Your API key belongs to your account and is not shared with other workspace
-members.
-
----
-
-## Joining on a new laptop (do this once per computer)
-
-The library is shared, but the AI runs on **your own computer**. So each person,
-on each computer they use, picks one of the two options below. Nothing is shared
-between members - your models and keys stay yours.
-
-**Option A - run the AI on your computer (private, recommended)**
-
-1. Install Ollama and open it at least once:
-   - **Windows**: download from ollama.com (it lives by the clock, bottom-right).
-   - **Mac (Apple Silicon)**: download from ollama.com (it lives in the top menu bar).
-     Apple chips run models fast with no extra setup.
-   - **Linux**: open Terminal and run `curl -fsSL https://ollama.com/install.sh | sh`
-     (it starts itself in the background).
-2. Download the models - open a terminal (PowerShell on Windows, Terminal on
-   Mac/Linux) and paste one line at a time, Enter after each:
-   ```bash
-   ollama pull nomic-embed-text
-   ollama pull qwen2.5:7b
-   ```
-   The first one is required for searching. Chat models are your own choice:
-   `gemma4:26b-a4b-it-qat` if your machine is strong, `qwen2.5:7b` if modest -
-   any Ollama model works, pick what fits.
-3. Check Ollama is awake: in your browser open `http://localhost:11434/`.
-   You should see the words **"Ollama is running"**. If not, start the Ollama app
-   (Linux: `sudo systemctl start ollama`).
-4. Open the Workbench site and log in. Go to **Settings** → provider **Ollama** →
-   click **Auto-detect Ollama models**. If it lists your models, you're connected.
-5. **Only if you open the site via a `vercel.app` address** (not `localhost:3000`):
-   Ollama blocks websites it doesn't know, so introduce them once.
-   (Use the real address from your browser bar, e.g.
-   `https://rewbench.vercel.app` - exactly that, nothing after it.)
-   - **Windows** (PowerShell):
+   (Stronger machines can run larger models such as `gemma4:26b-a4b-it-qat`; lighter laptops can use `qwen2.5:7b` or `qwen3.5:4b`.)
+3. Confirm Ollama is reachable in your browser at `http://localhost:11434/` (it should display **"Ollama is running"**).
+4. In Workbench, open **Settings -> Chat**, pick **Ollama**, and click **Auto-detect Ollama models**.
+5. **If using a hosted `https://...` deployment (not `localhost:3000`)**, allow the site origin in Ollama once so your browser is permitted to connect:
+   - **Windows (PowerShell)**:
      ```powershell
      setx OLLAMA_ORIGINS "https://YOUR-APP.vercel.app"
      ```
-     Then **fully restart Ollama**: right-click its icon by the clock → **Quit**,
-     then open Ollama again from the Start menu. Just closing the browser tab is
-     not enough - the Ollama program itself must restart.
-   - **Mac** (Terminal):
+     Quit Ollama from the system tray and relaunch it from the Start menu.
+   - **macOS (Terminal)**:
      ```bash
      launchctl setenv OLLAMA_ORIGINS "https://YOUR-APP.vercel.app"
      ```
-     Then quit Ollama from the top menu bar and reopen it from Applications.
-     (Re-run this command after a reboot - macOS forgets it on restart.
-     Alternative that lasts as long as the window stays open: quit the menu-bar
-     app, then run `OLLAMA_ORIGINS="https://YOUR-APP.vercel.app" ollama serve`.)
-   - **Linux** (Terminal - permanent, survives reboots):
+     Quit Ollama from the menu bar and reopen it (or run `OLLAMA_ORIGINS="https://YOUR-APP.vercel.app" ollama serve`).
+   - **Linux (systemd)**:
      ```bash
      sudo systemctl edit ollama
      ```
-     An editor opens - paste these two lines, save, exit:
-     ```
+     Add:
+     ```ini
      [Service]
      Environment="OLLAMA_ORIGINS=https://YOUR-APP.vercel.app"
      ```
-     Then `sudo systemctl restart ollama`.
-6. Confirm it worked, in a **new** terminal window:
-   - Check the setting stuck:
-     - Windows: `echo $env:OLLAMA_ORIGINS` · Mac/Linux: `echo $OLLAMA_ORIGINS`
-     - (Linux systemd users: `systemctl show ollama --property=Environment` instead.)
-     It should print your address back.
-   - Ask Ollama directly, pretending to be the website:
-     - Windows:
-       ```powershell
-       Invoke-WebRequest -UseBasicParsing -Uri http://localhost:11434/api/tags -Headers @{Origin="https://YOUR-APP.vercel.app"} | Select-Object StatusCode
-       ```
-       (If PowerShell asks "Script Execution Risk", answer **Y**.)
-     - Mac/Linux:
-       ```bash
-       curl -s -o /dev/null -w "%{http_code}\n" -H "Origin: https://YOUR-APP.vercel.app" http://localhost:11434/api/tags
-       ```
-   - You want `200`. `403` means Ollama is still the old one - repeat step 5.
+     Then run `sudo systemctl restart ollama`.
+6. Verify the origin check returns HTTP `200` (replace with your deployed URL):
+   ```bash
+   curl -s -o /dev/null -w "%{http_code}\n" -H "Origin: https://YOUR-APP.vercel.app" http://localhost:11434/api/tags
+   ```
 
-**Option B - use a cloud AI key (nothing to install)**
+### Option B: Cloud AI (BYOK, No Local Install)
 
-1. Get an API key from one provider: OpenAI, DeepSeek, Google, or Anthropic.
-2. In the app: **Settings** → provider **Cloud** → pick that provider →
-   paste **your own** key → **Save key**.
-3. Click **↻ Models** - the app lists that provider's real models; pick one.
-   Your key is encrypted and visible only to you.
+1. Open **Settings -> Chat** and select **Cloud**.
+2. Pick your provider (**OpenAI**, **DeepSeek**, **Google**, or **Anthropic**), paste your own API key, and click **Save**.
+3. Click **Models** to load live models for your account and pick one.
 
-**Everyday notes**
+Your key is encrypted with AES-GCM at rest in `ai_credentials` with owner-only RLS and is never visible to other workspace members.
 
-- First question after a break is slow: Ollama unloads idle models after ~5 minutes,
-  so it reloads once (large models take a bit), then stays fast.
-- "Failed to fetch" in Research almost always means Ollama isn't awake on that
-  computer - redo step 3 above.
-- You only ever do the setup steps once per computer. After that: log in and work.
+### Option C: Optional Live Web Search (BYOK + Anti-AI-Slop Filter)
+
+Both local Ollama and cloud models can retrieve live web sources when you opt in:
+
+1. Open **Settings -> Web Search**.
+2. Select a provider (**Ollama Web Search** free tier, **Google Search** via Gemini Search Grounding `AIza...` or Custom Search `cx:AIza...`, **Tavily AI Search**, or **Brave Search**).
+3. Choose an Anti-AI-Slop filter mode:
+   - **Balanced**: blocks known content farms, homework mills, scraper mirrors, and AI-slop filler while boosting `.edu`, `.ac.*`, `.gov`, `.go.id`, `doi.org`, `arxiv.org`, and official legal domains.
+   - **Strict Academic & Official**: restricts web snippets strictly to academic, government/legal, and verified reference domains.
+4. Save your Web Search API key. Until a key is saved for your selected search provider, the **Web** toggle in **Research -> Ask** stays locked.
 
 ---
 
-## Architecture
-
-This is the core conceptual difference from a conventional cloud AI app -
-follow the arrows:
+## Architecture Overview
 
 ```text
-                    ┌─────────────────────┐
-                    │      Vercel         │
-                    │  Next.js + API      │
-                    └──────────┬──────────┘
-                               │ Auth / Data
-                               ▼
-                    ┌─────────────────────┐
-                    │      Supabase       │
-                    │ DB / Storage / RLS  │
-                    │ Realtime / pgvector │
-                    └─────────────────────┘
-
-
-User's browser
-      │
-      ├──────────────► Supabase
-      │                collaboration / data
-      │
-      └──────────────► Ollama
-                       localhost:11434
-                       user's own model
+Browser Tab (Next.js App + Local/BYOK Orchestration)
+  ├──► Ollama (http://localhost:11434)          [Local chat, vision OCR & embeddings]
+  └──► Next.js API Routes (/api/* on Vercel)     [Auth, RLS RPCs, AES-GCM BYOK proxies]
+         ├──► Supabase (Postgres/Auth/Storage/Realtime/pgvector)
+         └──► External BYOK APIs (OpenAI/DeepSeek/Google/Anthropic/Ollama Web/Tavily/Brave)
 ```
 
-- **Vercel + Next.js 16** (this directory - the app root) - UI, auth screens, API routes, cloud-AI proxy, authorization.
-- **Supabase** (`supabase/`) - Postgres, Auth, Storage, Realtime, `pgvector`, FTS.
-- **Browser** - calls local Ollama (`localhost:11434`) directly, or Vercel → cloud (BYOK).
+- **Next.js 16 + React 19** (`src/`): App Router pages, client-side document parsing/chunking/OCR/export, RAG orchestration, Makalah pipeline, and authenticated server API routes.
+- **Supabase** (`supabase/`): Postgres + `pgvector` + FTS (`tsvector`), Auth (including recovery callback), private `documents` Storage bucket, Realtime subscriptions, and Postgres-backed fixed-window rate limits.
 
-No FastAPI, no SQLite, no Chroma, no `pfolder/`, no watch-folder daemon.
+---
 
-## Run your own local development instance
+## Local Development Setup
 
-This section is only for people working on the code. Normal members: you don't
-need any of this - see **Using the deployed version** above.
+Only needed if you are developing or self-hosting the app.
 
-1. Create a Supabase project, then in **SQL Editor** run
-   `supabase/migrations/0001_init.sql` once (it creates all tables, indexes,
-   RPCs, RLS policies, the private `documents` storage bucket, and Realtime
-   publication entries).
-2. Copy `.env.example` to `.env.local` and fill it (Supabase URL/keys from
-   Project Settings → Data API; invent `ADMIN_REGISTRATION_KEY` and `CREDENTIALS_ENCRYPTION_KEY`).
-3. `npm install && npm run dev` → http://localhost:3000
-4. `/register` with the admin box checked → workspace created → `/` library.
+1. Create a Supabase project and run the SQL migrations in order inside the **SQL Editor**:
+   - `supabase/migrations/0001_init.sql`
+   - `supabase/migrations/0002_workspace_auto_approve.sql`
+2. Configure authentication redirect URLs in Supabase (`Auth -> URL Configuration`) so `/api/auth/callback` is allowed for email password resets (`/forgot-password` -> `/reset-password`).
+3. Copy `.env.example` to `.env.local` and set:
+   - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+   - `ADMIN_REGISTRATION_KEY` (required when registering the initial workspace admin on `/register`)
+   - `CREDENTIALS_ENCRYPTION_KEY` (32+ byte secret used for AES-GCM BYOK key encryption)
+   - Optional `RATE_LIMIT_*` overrides and `MAX_ALLOWED_MEMBERS` (`<= 10`).
+4. Install and start the dev server:
+   ```bash
+   npm install
+   npm run dev
+   ```
+5. Visit `http://localhost:3000/register`, check admin registration with your `ADMIN_REGISTRATION_KEY`, and create your workspace.
 
-## Deploy your own Workbench
+### Useful Scripts
 
-This section is only for the person deploying/maintaining the Workbench.
-Normal members do **not** need to do any of this.
+- `npm run dev` - start Next.js development server
+- `npm run build` - build production bundle
+- `npm test` - run Vitest unit and architecture suites
+- `npm run test:arch` - run architectural boundary checks (`src/architecture.test.ts`)
+- `npm run typecheck` - run `tsc --noEmit`
+- `npm run lint` - run ESLint
+- `npm run test:e2e` - run Playwright end-to-end tests
 
-1. Import the repository into Vercel.
-2. Set the Root Directory to `research-workbench`.
-3. Create/configure the Supabase project.
-4. Run `supabase/migrations/0001_init.sql` in the SQL Editor.
-5. Add the required environment variables from `.env.example` in
-   Vercel → Project → Settings → Environment Variables.
-6. Deploy.
+---
 
-Once deployed, members only need the resulting Workbench URL and their
-own AI setup (see **Using the deployed version**).
+## Deploying on Vercel
 
-The Vercel deployment provides the shared application and collaboration
-layer. It does **not** provide the members' local AI compute.
+1. Import this repository into Vercel (leave Root Directory as the repository root where `package.json` resides).
+2. Provision Supabase and apply `0001_init.sql` and `0002_workspace_auto_approve.sql`.
+3. Add all variables from `.env.example` in **Vercel -> Project Settings -> Environment Variables**.
+4. Deploy. Members only need the resulting URL and their own AI configuration.
 
-## Key flows
+---
 
-- **Upload → approval**: member uploads (browser extracts/chunks/embeds, OpenAlex proposal, human confirms) → `pending` → admin approves in Admin dashboard → shared library.
-- **Chat**: Research history lives on your device; **Stored** tab uploads a private account copy (Store/Sync/Download across your devices, last writer wins); **Publish ↑** exports a thread to the
-  read-only **Shared chats** gallery for everyone (Makalah can publish finished papers there too). Import any shared chat back into
-  your Research and continue it with your own model. Deleting a published chat needs
-  admin approval.
-- **RAG**: Postgres FTS + pgvector → RRF fusion → your own model (Ollama local or BYOK cloud). The shared system needs `nomic-embed-text`; generation models are each member's choice.
-- **Makalah**: outline first (Mode A proposes one from your sources for your approval, Mode B uses your own structure) → each section is drafted from retrieved passages with inline citations → built-in quality report flags citation, page, duplication, and bibliography issues → PDF/Markdown export stays blocked until every section is clean. It runs on Ollama or cloud: **Settings → Makalah pipeline** routes the cheap outline call and the heavy drafting calls to different models, plus a thinking toggle (drafting only) and a per-call output cap that apply to both backends.
-- **Keys**: personal BYOK, AES-GCM at rest (`ai_credentials`, owner-only RLS), never shared.
+## Project Layout
 
-## Project layout
-
-```
-research-workbench/
+```text
+.
 ├── src/
-│   ├── app/            # /, /search, /research, /makalah, /projects, /chats, /reader, /upload, /settings, /admin, /login, /register + /api/*
-│   ├── components/     # Sidebar, Topbar, DocDetail, UploadFlow, Markdown, ChatHistoryPanel, MakalahHistoryPanel, …
-│   ├── contexts/       # Session, Inference (local-only), Chat + Makalah (per-device history)
+│   ├── app/            # Pages (/, /search, /research, /makalah, /projects, /chats, /reader/[id],
+│   │                   # /upload, /settings, /admin, /login, /register, /forgot-password, /reset-password)
+│   │                   # and API routes (/api/ai/*, /api/auth/*, /api/documents/*, /api/rag/*,
+│   │                   # /api/research/*, /api/search/web, /api/workspaces/*)
+│   ├── components/     # Topbar, Sidebar, MobileShell, DocDetail, UploadFlow, BulkUploadFlow,
+│   │                   # QuickAddByIdentifier, ScannedPdfOcrCard, DuplicateMergerModal,
+│   │                   # reader/PdfCanvasViewer, ChatHistoryPanel, MakalahHistoryPanel, etc.
+│   ├── contexts/       # SessionContext, InferenceContext, ChatContext, MakalahContext
 │   └── lib/
-│       ├── api.ts      # facade: original method names → Supabase + browser inference
-│       ├── wb/         # library, search, ask, makalah, projects, related, ingest, openalex
-│       ├── ai/         # AIProvider, OllamaProvider, CloudProvider, key encryption
-│       ├── rag/        # FTS+pgvector retrieval + RRF fusion
-│       ├── citations/  # citeproc-js engine + serializers
-│       ├── importing/  # BibTeX/RIS/EndNote/CSL-JSON parsers
-│       ├── legal/      # deterministic case/citation extraction
-│       └── ingestion/  # dedup, classify, chunking (4700/880)
-├── supabase/           # unified schema (migrations/0001_init.sql), probes, config, edge functions
-├── public/csl/         # vendored CSL styles + en-US locale
+│       ├── api.ts      # Client API facade backed by src/lib/api/*
+│       ├── ai/         # OllamaProvider, CloudProvider, provider registry, AES-GCM keys
+│       ├── search/     # Anti-AI-Slop webFilter.ts & multi-provider search fetchers
+│       ├── rag/        # Hybrid retrieval, Okapi BM25, RRF fusion, reranking
+│       ├── wb/         # Library, Ask/Summarize/Matrix/Synthesis, Makalah, Ingest, Export, Projects
+│       ├── research/   # Ask stream orchestration, summarization helpers, call budgets
+│       ├── ingestion/  # Parsing, OCR, dedup, classification, chunking, web worker client
+│       ├── importing/  # BibTeX/RIS/EndNote/CSL-JSON parsers & Zotero Web API v3 client
+│       ├── export/     # Pure-JSZip native OpenXML .docx generator
+│       ├── citations/  # citeproc-js engine & serializers
+│       └── legal/      # Court/case/statute parsing & citation graphs
+├── supabase/
+│   └── migrations/     # 0001_init.sql, 0002_workspace_auto_approve.sql
+├── public/csl/         # Vendored CSL citation styles & locale
+├── .env.example
 ├── README.md
-└── details.md          # full technical reference
+└── DETAILS.md          # Complete architecture and behavior reference
 ```
 
-See `details.md` for the complete reference, including honest behavior deltas vs the original.
+For full technical internals, RLS policies, and module behavior, see [DETAILS.md](DETAILS.md).
