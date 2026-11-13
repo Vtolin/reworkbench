@@ -2,7 +2,7 @@
 //
 // Identical policy for confirm, re-embed and reindex: local mode uses the
 // on-device Ollama model, server mode uses /api/rag/embed and must return
-// 768d. Throws on any failure — callers mark the document errored. Slice is
+// 768d. Throws on any failure - callers mark the document errored. Slice is
 // truncated to 2000 chars, matching the confirm pipeline exactly.
 import { OllamaProvider } from "@/lib/ai/ollama";
 

@@ -204,7 +204,7 @@ describe("finalizeStoppedMessage", () => {
       { answer: "", thinking: null, raw: "", sources: null, sawThinkingEvent: false },
       false,
     );
-    expect(msg.content).toBe("(stopped — nothing generated yet)");
+    expect(msg.content).toBe("(stopped - nothing generated yet)");
     expect(msg.stopped).toBe(true);
   });
 

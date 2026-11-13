@@ -31,8 +31,8 @@ export function CitationCard({ settings }: { settings: CitationSettings }) {
 
   return (
     <Panel
-      title="Citation — CSL styles"
-      description="All citations render through one shared CSL engine (citeproc-js, same vendored styles) — the app supports the CSL ecosystem, not a hardcoded style list."
+      title="Citation - CSL styles"
+      description="All citations render through one shared CSL engine (citeproc-js, same vendored styles) - the app supports the CSL ecosystem, not a hardcoded style list."
     >
       <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
         <label className="text-xs font-medium text-[#ececec]">

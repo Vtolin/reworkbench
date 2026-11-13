@@ -7,7 +7,7 @@ import { getRequestId, logRequest, withRequestId } from "@/app/api/_lib/request"
 import { TRAIL_PAYLOAD_MAX_BYTES, isOverLimit, tooLargeResponse } from "@/app/api/_lib/sizeLimits";
 
 // POST /api/research/trail {workspaceId, projectId?, event_type, payload}
-// Shared research-trail events (visibility only — authorship stays per-member).
+// Shared research-trail events (visibility only - authorship stays per-member).
 // Authenticated workspace members only; authorship is the verified caller,
 // never a client-provided id.
 export async function POST(req: Request) {
@@ -84,7 +84,7 @@ export function parseTrailLimit(
   return { limit: out.value ?? TRAIL_LIMIT_DEFAULT };
 }
 
-// GET /api/research/trail?workspaceId=&limit= — workspace-shared trail.
+// GET /api/research/trail?workspaceId=&limit= - workspace-shared trail.
 // Authenticated workspace members only; row visibility still comes from RLS.
 export async function GET(req: Request) {
   const requestId = getRequestId(req); // Phase 7: every logEvent below carries this.

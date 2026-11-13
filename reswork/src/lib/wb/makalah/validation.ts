@@ -18,7 +18,7 @@ export function validateSectionCitations(
       .map((p) => `${p.source_id}@p.${p.page}`),
   );
   // Sources whose passages carry no page info at all (legacy chunks ingested
-  // before page-aware chunking) cannot be page-verified — flagging every
+  // before page-aware chunking) cannot be page-verified - flagging every
   // cited page for them is a false-positive wall, so skip those sources.
   const unverifiable = new Set(
     [...allowed].filter(
@@ -49,7 +49,7 @@ export function validateSectionCitations(
 }
 
 // ---------------------------------------------------------------------------
-// Claim-support check — optional narrow LLM classifier (spec §6 step 4).
+// Claim-support check - optional narrow LLM classifier (spec §6 step 4).
 // One paragraph + its cited passages -> supported / not_supported.
 // No memory of the rest of the document.
 // ---------------------------------------------------------------------------
@@ -64,7 +64,7 @@ export async function claimSupportCheck(
     citedPassages.map((p) => `[${p.source_id}, p.${p.page ?? "?"}] ${cleanPassageForPrompt(p.text)}`).join("\n\n") ||
     "(no cited passages)";
   const user =
-    `Answer only "supported" or "not_supported" — does the passage text ` +
+    `Answer only "supported" or "not_supported" - does the passage text ` +
     `justify the claim in the paragraph? Return JSON: ` +
     `{"verdict": "...", "reason": "..."}\n\n` +
     `Paragraph:\n${paragraphText}\n\nPassages:\n${evidence}`;
@@ -87,5 +87,5 @@ export async function claimSupportCheck(
 }
 
 // ---------------------------------------------------------------------------
-// Bibliography — deterministic, from stored metadata (APA-ish plain text)
+// Bibliography - deterministic, from stored metadata (APA-ish plain text)
 // ---------------------------------------------------------------------------

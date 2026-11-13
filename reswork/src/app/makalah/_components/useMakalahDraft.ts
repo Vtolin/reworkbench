@@ -103,7 +103,7 @@ export function useMakalahDraft() {
 
   const titleOf = useCallback(
     (id: string) => {
-      // Unmapped alias leaking into render (validator flags these) — never
+      // Unmapped alias leaking into render (validator flags these) - never
       // show a raw "S2" as if it were a document title.
       if (/^S\d+$/i.test(id.trim())) return `Sumber ${id.trim().toUpperCase()} (tak terpetakan)`;
       return (
@@ -123,7 +123,7 @@ export function useMakalahDraft() {
   );
 
   const flat = useMemo(() => {
-    // Subsection numbers are user-editable, so duplicates are possible —
+    // Subsection numbers are user-editable, so duplicates are possible -
     // disambiguate to keep per-section state (and React keys) collision-free.
     const seen = new Set<string>();
     return outline.flatMap((ch, ci) =>
@@ -138,7 +138,7 @@ export function useMakalahDraft() {
   }, [outline]);
 
   // Chapter-grouped flat items: every renderer (Markdown, PDF, preview)
-  // looks sections up by collision-free item.key — never by raw
+  // looks sections up by collision-free item.key - never by raw
   // chapter+number, which duplicates and breaks the export gate contract.
   const flatByChapter = useMemo(() => {
     const groups: ChapterGroup[] = [];
@@ -294,7 +294,7 @@ export function useMakalahDraft() {
   /**
    * 🧹 Deduplicate + dead-end handling on the given outline (defaults to the
    * current one). Prunes drafted state detached by renumbering and resets
-   * approval — run before drafting, never after.
+   * approval - run before drafting, never after.
    */
   const applyRefine = (base: OutlineChapter[] = outline): OutlineChapter[] => {
     const { outline: next, removed, redirected } = refineOutline(base, minSubs, selected);
@@ -314,7 +314,7 @@ export function useMakalahDraft() {
     setRefineNote(
       bits.length
         ? `🧹 ${bits.join(" · ")}`
-        : "🧹 Outline sudah bersih — tidak ada duplikat/dead-end.",
+        : "🧹 Outline sudah bersih - tidak ada duplikat/dead-end.",
     );
     return next;
   };

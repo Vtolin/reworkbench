@@ -3,6 +3,11 @@
 // the localStorage-backed config/settings surface. Extracted verbatim from
 // lib/api.ts (Phase 5); behavior unchanged.
 import type { InferenceSelection } from "../wb/ask";
+import {
+  WEB_SEARCH_PROVIDERS,
+  type WebFilterMode,
+  type WebSearchProviderId,
+} from "../search/webFilter";
 
 const INFERENCE_KEY = "rw.inference_settings.v1";
 const SETTINGS_KEY = "rw.settings.v1";
@@ -33,6 +38,9 @@ export interface InferenceSnapshot {
   makalahNumPredict: number;
   makalahThinkLevel: "minimal" | "low" | "medium" | "high" | "max";
   makalahThinkingBudget: number;
+  webSearchProvider: WebSearchProviderId;
+  webSearchFilterMode: WebFilterMode;
+  webSearchConfiguredProviders: WebSearchProviderId[];
 }
 
 const INHERIT_STAGE_SNAP: StageSnapshot = { provider: "inherit", model: "", cloudProvider: "openai", cloudModel: "" };
@@ -55,6 +63,9 @@ const INFERENCE_DEFAULTS: InferenceSnapshot = {
   makalahNumPredict: 3072,
   makalahThinkLevel: "low" as const,
   makalahThinkingBudget: 1024,
+  webSearchProvider: "ollama_web",
+  webSearchFilterMode: "balanced",
+  webSearchConfiguredProviders: [],
 };
 
 const STAGE_PROVIDERS = new Set(["inherit", "ollama", "cloud"]);
@@ -89,6 +100,17 @@ export function readInference(): InferenceSnapshot {
         p.makalahThinkLevel = INFERENCE_DEFAULTS.makalahThinkLevel;
       }
       if (p.summarizeMethod !== "stuff" && p.summarizeMethod !== "map_reduce") p.summarizeMethod = "stuff";
+      if (!(WEB_SEARCH_PROVIDERS as readonly string[]).includes(p.webSearchProvider)) {
+        p.webSearchProvider = INFERENCE_DEFAULTS.webSearchProvider;
+      }
+      if (p.webSearchFilterMode !== "balanced" && p.webSearchFilterMode !== "strict_academic") {
+        p.webSearchFilterMode = INFERENCE_DEFAULTS.webSearchFilterMode;
+      }
+      p.webSearchConfiguredProviders = Array.isArray(p.webSearchConfiguredProviders)
+        ? p.webSearchConfiguredProviders.filter((id): id is WebSearchProviderId =>
+            (WEB_SEARCH_PROVIDERS as readonly string[]).includes(id),
+          )
+        : [];
       for (const k of ["mapStage", "reduceStage", "synthesisStage", "makalahOutlineStage", "makalahSectionStage"] as const) {
         p[k] = saneStage(p[k], p.cloudProvider);
       }
@@ -123,6 +145,9 @@ export function toSel(extra?: Partial<InferenceSelection>): InferenceSelection {
     makalahNumPredict: (s as Partial<InferenceSnapshot>).makalahNumPredict ?? 3072,
     makalahThinkLevel: (s as Partial<InferenceSnapshot>).makalahThinkLevel ?? "low",
     makalahThinkingBudget: (s as Partial<InferenceSnapshot>).makalahThinkingBudget ?? 1024,
+    webSearchProvider: s.webSearchProvider ?? "ollama_web",
+    webSearchFilterMode: s.webSearchFilterMode ?? "balanced",
+    webSearch: false,
     ...extra,
   };
 }

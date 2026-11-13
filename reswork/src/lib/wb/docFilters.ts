@@ -4,7 +4,7 @@ import { escapeLike } from "@/lib/supabase/like";
 //
 // library.ts filtered collections/tags by ID with server-side semi-joins
 // while search.ts filtered author/tag/collection names client-side AFTER a
-// LIMIT — so page 1 was wrong whenever the filter bit past the first 20
+// LIMIT - so page 1 was wrong whenever the filter bit past the first 20
 // rows. Both paths now share one implementation: names resolve to bounded ID
 // sets (resolveDocLinkIds), then a single semi-join shape (linkJoinSelects +
 // linkFilterCalls) filters server-side with the range applied on top.
@@ -69,7 +69,7 @@ export function resolveLimit(): number {
  * Resolve author/tag/collection NAME filters to bounded ID sets. Tag uses
  * case-insensitive exact match (the old client semantics); author/collection
  * use contains. LIKE metacharacters are escaped, so user input stays literal.
- * A requested-but-unmatched filter yields an empty set — callers treat that
+ * A requested-but-unmatched filter yields an empty set - callers treat that
  * as "match nothing", which keeps page 1 correct.
  */
 export async function resolveDocLinkIds(

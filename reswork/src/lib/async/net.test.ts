@@ -95,7 +95,7 @@ describe("withRetry", () => {
 describe("fetchWithTimeout", () => {
   it("resolves fast responses before the deadline", async () => {
     const res = await fetchWithTimeout("http://localhost/nope", undefined, 1000).catch(() => null);
-    // No server here — the point is the shape: network refusal surfaces as
+    // No server here - the point is the shape: network refusal surfaces as
     // TypeError (retryable), not as a hang. If it somehow resolves, fine.
     expect(res === null || res instanceof Response).toBe(true);
   });

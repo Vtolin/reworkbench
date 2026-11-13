@@ -1,4 +1,4 @@
-// Makalah generation pipeline — deterministic, human-supervised.
+// Makalah generation pipeline - deterministic, human-supervised.
 // The LLM never owns control flow: every LLM call is a pure function
 // (fixed input -> fixed JSON output, no tools, no memory of other calls).
 // Application code owns: retrieval, validation, loops, rendering.

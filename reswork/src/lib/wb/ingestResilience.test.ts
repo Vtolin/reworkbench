@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 // Ingest resilience (Phase 4 acceptance): a mid-ingest embed failure must
-// leave a consistent, visible, recoverable state —
+// leave a consistent, visible, recoverable state -
 //   consistent: chunks persisted (FTS intact), NO half-written embeddings
 //     (bulk insert never ran), storage object kept (row exists);
 //   visible: documents row marked ingestion_status=error with a reason;

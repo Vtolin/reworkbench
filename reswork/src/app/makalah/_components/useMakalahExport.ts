@@ -62,7 +62,7 @@ export function useMakalahExport(draft: MakalahDraftModel) {
   );
 
   // References go stale when sections are (re)generated one by one instead of
-  // via Generate-all — top up the missing ones before preview/export/copy so
+  // via Generate-all - top up the missing ones before preview/export/copy so
   // Daftar Pustaka is never silently empty. Failures are RETURNED, never
   // swallowed: callers turn them into an export-blocking message.
   const ensureReferences = async (): Promise<{
@@ -103,7 +103,7 @@ export function useMakalahExport(draft: MakalahDraftModel) {
   };
 
   // Export gate: a paper with missing or salvaged sections must never ship
-  // as PDF/Markdown. Preview (step 4) stays viewable — export is blocked.
+  // as PDF/Markdown. Preview (step 4) stays viewable - export is blocked.
   // `refs` override lets export check AFTER topping up references.
   //
   // Product decision (Priority 3): citation page mismatches (badPages)
@@ -122,14 +122,14 @@ export function useMakalahExport(draft: MakalahDraftModel) {
       errs.push(
         `Belum lengkap: ${missing
           .map((f) => `${f.sub.number} ${f.sub.title}`)
-          .join(", ")} — Generate/Regenerate dulu.`,
+          .join(", ")} - Generate/Regenerate dulu.`,
       );
     }
     if (salvage.length) {
       errs.push(
         `Tanpa sitasi (gagal JSON): ${salvage
           .map((f) => `${f.sub.number} ${f.sub.title}`)
-          .join(", ")} — Regenerate atau Edit manual dulu.`,
+          .join(", ")} - Regenerate atau Edit manual dulu.`,
       );
     }
     const citedNow = citedIdsOf(flat.map((item) => secs[item.key]?.output ?? null));
@@ -138,7 +138,7 @@ export function useMakalahExport(draft: MakalahDraftModel) {
       errs.push(
         `Daftar Pustaka belum lengkap (${missingRefs.length} sumber: ${missingRefs
           .map((id) => titleOf(id))
-          .join(", ")}) — metadata gagal dimuat, periksa koneksi lalu tekan Refresh references.`,
+          .join(", ")}) - metadata gagal dimuat, periksa koneksi lalu tekan Refresh references.`,
       );
     }
     return errs;
@@ -158,13 +158,13 @@ export function useMakalahExport(draft: MakalahDraftModel) {
     const { refs, error } = await ensureReferences();
     if (error) {
       setExportNote(
-        `Tidak bisa copy — Daftar Pustaka gagal dimuat: ${error}. Periksa koneksi lalu tekan Refresh references.`,
+        `Tidak bisa copy - Daftar Pustaka gagal dimuat: ${error}. Periksa koneksi lalu tekan Refresh references.`,
       );
       return;
     }
     const blockers = exportBlockers(refs);
     if (blockers.length) {
-      setExportNote(`Tidak bisa copy — ${blockers.join(" ")}`);
+      setExportNote(`Tidak bisa copy - ${blockers.join(" ")}`);
       return;
     }
     try {
@@ -184,13 +184,13 @@ export function useMakalahExport(draft: MakalahDraftModel) {
       const { refs, error } = await ensureReferences();
       if (error) {
         setExportNote(
-          `Tidak bisa publish — Daftar Pustaka gagal dimuat: ${error}. Periksa koneksi lalu tekan Refresh references.`,
+          `Tidak bisa publish - Daftar Pustaka gagal dimuat: ${error}. Periksa koneksi lalu tekan Refresh references.`,
         );
         return;
       }
       const blockers = exportBlockers(refs);
       if (blockers.length) {
-        setExportNote(`Tidak bisa publish — ${blockers.join(" ")}`);
+        setExportNote(`Tidak bisa publish - ${blockers.join(" ")}`);
         return;
       }
       await publishMakalah({
@@ -199,7 +199,7 @@ export function useMakalahExport(draft: MakalahDraftModel) {
         topic: topic.trim(),
         language,
       });
-      setExportNote("Published to shared chats ✓ — visible in Research → Shared and /chats.");
+      setExportNote("Published to shared chats ✓ - visible in Research → Shared and /chats.");
     } catch (e) {
       setExportNote(`Publish gagal: ${e instanceof Error ? e.message : "unknown error"}`);
     } finally {
@@ -212,19 +212,19 @@ export function useMakalahExport(draft: MakalahDraftModel) {
     const { refs, error } = await ensureReferences();
     if (error) {
       setExportNote(
-        `Tidak bisa export — Daftar Pustaka gagal dimuat: ${error}. Periksa koneksi lalu tekan Refresh references.`,
+        `Tidak bisa export - Daftar Pustaka gagal dimuat: ${error}. Periksa koneksi lalu tekan Refresh references.`,
       );
       return;
     }
     const blockers = exportBlockers(refs);
     if (blockers.length) {
-      setExportNote(`Tidak bisa export — ${blockers.join(" ")}`);
+      setExportNote(`Tidak bisa export - ${blockers.join(" ")}`);
       return;
     }
     const w = window.open("", "_blank");
     if (!w) {
       setExportNote(
-        "Popup blocked — allow popups for this site, then press Export PDF again.",
+        "Popup blocked - allow popups for this site, then press Export PDF again.",
       );
       return;
     }
@@ -251,13 +251,13 @@ export function useMakalahExport(draft: MakalahDraftModel) {
     const { refs, error } = await ensureReferences();
     if (error) {
       setExportNote(
-        `Tidak bisa export — Daftar Pustaka gagal dimuat: ${error}. Periksa koneksi lalu tekan Refresh references.`,
+        `Tidak bisa export - Daftar Pustaka gagal dimuat: ${error}. Periksa koneksi lalu tekan Refresh references.`,
       );
       return;
     }
     const blockers = exportBlockers(refs);
     if (blockers.length) {
-      setExportNote(`Tidak bisa export — ${blockers.join(" ")}`);
+      setExportNote(`Tidak bisa export - ${blockers.join(" ")}`);
       return;
     }
     const { buildMakalahDocx } = await import("@/lib/export/docx");

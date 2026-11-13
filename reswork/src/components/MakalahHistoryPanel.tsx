@@ -23,7 +23,7 @@ export default function MakalahHistoryPanel({
           + New makalah
         </button>
         <div className="mt-2 text-[11px] text-[#5f5f5f] text-center">
-          Drafts autosave on this device — refresh-safe.
+          Drafts autosave on this device - refresh-safe.
         </div>
       </div>
       <div className="flex-1 overflow-y-auto p-1 sm:p-2 space-y-1 no-scrollbar">

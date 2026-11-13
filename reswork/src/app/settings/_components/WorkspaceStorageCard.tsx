@@ -131,7 +131,7 @@ export function PrivacyCard() {
     <Panel title="Privacy">
       <p className="mt-2 text-sm leading-relaxed text-[#b4b4b4]">
         <b className="text-white">Local-first inference.</b> With the Ollama provider, prompts, documents and embeddings never
-        leave this device — Supabase only stores the shared library and research artifacts. Cloud features (BYOK proxy, OpenAlex
+        leave this device - Supabase only stores the shared library and research artifacts. Cloud features (BYOK proxy, OpenAlex
         metadata lookup) are per-member and opt-in.
       </p>
     </Panel>
@@ -148,13 +148,13 @@ export function ShortcutsCard() {
         </li>
         <li>Upload shows live phases: Analyzing → Uploading → Embedding → pending approval</li>
         <li>
-          Error recovery: embedding failure marks the row <span className="font-mono text-white">error</span> — delete and re-upload
+          Error recovery: embedding failure marks the row <span className="font-mono text-white">error</span> - delete and re-upload
           once Ollama is healthy
         </li>
         <li>Empty/loading/error states are present on every view</li>
         <li>Research chat history persists per conversation on this device; shared threads live in Chats</li>
         <li>
-          Inference runs on <span className="font-mono text-white">your own provider</span> (Ollama local or your cloud key) — never
+          Inference runs on <span className="font-mono text-white">your own provider</span> (Ollama local or your cloud key) - never
           shared
         </li>
       </ul>

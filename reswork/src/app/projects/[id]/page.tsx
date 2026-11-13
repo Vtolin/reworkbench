@@ -122,7 +122,7 @@ export default function ProjectDetail(){
               {(loading || generatingInfo) && (
                 <div className="mt-3 rounded-xl border border-amber-900/50 bg-amber-950/20 px-3 py-2 flex items-center gap-2 text-xs text-amber-300">
                   <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
-                  <span className="flex-1">Model is generating answer for: <b className="text-amber-200">“{(generatingInfo?.query || q).slice(0,80)}”</b> — this stays visible if you refresh or switch pages until the answer appears in the trail below.</span>
+                  <span className="flex-1">Model is generating answer for: <b className="text-amber-200">“{(generatingInfo?.query || q).slice(0,80)}”</b> - this stays visible if you refresh or switch pages until the answer appears in the trail below.</span>
                   {generatingInfo && <span className="font-mono text-[11px] text-amber-400/70 shrink-0">{Math.max(0, Math.floor((Date.now() - generatingInfo.at)/1000))}s</span>}
                   <button onClick={()=>{
                     const k=`generating:${id}`;
@@ -154,7 +154,7 @@ export default function ProjectDetail(){
             </div>
 
             <div className="rounded-2xl border border-[#2f2f2f] bg-[#0a0a0a] p-4 lg:p-5">
-              <div className="text-sm font-semibold text-white">Claims — evidence graph</div>
+              <div className="text-sm font-semibold text-white">Claims - evidence graph</div>
               <div className="text-xs text-[#8e8e8e] mt-1">Structured Claim → Evidence links with an explicit relationship type (supports / contradicts / mentions).</div>
               <div className="mt-3 flex gap-2">
                 <input value={newClaim} onChange={e=>setNewClaim(e.target.value)} onKeyDown={e=> e.key==="Enter" && addClaim()} placeholder="Add a claim…" className="flex-1 rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2 text-sm text-white placeholder:text-[#5f5f5f]" />
@@ -198,13 +198,13 @@ export default function ProjectDetail(){
                     )}
                   </div>
                 ))}
-                {claims.length===0 && <div className="text-sm text-[#8e8e8e]">No claims yet — add a claim and link the sources that support or contradict it.</div>}
+                {claims.length===0 && <div className="text-sm text-[#8e8e8e]">No claims yet - add a claim and link the sources that support or contradict it.</div>}
               </div>
             </div>
 
             <div className="rounded-2xl border border-[#2f2f2f] bg-[#0a0a0a] p-4 lg:p-5">
               <div className="text-sm font-semibold text-white">Research trail (this project)</div>
-              <div className="text-xs text-[#8e8e8e] mt-1">Every answer is saved here even if you refresh mid-generation — expand to claim evidence.</div>
+              <div className="text-xs text-[#8e8e8e] mt-1">Every answer is saved here even if you refresh mid-generation - expand to claim evidence.</div>
               <div className="space-y-2 mt-3">
                 {(proj.queries||[]).map((qu:any)=>{
                   let trailSources: any[] = [];
@@ -227,7 +227,7 @@ export default function ProjectDetail(){
                             <summary className="px-3 py-2 text-xs font-medium text-[#8e8e8e] cursor-pointer list-none flex items-center gap-2">
                               <span>▸ Sources</span>
                               <span className="rounded-full bg-[#212121] border border-[#2f2f2f] px-1.5 py-0.5 text-[11px]">{trailSources.length}</span>
-                              <span className="text-[#5f5f5f]">— claim evidence even after refresh</span>
+                              <span className="text-[#5f5f5f]">- claim evidence even after refresh</span>
                             </summary>
                             <div className="px-3 pb-3 space-y-2 pt-2">
                               {trailSources.slice(0,6).map((s:any,i:number)=>(
@@ -258,7 +258,7 @@ export default function ProjectDetail(){
               <div className="text-sm font-semibold text-white">Sources</div>
               <div className="space-y-2 mt-3">
                 {(proj.documents||[]).map((d:any)=><div key={d.id} className="rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2"><div className="text-sm font-medium truncate text-white">{d.title}</div><div className="text-xs text-[#8e8e8e] truncate">{d.original_filename}</div></div>)}
-                {(proj.documents||[]).length===0 && <div className="text-sm text-[#8e8e8e]">No sources — add documents from Library.</div>}
+                {(proj.documents||[]).length===0 && <div className="text-sm text-[#8e8e8e]">No sources - add documents from Library.</div>}
               </div>
             </div>
             <div className="rounded-2xl border border-[#2f2f2f] bg-[#0a0a0a] p-4 lg:p-5">

@@ -5,7 +5,7 @@ import { useLocalStorageList, type StorageLike } from "./localStorage";
 /**
  * Canonical stored chat message (owner: this module). The provider wire
  * shape ({role, content}) lives in lib/ai/types.ts as ChatMessage; convert
- * at the boundary with toProviderMessages() — never pass stored messages
+ * at the boundary with toProviderMessages() - never pass stored messages
  * with UI fields (id, timestamp, …) where the wire shape is expected.
  */
 export type StoredChatMessage = {
@@ -136,8 +136,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     freshItem: freshConversation,
     onParseError: "empty",
     messages: {
-      quotaMessage: "Browser storage is full — chats are kept only in this tab's memory. Export or delete old chats to save space.",
-      failureMessage: "Chat autosave failed — chats are kept only in this tab's memory.",
+      quotaMessage: "Browser storage is full - chats are kept only in this tab's memory. Export or delete old chats to save space.",
+      failureMessage: "Chat autosave failed - chats are kept only in this tab's memory.",
     },
   });
 

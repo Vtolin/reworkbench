@@ -1,5 +1,5 @@
 // Deterministic ingestion: extraction, hashing, chunking, metadata parsing.
-// No AI required — can run in the browser or a Vercel function.
+// No AI required - can run in the browser or a Vercel function.
 // Chunk sizing preserves the existing ~4700 char / ~880 overlap starting point.
 
 export const CHUNK_SIZE = 4700;
@@ -24,7 +24,7 @@ export function chunkText(
   let start = 0;
   let index = 0;
   // Prefer paragraph/sentence boundaries, fall back to hard split.
-  // CJK sentence ends (。！？) included — latin-only boundaries hard-split
+  // CJK sentence ends (。！？) included - latin-only boundaries hard-split
   // spaceless text mid-sentence at 4700 chars.
   while (start < clean.length) {
     let end = Math.min(start + chunkSize, clean.length);
@@ -58,7 +58,7 @@ export function chunkText(
  * and strips the markers from stored content (they otherwise pollute
  * embeddings, FTS/BM25 text, and leak into prompts as fake citation keys).
  * Texts without markers (Word/Excel/sheets/plain) behave exactly like
- * chunkText — page stays null.
+ * chunkText - page stays null.
  */
 export function chunkTextWithPages(
   text: string,
@@ -111,7 +111,7 @@ export function pseudoPaginate(text: string, pageChars = PSEUDO_PAGE_CHARS): str
 // Browser-side PDF text extraction via pdfjs-dist (no install required).
 // Returns { text, pageCount }. Callers chunk + detect sections on top.
 // NOTE: the worker MUST be configured (version-pinned CDN). Without it the
-// bundled build silently fails to parse in some browsers — which previously
+// bundled build silently fails to parse in some browsers - which previously
 // produced 0-chunk "metadata_only" uploads with no error shown.
 export async function extractPdfTextBrowser(file: File | Blob): Promise<{ text: string; pageCount: number }> {
   const pdfjs = await import("pdfjs-dist");

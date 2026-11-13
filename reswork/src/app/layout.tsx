@@ -11,7 +11,7 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Research Workbench — Shared Academic Library",
+  title: "Research Workbench - Shared Academic Library",
   description: "Multi-user research workbench with hybrid retrieval over shared documents. Each member uses their own inference.",
 };
 

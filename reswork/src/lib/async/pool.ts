@@ -42,7 +42,7 @@ export async function mapWithLimit<T, R>(
 
 // PostgREST `.in()` lists ride in the URL: keep them small enough to stay
 // well under server/proxy URL limits at any cardinality. Pure, total, and
-// order-preserving — the batching primitive for set-based `.in()` queries
+// order-preserving - the batching primitive for set-based `.in()` queries
 // (hydrateDocs, loadDocs, author resolution) so callers never build an
 // unbounded `IN (...)` clause.
 export const IN_CHUNK_SIZE = 200;

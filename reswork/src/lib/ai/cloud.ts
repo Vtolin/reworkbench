@@ -12,7 +12,7 @@ export const CLOUD_PROVIDERS: Array<{ id: CloudProviderId; label: string; hint: 
 ];
 
 // Live model ids from the provider, authenticated with the member's OWN
-// stored key (server-side). Nothing hardcoded — pass-through errors included.
+// stored key (server-side). Nothing hardcoded - pass-through errors included.
 export async function listCloudModels(provider: CloudProviderId): Promise<string[]> {
   const res = await fetch(`/api/ai/proxy/models?provider=${encodeURIComponent(provider)}`);
   const data = await res.json().catch(() => ({}));

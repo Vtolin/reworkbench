@@ -4,10 +4,10 @@
 // the original UI expects.
 //
 // Ownership rules (Phase 6): this module owns the document column list
-// (DOCUMENT_COLUMNS_SELECT — extend it when the schema grows), row hydration
+// (DOCUMENT_COLUMNS_SELECT - extend it when the schema grows), row hydration
 // (hydrateDocs), and workspace-id resolution (getWorkspaceId). It contains NO
 // domain logic: no retrieval, no inference, no filtering beyond the
-// caller-supplied predicates in docFilters. Do NOT split it — the column
+// caller-supplied predicates in docFilters. Do NOT split it - the column
 // list, hydration, and scoping must stay in one place to stay consistent.
 import { createClient } from "@/lib/supabase/client";
 import { chunkArray } from "@/lib/async/pool";
@@ -54,7 +54,7 @@ function supabase() {
 }
 
 // Explicit document column list (Task M): `select("*")` on documents also
-// ships the generated `fts` tsvector (KBs per row — 200-row library loads,
+// ships the generated `fts` tsvector (KBs per row - 200-row library loads,
 // 1000-row exports). Every HydratedDoc scalar plus the row-identity columns
 // callers need (workspace_id / uploaded_by / updated_at are read off raw
 // rows in a few flows); `fts` is the only exclusion, and nothing reads it
@@ -92,7 +92,7 @@ export async function getWorkspaceId(): Promise<string> {
     .order("joined_at")
     .limit(1)
     .maybeSingle();
-  if (!m) throw new Error("No workspace — ask your admin for access");
+  if (!m) throw new Error("No workspace - ask your admin for access");
   return (m as { workspace_id: string }).workspace_id;
 }
 
@@ -238,7 +238,7 @@ export async function updateDocument(id: string, patch: Record<string, unknown>)
   if ("authors" in patch && Array.isArray(patch.authors)) {
     const ws = await getWorkspaceId();
     const names = (patch.authors as string[]).map((a) => a.trim()).filter(Boolean);
-    // Upsert authors, then relink in order — set-based (one SELECT + one
+    // Upsert authors, then relink in order - set-based (one SELECT + one
     // bulk INSERT for resolution, one bulk INSERT for the links). Resolution
     // failures still throw, exactly as before; link INSERT keeps the
     // established silent policy (unchanged behavior).

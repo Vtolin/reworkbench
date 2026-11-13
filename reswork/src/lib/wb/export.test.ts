@@ -86,7 +86,7 @@ describe("buildWorkspaceExport (small workspace)", () => {
     expect(out.parts[0].filename).toBe("workbench-export-ws123456.json");
     expect(Object.keys(out.parts[0].data)).toContain("documents");
     expect(Object.keys(out.parts[0].data)).toContain("chat_messages");
-    // Explicit columns — never select("*") on the wide tables.
+    // Explicit columns - never select("*") on the wide tables.
     expect(ops).toContain(`select:documents:${DOCUMENT_COLUMNS_SELECT}`);
     expect(ops).toContain(`select:chat_messages:${CHAT_MESSAGE_COLUMNS}`);
     expect(ops.filter((o) => o.startsWith("select:documents:*"))).toEqual([]);

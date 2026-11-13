@@ -6,7 +6,25 @@ import type { AIProvider, ChatMessage } from "@/lib/ai/types";
 import { newTraceId, withTrace } from "@/lib/observability/trace";
 import { getWorkspaceId } from "../library";
 import { hybridInstruction, loadDocs, pickProvider, stripThinkingTags, toSources } from "./shared";
+import { fetchFilteredWebSources, type WebContextBundle } from "./webSearchBridge";
 import type { AskResult, InferenceSelection, StreamHandlers } from "./types";
+
+function buildAskPrompt(
+  query: string,
+  sel: InferenceSelection,
+  libraryContext: string,
+  web: WebContextBundle,
+): string {
+  const sections: string[] = [hybridInstruction(sel.hybrid)];
+  sections.push(`Excerpts:\n${libraryContext || "(no library excerpts retrieved)"}`);
+  if (web.promptBlock) {
+    sections.push(
+      `Live Web Sources (anti-slop filtered; cite as [W1], [W2] with source domain):\n${web.promptBlock}`,
+    );
+  }
+  sections.push(`Question: ${query}`);
+  return sections.join("\n\n");
+}
 
 export async function ask(
   query: string,
@@ -28,7 +46,10 @@ export async function ask(
     traceId,
   };
   const { passages, context, debug } = await retrieveContext(ragOpts);
-  if (!passages.length && sel.hybrid === "off") {
+  const webBundle = sel.webSearch
+    ? await fetchFilteredWebSources(query, sel)
+    : { sources: [], promptBlock: "", count: 0, filteredOutCount: 0 };
+  if (!passages.length && !webBundle.count && sel.hybrid === "off") {
     // Strict grounding with nothing retrieved: say so plainly (and usefully)
     // instead of spending a model call to echo the constraint back.
     // Include the retrieval reason so cloud+local-embed misconfig is visible
@@ -42,7 +63,7 @@ export async function ask(
         "I couldn't find anything in the approved library for that. Usually this means one of: " +
         "the documents are still awaiting admin approval, the uploads contain no extractable text " +
         "(scanned PDFs need OCR before re-uploading), or nothing has been embedded yet. " +
-        "Approve/re-upload in the Library, then ask again — or switch Hybrid on to let the model answer from its own knowledge." +
+        "Approve/re-upload in the Library, then ask again - or switch Hybrid on to let the model answer from its own knowledge." +
         `\n\n_Diagnostics: ${hints.join(" · ")}_` +
         (debug.embedMode === "local" && debug.embedError
           ? "\n_Local embed failed: is `nomic-embed-text` pulled (`ollama list`), is Ollama reachable from this browser (OLLAMA_ORIGINS for vercel.app), and were uploads embedded with Local mode (768d)?_"
@@ -56,8 +77,9 @@ export async function ask(
     };
   }
   const docs = await loadDocs([...new Set(passages.map((p) => p.document_id))]);
-  const sources = toSources(passages.slice(0, topN), docs);
-  const contextText = sources.length
+  const libSources = toSources(passages.slice(0, topN), docs);
+  const sources = [...libSources, ...webBundle.sources];
+  const contextText = libSources.length
     ? passages.slice(0, topN).map((p, i) => `[${i + 1}] ${p.content}`).join("\n\n")
     : context;
 
@@ -66,7 +88,7 @@ export async function ask(
     ...history,
     {
       role: "user",
-      content: `${hybridInstruction(sel.hybrid)}\n\nExcerpts:\n${contextText || "(no excerpts retrieved)"}\n\nQuestion: ${query}`,
+      content: buildAskPrompt(query, sel, contextText, webBundle),
     },
   ];
   const result = await withTrace(
@@ -114,15 +136,21 @@ export async function askStream(
       traceId,
     });
     const docs = await loadDocs([...new Set(passages.map((p) => p.document_id))]);
-    const sources = toSources(passages.slice(0, topN), docs);
-    handlers.onMeta?.({ sources, retrieved: { count: passages.length, debug } });
-    if (!passages.length && sel.hybrid === "off") {
+    const libSources = toSources(passages.slice(0, topN), docs);
+    let webBundle: WebContextBundle = { sources: [], promptBlock: "", count: 0, filteredOutCount: 0 };
+    if (sel.webSearch) {
+      handlers.onStatus?.("searching_web", sel.webSearchProvider);
+      webBundle = await fetchFilteredWebSources(query, sel, opts.signal);
+    }
+    const sources = [...libSources, ...webBundle.sources];
+    handlers.onMeta?.({ sources, retrieved: { count: passages.length, webCount: webBundle.count, debug } });
+    if (!passages.length && !webBundle.count && sel.hybrid === "off") {
       handlers.onDone?.({
         answer:
           "I couldn't find anything in the approved library for that. Usually this means one of: " +
           "the documents are still awaiting admin approval, the uploads contain no extractable text " +
           "(scanned PDFs need OCR before re-uploading), or nothing has been embedded yet. " +
-          "Approve/re-upload in the Library, then ask again — or switch Hybrid on to let the model answer from its own knowledge." +
+          "Approve/re-upload in the Library, then ask again - or switch Hybrid on to let the model answer from its own knowledge." +
           `\n\n_Diagnostics: ${debug.embedError ? `embedding: ${debug.embedError} · ` : ""}retrieval: FTS ${debug.ftsCount}, vector ${debug.vectorCount}, BM25 ${debug.bm25Count} (embedMode ${debug.embedMode}${debug.embeddingDims ? `, ${debug.embeddingDims}d` : ""})_`,
         sources: [],
         thinking: null,
@@ -133,14 +161,14 @@ export async function askStream(
     handlers.onStatus?.(sel.provider === "ollama" && sel.thinking ? "processing_prompt" : "generating");
 
     const history = sel.memoryMessages?.slice(-6) ?? [];
-    const contextText = sources.length
+    const contextText = libSources.length
       ? passages.slice(0, topN).map((p, i) => `[${i + 1}] ${p.content}`).join("\n\n")
       : context;
     const messages: ChatMessage[] = [
       ...history,
       {
         role: "user",
-        content: `${hybridInstruction(sel.hybrid)}\n\nExcerpts:\n${contextText || "(no excerpts retrieved)"}\n\nQuestion: ${query}`,
+        content: buildAskPrompt(query, sel, contextText, webBundle),
       },
     ];
     if (sel.provider === "ollama") {

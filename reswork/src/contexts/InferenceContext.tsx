@@ -1,11 +1,16 @@
 // Local inference settings: LOCAL/BROWSER STATE ONLY. Never shared workspace
 // data. Only {provider, model} may be recorded in message metadata_json for
-// reproducibility — the server never manages the model itself.
+// reproducibility - the server never manages the model itself.
 "use client";
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { CloudProviderId } from "@/lib/ai/cloud";
 import type { StageSnapshot } from "@/lib/api/inference";
+import {
+  WEB_SEARCH_PROVIDERS,
+  type WebFilterMode,
+  type WebSearchProviderId,
+} from "@/lib/search/webFilter";
 import { useLocalStorageDoc } from "./localStorage";
 
 export type InferenceProvider = "ollama" | "cloud";
@@ -40,6 +45,10 @@ export interface InferenceSettings {
   makalahThinkLevel: "minimal" | "low" | "medium" | "high" | "max";
   /** Makalah thinking-token budget for section drafting. */
   makalahThinkingBudget: number;
+  /** Optional BYOK web search provider & anti-slop filter settings. */
+  webSearchProvider: WebSearchProviderId;
+  webSearchFilterMode: WebFilterMode;
+  webSearchConfiguredProviders: WebSearchProviderId[];
 }
 
 export type StageProvider = "inherit" | "ollama" | "cloud";
@@ -73,13 +82,16 @@ const DEFAULTS: InferenceSettings = {
   makalahNumPredict: 3072,
   makalahThinkLevel: "low",
   makalahThinkingBudget: 1024,
+  webSearchProvider: "ollama_web",
+  webSearchFilterMode: "balanced",
+  webSearchConfiguredProviders: [],
 };
 
 const STORAGE_KEY = "rw.inference_settings.v1";
 
 /**
  * Corrupt-storage sanitizer (domain rule, kept verbatim): merge over
- * defaults, then coerce every selective field back into range — a corrupt
+ * defaults, then coerce every selective field back into range - a corrupt
  * stored string must never construct a broken provider selection downstream.
  * Pure (unit-tested); same coercion as api.readInference (canonical).
  */
@@ -92,6 +104,17 @@ export function sanitizeInferenceSettings(raw: unknown, defaults: InferenceSetti
   }
   if (p.embedMode !== "local" && p.embedMode !== "server") p.embedMode = defaults.embedMode;
   if (!Number.isFinite(p.numCtx) || (p.numCtx as number) <= 0) p.numCtx = defaults.numCtx;
+  if (!(WEB_SEARCH_PROVIDERS as readonly string[]).includes(p.webSearchProvider)) {
+    p.webSearchProvider = defaults.webSearchProvider;
+  }
+  if (p.webSearchFilterMode !== "balanced" && p.webSearchFilterMode !== "strict_academic") {
+    p.webSearchFilterMode = defaults.webSearchFilterMode;
+  }
+  p.webSearchConfiguredProviders = Array.isArray(p.webSearchConfiguredProviders)
+    ? p.webSearchConfiguredProviders.filter((id): id is WebSearchProviderId =>
+        (WEB_SEARCH_PROVIDERS as readonly string[]).includes(id),
+      )
+    : [];
   return p;
 }
 
@@ -129,8 +152,8 @@ export function InferenceProvider({ children }: { children: ReactNode }) {
     defaults: DEFAULTS,
     sanitize: sanitizeInferenceSettings,
     messages: {
-      quotaMessage: "Browser storage is full — inference settings are kept only in this tab's memory.",
-      failureMessage: "Settings autosave failed — inference settings are kept only in this tab's memory.",
+      quotaMessage: "Browser storage is full - inference settings are kept only in this tab's memory.",
+      failureMessage: "Settings autosave failed - inference settings are kept only in this tab's memory.",
     },
   });
   const [ollamaModels, setOllamaModels] = useState<string[]>([]);

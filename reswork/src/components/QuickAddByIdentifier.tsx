@@ -178,7 +178,7 @@ export default function QuickAddByIdentifier({ onAdded }: { onAdded?: () => void
 
       {candidates.length > 1 && (
         <div className="rounded-xl border border-[#2f2f2f] bg-[#141414] p-3 space-y-1.5">
-          <div className="text-xs font-medium text-[#b4b4b4]">Multiple matches found — choose one:</div>
+          <div className="text-xs font-medium text-[#b4b4b4]">Multiple matches found - choose one:</div>
           {candidates.slice(0, 4).map((c, idx) => (
             <button
               key={`${c.doi ?? c.title ?? idx}-${idx}`}
@@ -187,7 +187,7 @@ export default function QuickAddByIdentifier({ onAdded }: { onAdded?: () => void
               className="block w-full text-left rounded-lg border border-[#2f2f2f] bg-black px-3 py-2 text-xs text-[#ececec] hover:border-[#52525b]"
             >
               <span className="font-medium text-white">{c.title ?? "(untitled)"}</span>
-              <span className="text-[#8e8e8e]"> — {c.authors[0] ?? "Unknown"} ({c.year ?? "?"})</span>
+              <span className="text-[#8e8e8e]"> - {c.authors[0] ?? "Unknown"} ({c.year ?? "?"})</span>
             </button>
           ))}
         </div>

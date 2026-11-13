@@ -1,6 +1,6 @@
 // AIProvider abstraction. The browser orchestrates: fetch context from
 // Supabase, generate via the selected provider, write the result back.
-// Vercel never calls a user's localhost — Ollama calls originate in-browser.
+// Vercel never calls a user's localhost - Ollama calls originate in-browser.
 //
 // Ownership (Phase 6): this ChatMessage ({role, content}) is the CANONICAL
 // provider wire shape. Stored conversation messages (id, timestamp, sources,
@@ -34,7 +34,7 @@ export interface ChatOptions {
    *  on the cloud proxy (otherwise cloud providers use their own default). */
   numPredict?: number;
   /** Explicit thinking switch. Must be forwarded (not dropped): `false`
-   *  means cold/deterministic — on Gemini this maps to `minimal` (3.x) or
+   *  means cold/deterministic - on Gemini this maps to `minimal` (3.x) or
    *  `thinking_budget:0` (2.5) instead of the provider default `medium`. */
   thinking?: boolean;
   /** Effort level. `minimal` is the closest-to-off level on Gemini 3;
@@ -43,7 +43,7 @@ export interface ChatOptions {
   thinkLevel?: "minimal" | "low" | "medium" | "high" | "max";
   /** Target thinking-token budget. Forwarded to backends that support it
    *  (Google `extra_body` thinking_config); otherwise ignored. Soft target,
-   *  not a hard cap — size `numPredict` so the answer survives regardless. */
+   *  not a hard cap - size `numPredict` so the answer survives regardless. */
   thinkingBudget?: number;
   /** Opt-in structured output. When true the proxy sends
    *  `response_format:{type:"json_object"}` on OpenAI-compat providers.

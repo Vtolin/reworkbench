@@ -108,7 +108,7 @@ export default function ChatHistoryPanel({ onNavigate }: { onNavigate?: () => vo
     try {
       const { messages } = await fetchSharedChat(chat.id);
       importConversation(`Imported: ${chat.title}`, messages);
-      flash("Imported — continue it here with your own model");
+      flash("Imported - continue it here with your own model");
       onNavigate?.();
     } catch (e) {
       flash(toUserMessage(e, "Import failed"));
@@ -160,7 +160,7 @@ export default function ChatHistoryPanel({ onNavigate }: { onNavigate?: () => vo
     try {
       const { messages } = await fetchSharedChat(chat.id);
       importConversation(chat.title, messages, chat.id);
-      flash("Downloaded + linked — Sync pushes changes back");
+      flash("Downloaded + linked - Sync pushes changes back");
       onNavigate?.();
     } catch (e) {
       flash(toUserMessage(e, "Download failed"));
@@ -218,7 +218,7 @@ export default function ChatHistoryPanel({ onNavigate }: { onNavigate?: () => vo
                   <span className="text-xs text-[#8e8e8e] shrink-0">◧</span>
                   <span className="text-[13px] sm:text-sm truncate flex-1 text-[#ececec]">{c.title || "New chat"}</span>
                   {c.cloudId ? (
-                    <span className="text-[10px] text-sky-400 shrink-0" title="Synced to your account — visible on your other devices">● stored</span>
+                    <span className="text-[10px] text-sky-400 shrink-0" title="Synced to your account - visible on your other devices">● stored</span>
                   ) : null}
                   {c.messages.length > 0 && !published[c.id] && (
                     c.cloudId ? (
@@ -233,7 +233,7 @@ export default function ChatHistoryPanel({ onNavigate }: { onNavigate?: () => vo
                         onClick={(e) => { e.stopPropagation(); handleStore(c.id); }}
                         disabled={busyId === `store:${c.id}`}
                         className="opacity-0 group-hover:opacity-100 text-[10px] text-[#8e8e8e] hover:text-white border border-[#2f2f2f] rounded-full px-2 py-0.5 shrink-0 disabled:opacity-40"
-                        title="Upload a private copy to your account — visible on your other devices"
+                        title="Upload a private copy to your account - visible on your other devices"
                       >{busyId === `store:${c.id}` ? "…" : "Store +"}</button>
                     )
                   )}
@@ -268,9 +268,9 @@ export default function ChatHistoryPanel({ onNavigate }: { onNavigate?: () => vo
         </>
       ) : tab === "stored" ? (
         <div className="flex-1 overflow-y-auto p-1 sm:p-2 space-y-1 no-scrollbar">
-          <div className="px-2 py-1 text-[11px] text-[#5f5f5f]">Private account copies. Download one to continue it here — Sync pushes this device&apos;s version back.</div>
+          <div className="px-2 py-1 text-[11px] text-[#5f5f5f]">Private account copies. Download one to continue it here - Sync pushes this device&apos;s version back.</div>
           {storedLoading && <div className="text-xs text-[#5f5f5f] p-2 sm:p-3 text-center">Loading stored chats…</div>}
-          {!storedLoading && stored.length === 0 && <div className="text-xs text-[#5f5f5f] p-2 sm:p-3 text-center">Nothing stored — use Store + on a chat</div>}
+          {!storedLoading && stored.length === 0 && <div className="text-xs text-[#5f5f5f] p-2 sm:p-3 text-center">Nothing stored - use Store + on a chat</div>}
           {stored.map(c => {
             const linked = conversations.some((l) => l.cloudId === c.id);
             return (

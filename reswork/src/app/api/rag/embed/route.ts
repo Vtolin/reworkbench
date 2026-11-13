@@ -8,14 +8,14 @@ import { enforceRateLimit } from "@/app/api/_lib/rateLimit";
 import { getRequestId, withRequestId } from "@/app/api/_lib/request";
 
 // Same policy as the chat proxy (see ai/proxy/route.ts): explicit deadline,
-// no retry — embedding calls are billed, so failures surface for an explicit
+// no retry - embedding calls are billed, so failures surface for an explicit
 // user retry instead of silently doubling cost. 60s: embeddings are short,
 // single-shot calls, unlike long generations.
 const UPSTREAM_TIMEOUT_MS = 60_000;
 
 // POST /api/rag/embed {text, mode: 'server', model?, provider?, apiKey?}
 // Server-side embedding (cloud mode). Routes by provider using the member's
-// own key — stored encrypted or forwarded per-request — never a shared key.
+// own key - stored encrypted or forwarded per-request - never a shared key.
 // The library stores vector(768), so every provider is asked for 768 dims
 // explicitly (OpenAI `dimensions`, Google `outputDimensionality`): stored and
 // query vectors stay comparable no matter which backend produced them.
@@ -132,7 +132,7 @@ export async function POST(req: Request) {
       if (!upstream.ok) {
         const text = await upstream.text().catch(() => "");
         observe(false, { errorCategory: errorCategory(`upstream ${upstream.status}`), status: upstream.status });
-        return NextResponse.json({ error: `Embedding failed (google/${model}): ${upstream.status} — ${text.slice(0, 200)}` }, { status: 502 });
+        return NextResponse.json({ error: `Embedding failed (google/${model}): ${upstream.status} - ${text.slice(0, 200)}` }, { status: 502 });
       }
       const data = await upstream.json();
       const embedding = (data.embedding as { values?: unknown } | undefined)?.values as unknown;

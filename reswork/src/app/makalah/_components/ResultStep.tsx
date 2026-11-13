@@ -4,7 +4,7 @@ import Markdown from "@/components/Markdown";
 import { isMalformedReference } from "@/lib/wb/makalah";
 import { useMakalahWorkbench } from "./MakalahWorkbenchContext";
 
-/** STEP 4 — quality report, bibliography editing, export and preview. */
+/** STEP 4 - quality report, bibliography editing, export and preview. */
 export function ResultStep() {
   const { draft, exporter } = useMakalahWorkbench();
   const { quality, docTitle, isID, copied, exportNote } = exporter;
@@ -50,7 +50,7 @@ export function ResultStep() {
           <div className="rounded-xl bg-[#171717] border border-[#2f2f2f] py-2 px-1">
             <div className="text-[10px] text-[#8e8e8e] uppercase tracking-widest">Citations</div>
             <div className="text-sm font-semibold text-white">
-              {quality.citation_total ? `${quality.citation_integrity_pct}%` : "—"}
+              {quality.citation_total ? `${quality.citation_integrity_pct}%` : "-"}
             </div>
           </div>
           <div className="rounded-xl bg-[#171717] border border-[#2f2f2f] py-2 px-1">
@@ -90,7 +90,7 @@ export function ResultStep() {
         )}
         {quality.malformed_references.length > 0 && (
           <div className="text-xs text-amber-300">
-            Malformed bibliography entries — koreksi via Edit di Daftar Pustaka bawah (atau
+            Malformed bibliography entries - koreksi via Edit di Daftar Pustaka bawah (atau
             metadata sumber): {quality.malformed_references.map(titleOf).join(", ")}
           </div>
         )}
@@ -102,26 +102,26 @@ export function ResultStep() {
         {quality.redundant_pairs.length > 0 && (
           <div className="text-xs text-amber-300">
             Kemungkinan duplikasi:{" "}
-            {quality.redundant_pairs.map((p) => `${p.a} ≈ ${p.b} (${p.score})`).join(" · ")} —
+            {quality.redundant_pairs.map((p) => `${p.a} ≈ ${p.b} (${p.score})`).join(" · ")} -
             tekan ↻ Bukti baru pada section yang belakangan (atau pertajam Fokus).
           </div>
         )}
         {quality.ai_filled > 0 && hybridMode === "off" && (
           <div className="text-xs text-amber-300">
-            {quality.ai_filled} paragraf tanpa sitasi dalam mode Strict — Regenerate dengan
+            {quality.ai_filled} paragraf tanpa sitasi dalam mode Strict - Regenerate dengan
             grounding 15/85, atau Edit manual.
           </div>
         )}
         {quality.ai_filled > 0 && hybridMode !== "off" && (
           <div className="text-xs text-[#8e8e8e]">
-            {quality.ai_filled} paragraf model-bridged (tanpa sitasi) — wajar di mode {hybridMode};
+            {quality.ai_filled} paragraf model-bridged (tanpa sitasi) - wajar di mode {hybridMode};
             verifikasi manual sebelum final.
           </div>
         )}
         {quality.citation_missing_pages.length > 0 && (
           <div className="text-xs text-[#8e8e8e]">
             Tanpa halaman (sumbernya punya info halaman, sitasi membuangnya):{" "}
-            {quality.citation_missing_pages.join(" · ")} — Regenerate atau tambah manual; bukan
+            {quality.citation_missing_pages.join(" · ")} - Regenerate atau tambah manual; bukan
             error, tapi melemahkan pinpoint.
           </div>
         )}
@@ -170,7 +170,7 @@ export function ResultStep() {
 
       <div className="rounded-2xl bg-[#0a0a0a] border border-[#2f2f2f] p-4 space-y-2">
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="text-sm font-medium text-white">Daftar Pustaka — {references.length} entri</div>
+          <div className="text-sm font-medium text-white">Daftar Pustaka - {references.length} entri</div>
           <span className="text-[11px] text-[#5f5f5f]">
             otomatis dari metadata; klik Edit untuk isi/koreksi manual per entri. Refresh hanya
             menambah yang hilang, tidak menimpa editan.
@@ -178,7 +178,7 @@ export function ResultStep() {
         </div>
         {!references.length && (
           <div className="text-xs text-[#5f5f5f]">
-            Belum ada — Generate sections dulu, lalu Refresh references.
+            Belum ada - Generate sections dulu, lalu Refresh references.
           </div>
         )}
         {references.map((r) => (
@@ -241,7 +241,7 @@ export function ResultStep() {
         {(cover.author || cover.course) && (
           <div className="text-center text-xs text-[#8e8e8e]">
             {[
-              cover.author && `${cover.author}${cover.nim ? ` — ${cover.nim}` : ""}`,
+              cover.author && `${cover.author}${cover.nim ? ` - ${cover.nim}` : ""}`,
               cover.course,
               cover.lecturer,
             ]

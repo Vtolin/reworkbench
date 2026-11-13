@@ -117,7 +117,7 @@ describe("as-any ratchet", () => {
     "app/research/page.tsx": 2,
     "app/settings/page.tsx": 6,
     // Phase 6: DocDetail (was 1) and UploadFlow (was 5) are as-any-free;
-    // the ratchet only goes down — no entry means zero tolerance.
+    // the ratchet only goes down - no entry means zero tolerance.
   };
 
   it("no new as-any appears outside the legacy inventory", () => {

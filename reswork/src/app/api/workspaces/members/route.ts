@@ -5,7 +5,7 @@ import { getRequestId } from "@/app/api/_lib/request";
 import { errorCategory, logEvent } from "@/lib/observability/log";
 import { MAX_ALLOWED_MEMBERS, clampMemberLimit } from "@/lib/permissions/constants";
 
-// GET /api/workspaces/members?workspaceId= — list active members (member-gated).
+// GET /api/workspaces/members?workspaceId= - list active members (member-gated).
 // Authenticated-only; row visibility still comes from RLS (members_read_ws).
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -27,10 +27,10 @@ export async function GET(req: Request) {
   return NextResponse.json({ members: data, maxAllowed: MAX_ALLOWED_MEMBERS });
 }
 
-// POST /api/workspaces/members {userId, workspaceId?} — self-join guard:
+// POST /api/workspaces/members {userId, workspaceId?} - self-join guard:
 // enforces current_members < member_limit (soft) AND absolute
 // MAX_ALLOWED_MEMBERS. The workspace is resolved server-side (service role)
-// because RLS hides workspaces from non-members — a direct client lookup
+// because RLS hides workspaces from non-members - a direct client lookup
 // would always come back empty for a brand-new user.
 // Uses service role with a server-side re-check so a modified client cannot
 // bypass the limit. Called after Supabase Auth signUp.
@@ -69,7 +69,7 @@ export async function POST(req: Request) {
     workspaceId = (first as { id: string } | null)?.id;
   }
   if (!workspaceId) {
-    return NextResponse.json({ error: "No workspace exists yet — ask the admin to register first." }, { status: 404 });
+    return NextResponse.json({ error: "No workspace exists yet - ask the admin to register first." }, { status: 404 });
   }
   // Kicked members must not be able to self-rejoin (the JoinGate calls this
   // route too). Their row stays `removed`; only an admin re-admitting them
@@ -88,7 +88,7 @@ export async function POST(req: Request) {
     );
   }
   if (existingStatus === "active") {
-    // Idempotent retry (double-click / network retry) — already a member.
+    // Idempotent retry (double-click / network retry) - already a member.
     return NextResponse.json({ ok: true });
   }
   const { data: ws } = await service
@@ -100,7 +100,7 @@ export async function POST(req: Request) {
 
   // UX fast-path only: the same checks run again atomically inside
   // join_workspace() (migration 0011), which serializes joins per workspace
-  // with pg_advisory_xact_lock and recounts in the same transaction — the
+  // with pg_advisory_xact_lock and recounts in the same transaction - the
   // count-then-insert above this comment races under concurrent joins, the
   // RPC cannot. Keep messages identical in both layers.
   const softLimit = clampMemberLimit((ws as { member_limit: number }).member_limit);

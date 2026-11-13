@@ -2,7 +2,7 @@
 //
 // The Web Worker is an optimization, never a requirement: SSR, tests,
 // locked-down browsers and worker-crash environments all keep working through
-// the direct functions — same inputs, same outputs.
+// the direct functions - same inputs, same outputs.
 import { chunkTextWithPages, type ChunkInput } from "./chunking";
 import { analyzeFile, canAnalyzeInWorker, type FileAnalysis } from "./fileAnalysis";
 import { getIngestWorkerClient } from "./workerClient";

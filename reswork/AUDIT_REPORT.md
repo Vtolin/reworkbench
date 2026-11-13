@@ -1,4 +1,4 @@
-# Research Workbench — Independent Comprehensive Audit Report
+# Research Workbench - Independent Comprehensive Audit Report
 
 **Date:** November 12, 2026  
 **Auditor:** Senior Staff Engineer, Application Security Specialist & QA Lead  
@@ -22,11 +22,11 @@ The Research Workbench codebase demonstrates thoughtful architectural intent, fe
 - **Dependency & build manifests:** `package.json`, `package-lock.json`, `tsconfig.json`, `next.config.ts`, `eslint.config.mjs`, and CI workflows.
 
 ### Tools Executed
-- **Type Checker:** `npm run typecheck` (`tsc --noEmit`) — Completed with 0 errors.
-- **Unit & Boundary Tests:** `npm test` (`vitest run`) — 60 test files passed (313 tests passed, 8 skipped).
-- **Linter:** `npm run lint` (`eslint .`) — Failed with 1 error and 83 warnings.
-- **Production Build:** `npm run build` (`next build`) — Successfully compiled 23 static and dynamic routes.
-- **Dependency Audit:** `npm audit` — Attempted; blocked due to sandbox/offline registry network constraints.
+- **Type Checker:** `npm run typecheck` (`tsc --noEmit`) - Completed with 0 errors.
+- **Unit & Boundary Tests:** `npm test` (`vitest run`) - 60 test files passed (313 tests passed, 8 skipped).
+- **Linter:** `npm run lint` (`eslint .`) - Failed with 1 error and 83 warnings.
+- **Production Build:** `npm run build` (`next build`) - Successfully compiled 23 static and dynamic routes.
+- **Dependency Audit:** `npm audit` - Attempted; blocked due to sandbox/offline registry network constraints.
 
 ### Assumptions & Limitations
 - Live staging Supabase integration tests (`src/security/rls-probe.test.ts`) were skipped by default as no live Supabase instance was connected to the local test runner.
@@ -564,21 +564,21 @@ The Research Workbench codebase demonstrates thoughtful architectural intent, fe
 
 ## 8. REMEDIATION ROADMAP & IMPLEMENTATION STATUS
 
-### Fix Immediately (Critical & High) — ALL RESOLVED & VERIFIED
+### Fix Immediately (Critical & High) - ALL RESOLVED & VERIFIED
 - [x] **Revoke and rotate credentials (SEC-01):** Compromised credentials in `env.download` rotated by user; `env.download` sanitized to placeholder values; `.gitignore` updated with `.env*` and `*.download`.
 - [x] **Fix Rate Limiter IP Extraction (SEC-02):** Patched `getClientIp()` in `src/app/api/_lib/rateLimit.ts` to inspect `x-real-ip` and verified rightmost proxy entry instead of unvalidated `x-forwarded-for[0]`. Verified with 11 passing tests in `rateLimit.test.ts`.
 - [x] **Eliminate Admin Oracle (SEC-03):** Updated `src/app/api/auth/register-admin/route.ts` to validate email, password, and admin key concurrently, returning consistent HTTP 400 responses for all validation and key failures. Verified with 7 passing tests in `register-admin/route.test.ts`.
 - [x] **Restore Storage RLS Exact Segment Match (SEC-04):** Created and applied migration `0015_storage_and_private_chats_hardening.sql` enforcing `(storage.foldername(name))[1] = m.workspace_id::text` with 50MB size limit on `documents_bucket_insert_members`.
 - [x] **Fix ESLint CI Gate (BUG-01):** Added `e2e/**` and `public/**` to `globalIgnores` in `eslint.config.mjs` so `npm run lint` exits clean (0 errors, exit 0) for CI.
 
-### Fix This Sprint (Medium) — ALL RESOLVED & VERIFIED
+### Fix This Sprint (Medium) - ALL RESOLVED & VERIFIED
 - [x] **Add Admin Page Role Check (SEC-05):** Added client-side role check in `src/app/admin/page.tsx` verifying `workspace?.role === "admin"`, gating background data fetches and realtime channels, and displaying an explicit access denied notice to unauthorized users.
 - [x] **Harden Private Chat RLS (SEC-06):** In migration `0015_storage_and_private_chats_hardening.sql`, removed `or public.is_workspace_admin(...)` from private chat SELECT policies on `chats` and `chat_messages` so private chats are strictly accessible only by the owner.
 - [x] **Add HTTP Security Headers (SEC-08):** Configured HTTP headers in `next.config.ts`: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`, and `Strict-Transport-Security`.
 - [x] **Fix Chat Publishing Metadata (BUG-02):** Dynamicized provider attribution in `src/lib/wb/publish.ts` to preserve dynamic AI providers (OpenAI, Anthropic, Google, DeepSeek) instead of hardcoding `"ollama"`. Verified with 2 new unit tests in `publish.test.ts`.
 - [x] **Harden BibTeX Parser (BUG-03):** Updated `src/lib/importing/parsers.ts` to support parenthesis syntax `@article(key, ...)` and recover gracefully (`continue` past entry header) from unclosed or malformed entries without dropping subsequent citations. Verified with 4 unit tests in `parsers.test.ts`.
 
-### Backlog (Low & Refactoring) — RESOLVED
+### Backlog (Low & Refactoring) - RESOLVED
 - [x] **Complete HTML Escaping (SEC-10):** Updated `escapeHtml()` in `src/lib/wb/makalah/page-support.ts` to escape double quotes (`"`) and single quotes (`'`) preventing attribute breakout in Makalah export documents. Verified with 10 unit tests in `page-support.test.ts`.
 - [x] **Localize PDF Worker (REL-01):** Bundled `pdf.worker.min.mjs` into `public/` and configured fallback to avoid unpinned third-party CDN dependency during browser PDF ingestion.
 - [x] **Enhance Form Accessibility (A11Y-01):** Added `aria-label` and standard `autoComplete` attributes to all authentication input fields in `src/app/login/page.tsx` and `src/app/register/page.tsx`.

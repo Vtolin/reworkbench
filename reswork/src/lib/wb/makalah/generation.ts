@@ -43,10 +43,10 @@ export async function generateSection(
   });
   // Thinking lives ONLY here: outline and claim-check always run cold.
   // When on, drafting is two-phase (both fixed, app-controlled calls):
-  //   1. deliberate — thinking enabled, num_predict == think budget (a HARD
+  //   1. deliberate - thinking enabled, num_predict == think budget (a HARD
   //      cap: Ollama stops generating at the cap, so the trace can never eat
   //      the answer). The trace is kept; any content is a best-effort bonus.
-  //   2. answer — thinking disabled with the FULL answer cap, the trace
+  //   2. answer - thinking disabled with the FULL answer cap, the trace
   //      injected as context. The answer can never starve, by construction.
   // If phase 1 already yields valid JSON content, it is used directly and
   // phase 2 is skipped. If phase 1 fails outright, we fall back to a single
@@ -59,7 +59,7 @@ export async function generateSection(
   // thinking_config and must never emit literal tags (the parser strips them).
   const thinkTags = provider.id === "ollama";
   const thinkLevel = sel.makalahThinkLevel ?? "low";
-  // Ollama has no "minimal" level (400 on unknown think values) — closest is
+  // Ollama has no "minimal" level (400 on unknown think values) - closest is
   // a brief "low" trace. Cloud (Gemini 3) keeps "minimal" as closest-to-off.
   const deliberationLevel = provider.id === "ollama" && thinkLevel === "minimal" ? "low" : thinkLevel;
   const baseUser = buildSectionUserPrompt(
@@ -79,7 +79,7 @@ export async function generateSection(
   const finish = (parsed: SectionOutput): SectionOutput =>
     clean(resolveAliases(parsed, toReal));
   // Salvage ONLY malformed-model-output failures (chatJson tags those with a
-  // string `.raw`). Network / provider / auth errors must stay hard errors —
+  // string `.raw`). Network / provider / auth errors must stay hard errors -
   // silently converting "Ollama offline" into a fake section would be a lie.
   const salvage = (e: unknown): SectionOutput => {
     // Stop/abort is user intent, never salvageable content.
@@ -101,7 +101,7 @@ export async function generateSection(
   // One bounded correction retry for deterministic defects (unknown ids,
   // page mismatches, empty citations, citation leaks in prose, gap-leaks in
   // prose). The model gets its defects listed back and one chance to fix
-  // them — still fully app-controlled (max 1 extra call, fixed prompt shape,
+  // them - still fully app-controlled (max 1 extra call, fixed prompt shape,
   // no autonomy). Never throws: a failed correction keeps the first draft
   // (only unparsable model output salvages, via salvage() at the call sites).
   const defectList = (out: SectionOutput): string[] => {
@@ -119,13 +119,13 @@ export async function generateSection(
   // ships readable text, but the correction reinforces the attribution rule.
   const rawHadLeak = (parsed: SectionOutput): boolean =>
     (parsed.paragraphs ?? []).some((p) => hasCitationLeak(p.text));
-  const LEAK_DEFECT = `bracketed citation-shaped text inside paragraphs (aliases, bare numbers, years — attribution belongs ONLY in the "citations" array)`;
+  const LEAK_DEFECT = `bracketed citation-shaped text inside paragraphs (aliases, bare numbers, years - attribution belongs ONLY in the "citations" array)`;
   const maybeCorrect = async (first: SectionOutput, prompt: string, firstHadLeak = false): Promise<SectionOutput> => {
     const defects = defectList(first);
     if (firstHadLeak) defects.push(LEAK_DEFECT);
     if (!defects.length || signal?.aborted) return first;
     const correction =
-      `${prompt}\n\nCORRECTION — your previous draft had these defects:\n` +
+      `${prompt}\n\nCORRECTION - your previous draft had these defects:\n` +
       defects.map((d) => `- ${d}`).join("\n") +
       `\nFix them: cite ONLY aliases from the Valid aliases list with their shown page ` +
       `numbers (copy exactly, never invent pages); never write bracketed references, ` +
@@ -144,7 +144,7 @@ export async function generateSection(
       // Keep whichever draft has fewer defects (never regress).
       return secondDefects.length < defects.length ? second : first;
     } catch (e) {
-      // User stop must propagate — never convert an abort into a kept draft.
+      // User stop must propagate - never convert an abort into a kept draft.
       if (signal?.aborted) throw e;
       return first;
     }
@@ -184,16 +184,16 @@ export async function generateSection(
         const parsed = parseSectionJson(content);
         return await maybeCorrect(finish(parsed), baseUser, rawHadLeak(parsed));
       } catch {
-        /* well-formed trace but unusable draft — deliberate below from trace */
+        /* well-formed trace but unusable draft - deliberate below from trace */
       }
     }
     // Cloud parity: CloudProvider now returns a native `thinking` trace when
     // the proxy surfaces one; Ollama returns it directly. Either way the
-    // trace is injected as context — never discarded.
+    // trace is injected as context - never discarded.
     trace = (deliberation.thinking ?? "").trim();
   } catch (e) {
     if (signal?.aborted) throw e;
-    trace = ""; // deliberation failed — cold fallback below
+    trace = ""; // deliberation failed - cold fallback below
   }
   const finalUser = trace
     ? `${baseUser}\n\nYour earlier deliberation (follow it; do not repeat it, output JSON only):\n${trace.slice(0, (thinkBudget ?? 1024) * 3)}`
@@ -211,5 +211,5 @@ export async function generateSection(
 }
 
 // ---------------------------------------------------------------------------
-// Validation — deterministic code (spec §6 steps 1–3)
+// Validation - deterministic code (spec §6 steps 1–3)
 // ---------------------------------------------------------------------------

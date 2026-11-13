@@ -2,6 +2,7 @@
 
 import Topbar from "@/components/Topbar";
 import { InferenceCard } from "./_components/InferenceCard";
+import { WebSearchCard } from "./_components/WebSearchCard";
 import { SummarizationCard } from "./_components/SummarizationCard";
 import { MakalahPipelineCard } from "./_components/MakalahPipelineCard";
 import { CitationCard } from "./_components/CitationCard";
@@ -28,6 +29,7 @@ export default function SettingsPage() {
       />
       <div className="mx-auto w-full max-w-4xl space-y-6 px-4 py-6 lg:px-6">
         <InferenceCard />
+        <WebSearchCard />
         <SummarizationCard />
         <MakalahPipelineCard />
         <CitationCard settings={citation} />

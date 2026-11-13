@@ -1,5 +1,5 @@
 // Absolute server-side ceiling. Independent of the workspace soft limit.
-// A compromised/modified client must not be able to raise it — every
+// A compromised/modified client must not be able to raise it - every
 // membership write path clamps to this value on the server.
 export const MAX_ALLOWED_MEMBERS = 10;
 

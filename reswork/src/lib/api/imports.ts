@@ -55,7 +55,7 @@ async function exportDocs(scope?: string[] | ExportScope): Promise<HydratedDoc[]
   const ws = await getWorkspaceId();
   const sb = createClient();
   // Bounded export window (1000 newest): user-triggered, intentionally capped
-  // rather than paginated — a full-workspace dump for larger libraries is
+  // rather than paginated - a full-workspace dump for larger libraries is
   // future work (see exportWorkspace). Explicit columns: skip the fts vector.
   let q = sb.from("documents").select(DOCUMENT_COLUMNS_SELECT).eq("workspace_id", ws).eq("status", "approved").order("created_at", { ascending: false }).limit(1000);
   if (targetIds?.length) q = q.in("id", targetIds);

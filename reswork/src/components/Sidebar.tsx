@@ -106,7 +106,7 @@ export default function Sidebar() {
           <div className="h-8 w-8 rounded-lg bg-white text-black grid place-items-center font-semibold">◐</div>
           <div className="text-sm font-semibold tracking-tight">Research Workbench</div>
         </div>
-        <div className="ml-auto text-xs text-[#8e8e8e]">{stats?.total ?? "—"} docs</div>
+        <div className="ml-auto text-xs text-[#8e8e8e]">{stats?.total ?? "-"} docs</div>
       </div>
 
       <aside className={`
@@ -173,7 +173,7 @@ export default function Sidebar() {
             const active = path === n.href || (n.href !== "/" && path.startsWith(n.href));
             if (collapsed) {
               return (
-                <Link key={n.href} href={n.href} onClick={()=>setOpen(false)} title={`${n.label} — ${n.desc}`} className={`flex justify-center rounded-xl p-2.5 transition ${active ? "bg-white text-black shadow-sm" : "hover:bg-[#171717] text-[#ececec] border border-transparent hover:border-[#2f2f2f]"}`}>
+                <Link key={n.href} href={n.href} onClick={()=>setOpen(false)} title={`${n.label} - ${n.desc}`} className={`flex justify-center rounded-xl p-2.5 transition ${active ? "bg-white text-black shadow-sm" : "hover:bg-[#171717] text-[#ececec] border border-transparent hover:border-[#2f2f2f]"}`}>
                   <span className={`h-7 w-7 grid place-items-center rounded-lg text-[14px] shrink-0 ${active ? "bg-black/10" : "bg-[#212121] border border-[#2f2f2f]"}`}>{n.icon}</span>
                 </Link>
               );
@@ -199,7 +199,7 @@ export default function Sidebar() {
           )}
         </nav>
 
-        {/* Collections / Tags — hidden when collapsed */}
+        {/* Collections / Tags - hidden when collapsed */}
         {!collapsed ? (
           <div className="flex-1 overflow-auto px-3 pb-3 space-y-4 no-scrollbar">
             <div>

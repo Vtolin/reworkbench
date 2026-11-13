@@ -191,7 +191,7 @@ function LibraryInner() {
                           <div className="text-xs text-[#8e8e8e] mt-1 leading-relaxed wrap-break-word">
                             <span className="inline">{d.original_filename}</span>
                             <span className="mx-1 text-[#5f5f5f]">•</span>
-                            <span className="inline wrap-break-word">{d.authors?.join(", ") || "—"}</span>
+                            <span className="inline wrap-break-word">{d.authors?.join(", ") || "-"}</span>
                             {d.jurisdiction && (
                               <>
                                 <span className="mx-1 text-[#5f5f5f]">•</span>
@@ -201,19 +201,19 @@ function LibraryInner() {
                           </div>
                         </button>
                       </td>
-                      <td className="px-3 py-3 align-top text-[#ececec] font-mono text-xs whitespace-nowrap">{d.year || "—"}</td>
+                      <td className="px-3 py-3 align-top text-[#ececec] font-mono text-xs whitespace-nowrap">{d.year || "-"}</td>
                       <td className="px-3 py-3 align-top"><span className="rounded-full bg-[#212121] border border-[#2f2f2f] px-2 py-0.5 text-xs text-[#ececec] whitespace-nowrap">{d.document_type || "general"}</span></td>
                       <td className="px-3 py-3 align-top">
                         <div className="flex flex-wrap gap-1">
                           {(d.collections||[]).slice(0,2).map((c:any)=><span key={c.id} className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs bg-[#171717] text-[#ececec] whitespace-nowrap" style={{borderColor: c.color}}><span className="h-1.5 w-1.5 rounded-full shrink-0" style={{background:c.color}} />{c.name}</span>)}
                           {(d.collections||[]).length>2 && <span className="text-xs text-[#8e8e8e]">+{d.collections.length-2}</span>}
-                          {(d.collections||[]).length===0 && <span className="text-xs text-[#5f5f5f]">—</span>}
+                          {(d.collections||[]).length===0 && <span className="text-xs text-[#5f5f5f]">-</span>}
                         </div>
                       </td>
                       <td className="px-3 py-3 align-top">
                         <div className="flex flex-wrap gap-1">
                           {(d.tags||[]).slice(0,3).map((t:any)=><span key={t.id} className="rounded-full bg-white text-black px-2 py-0.5 text-xs whitespace-nowrap">#{t.name}</span>)}
-                          {(d.tags||[]).length===0 && <span className="text-xs text-[#5f5f5f]">—</span>}
+                          {(d.tags||[]).length===0 && <span className="text-xs text-[#5f5f5f]">-</span>}
                         </div>
                       </td>
                       <td className="px-4 py-3 align-top text-right">
@@ -250,10 +250,10 @@ function LibraryInner() {
                   )}
                 </div>
                 <div className="text-xs text-[#8e8e8e] mt-1.5 leading-relaxed wrap-break-word">
-                  {d.original_filename} • {d.authors?.join(", ") || "—"} {d.jurisdiction ? `• ${d.jurisdiction}` : ""}
+                  {d.original_filename} • {d.authors?.join(", ") || "-"} {d.jurisdiction ? `• ${d.jurisdiction}` : ""}
                 </div>
                 <div className="flex flex-wrap gap-1.5 mt-3">
-                  <span className="rounded-full bg-[#212121] border border-[#2f2f2f] px-2 py-0.5 text-xs text-[#ececec]">{d.year || "—"} • {d.document_type || "general"}</span>
+                  <span className="rounded-full bg-[#212121] border border-[#2f2f2f] px-2 py-0.5 text-xs text-[#ececec]">{d.year || "-"} • {d.document_type || "general"}</span>
                   {(d.collections||[]).map((c:any)=><span key={c.id} className="rounded-full border px-2 py-0.5 text-xs bg-[#171717] text-[#ececec]" style={{borderColor:c.color}}>{c.name}</span>)}
                   {(d.tags||[]).map((t:any)=><span key={t.id} className="rounded-full bg-white text-black px-2 py-0.5 text-xs">#{t.name}</span>)}
                 </div>

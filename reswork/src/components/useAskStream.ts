@@ -22,6 +22,7 @@ export interface SendAskOpts {
   thinking?: boolean;
   hybrid?: string;
   memory?: boolean;
+  webSearch?: boolean;
   memoryMessages: Array<{ role: "user" | "assistant" | "system"; content: string }>;
 }
 
@@ -55,6 +56,7 @@ export function useAskStream(deps: {
         thinking: opts.thinking ?? false,
         hybrid: opts.hybrid ?? "off",
         memory: opts.memory ?? true,
+        webSearch: opts.webSearch ?? false,
         memoryMessages: opts.memoryMessages,
         skipUserMessage: flags.skipUserMessage,
       },

@@ -45,7 +45,7 @@ export function ImportExportCard({ defaultStyle }: { defaultStyle: string }) {
     try {
       const r = await api.importRefs(text, format || undefined);
       setMessage(
-        `Imported ${r.imported} reference(s)${r.skipped ? `, skipped ${r.skipped} duplicate(s)` : ""} — pending admin approval`,
+        `Imported ${r.imported} reference(s)${r.skipped ? `, skipped ${r.skipped} duplicate(s)` : ""} - pending admin approval`,
       );
       setText("");
     } catch (e) {
@@ -60,7 +60,7 @@ export function ImportExportCard({ defaultStyle }: { defaultStyle: string }) {
     setMessage(null);
     try {
       const r = await api.importFile(file);
-      setMessage(`Imported ${r.imported} reference(s)${r.skipped ? `, skipped ${r.skipped} duplicate(s)` : ""} — collections preserved`);
+      setMessage(`Imported ${r.imported} reference(s)${r.skipped ? `, skipped ${r.skipped} duplicate(s)` : ""} - collections preserved`);
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Import failed");
     } finally {
@@ -86,7 +86,7 @@ export function ImportExportCard({ defaultStyle }: { defaultStyle: string }) {
       description="Interoperate with existing tools: Zotero → RIS export → import here → research → export BibTeX → LaTeX. Imports land as pending records for admin approval."
     >
       <div className="mt-4 text-xs font-medium text-[#ececec]">
-        One-Click Importer — file upload (preserves collections)
+        One-Click Importer - file upload (preserves collections)
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <label className="cursor-pointer rounded-xl border border-[#2f2f2f] bg-[#212121] px-4 py-2 text-sm text-white hover:bg-[#2f2f2f]">
             Choose BibTeX/RIS file
@@ -106,7 +106,7 @@ export function ImportExportCard({ defaultStyle }: { defaultStyle: string }) {
       </div>
 
       <div className="mt-4 text-xs font-medium text-[#ececec]">
-        Import references (paste text — BibTeX / RIS / EndNote XML / CSL-JSON)
+        Import references (paste text - BibTeX / RIS / EndNote XML / CSL-JSON)
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}

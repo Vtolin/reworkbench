@@ -90,7 +90,7 @@ export function useResearchActions({ docs, addMessage, setAutoFollow }: ActionsD
       if (fmt === "pdf") {
         // PDF exports via a print view (same summary, no second model run).
         await api.summarizeExport(summarizeDoc, fmt);
-        flashExportNote(true, "Opened print view — choose Save as PDF ✓");
+        flashExportNote(true, "Opened print view - choose Save as PDF ✓");
         return;
       }
       const blob = await api.summarizeExport(summarizeDoc, fmt);
@@ -144,7 +144,7 @@ export function useResearchActions({ docs, addMessage, setAutoFollow }: ActionsD
       const text =
         r.summary +
         (r.stats
-          ? `\n\n— _${r.stats.method} • ${r.stats.page_count} pages • ${r.stats.chunk_count} chunks${dtype}${models}_`
+          ? `\n\n- _${r.stats.method} • ${r.stats.page_count} pages • ${r.stats.chunk_count} chunks${dtype}${models}_`
           : "");
       addMessage({ id: assistantId(), role: "assistant", content: text, timestamp: Date.now(), type: "summarize", meta: r.stats });
       setLastSummaryDoc(docId); // use captured id, not live state
@@ -177,7 +177,7 @@ export function useResearchActions({ docs, addMessage, setAutoFollow }: ActionsD
           },
         );
       } catch {
-        // Stream path failed — re-run with the same progress handlers so the
+        // Stream path failed - re-run with the same progress handlers so the
         // user still sees the map/reduce stages even in fallback mode.
         const r = await api.summarize({ document_id: summarizeDoc, onStatus });
         setSummarizeStatus(null);

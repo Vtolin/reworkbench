@@ -18,7 +18,7 @@ export function isLastChapterKey(
 
 /**
  * Role-aware evidence policy. Synthesis chapters (explicit flag, else last
- * position) must synthesize already-written sections — disjointness is wrong
+ * position) must synthesize already-written sections - disjointness is wrong
  * for them: forcing fresh evidence pushes closing subsections off-topic
  * instead of de-duplicating them.
  */
@@ -35,7 +35,7 @@ export function isSynthesisKey(
 /**
  * Synthesis evidence pool: passages already CITED by drafted sections
  * (matched by source+page, deduped, capped). No retrieval call, no new
- * evidence — the closing chapter can only recombine what exists. Diversity
+ * evidence - the closing chapter can only recombine what exists. Diversity
  * first: one representative passage per drafted section (flat order), so
  * minor sections cannot be silently dropped; remaining slots go to the
  * most-cited passages.
@@ -83,7 +83,7 @@ export function synthesisPool(
 }
 
 /**
- * P7 — evidence-overlap leading indicator. Compares stored passages against
+ * P7 - evidence-overlap leading indicator. Compares stored passages against
  * every other section: predicts duplication before reading any text and
  * separates "retrieval caused this" from "model caused this".
  */
@@ -93,10 +93,10 @@ export function overlapNote(
   secs: Record<string, SecState | undefined>,
   key: string,
 ): { text: string; hot: boolean } | null {
-  // Synthesis chapters share evidence by design — never an alarm.
+  // Synthesis chapters share evidence by design - never an alarm.
   if (isSynthesisKey(flat, outline, key)) {
     const n = secs[key]?.passages.length ?? 0;
-    return n ? { text: "sintesis — memakai evidence section sebelumnya", hot: false } : null;
+    return n ? { text: "sintesis - memakai evidence section sebelumnya", hot: false } : null;
   }
   const own = secs[key]?.passages ?? [];
   if (!own.length) return null;

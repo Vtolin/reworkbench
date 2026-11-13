@@ -9,7 +9,7 @@
 // Why serial: chunk embedding already fans out to 4 concurrent embed calls
 // (ingest.ts); batch-level parallelism would multiply that to 4*N against
 // one laptop Ollama (which serializes anyway) or N concurrent bursts against
-// /api/rag/embed (per-user budget 120/min — a parallel batch of 10 trips
+// /api/rag/embed (per-user budget 120/min - a parallel batch of 10 trips
 // 429s mid-batch). Preview is read-only (extract + OpenAlex) and runs at 2.
 //
 // Quota: Supabase free tier ships ~1GB of storage (see MAX_FILE_BYTES note
@@ -17,7 +17,7 @@
 // batch is quota-checked up front via readWorkspaceUsage + assessQuota.
 //
 // lib-boundary note: browser orchestration only (supabase browser client via
-// ingest/library helpers). No UI imports — architecture.test.ts forbids
+// ingest/library helpers). No UI imports - architecture.test.ts forbids
 // lib/** runtime imports from app/components/contexts/react.
 import { createClient } from "@/lib/supabase/client";
 import { mapWithLimit } from "@/lib/async/pool";
@@ -166,7 +166,7 @@ export function assessQuota(
 }
 
 /**
- * Confirm + index every item serially (document concurrency 1 — see module
+ * Confirm + index every item serially (document concurrency 1 - see module
  * header). Each item flows through executeIngestFlow, so year validation,
  * DOI cleaning, and confirm assembly are exactly the single-upload rules.
  * Per-item failures are collected; the batch always runs to completion.

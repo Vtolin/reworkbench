@@ -2,7 +2,7 @@
 //
 // Bun/Node/SSR/tests have no Worker global: callers get null and run the
 // direct path. A worker that fails to load or crashes is marked broken for
-// the session, so one environment-level failure cannot cause a retry storm —
+// the session, so one environment-level failure cannot cause a retry storm -
 // every later task runs on the main thread instead.
 import type {
   IngestTaskInput,

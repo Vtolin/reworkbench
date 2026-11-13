@@ -1,5 +1,5 @@
 // Related documents (labeled relations), reference extraction + resolution,
-// annotations, and legal graph refresh — Supabase-backed ports of the
+// annotations, and legal graph refresh - Supabase-backed ports of the
 // corresponding FastAPI endpoints.
 import { createClient } from "@/lib/supabase/client";
 import { titleFuzzyScore } from "@/lib/ingestion/dedup";
@@ -159,7 +159,7 @@ export async function documentReferences(docId: string, resolve: boolean): Promi
 }
 
 // Annotations ---------------------------------------------------------------
-// Explicit columns (Phase 5): no select("*") — table growth must never widen
+// Explicit columns (Phase 5): no select("*") - table growth must never widen
 // this payload by accident. Every column is listed (callers read arbitrary
 // annotation fields), so behavior is unchanged.
 export const ANNOTATION_COLUMNS =

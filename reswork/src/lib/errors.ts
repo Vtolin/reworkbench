@@ -3,7 +3,7 @@
 // Browser-first flows surface Supabase/Postgres/network failures directly in
 // toasts, alerts, and chat bubbles. Most messages are safe and actionable
 // ("Document not found"), but infrastructure text (Postgres diagnostics,
-// RLS internals, fetch TypeErrors, stack traces) must never reach users —
+// RLS internals, fetch TypeErrors, stack traces) must never reach users -
 // details go to the console for debugging instead.
 //
 // Contract: ordinary Error messages pass through UNCHANGED (no behavior

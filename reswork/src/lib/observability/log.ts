@@ -64,7 +64,7 @@ export function errorCategory(e: unknown): string {
 /**
  * Time an async operation and log one completion line (success with
  * durationMs, failure with durationMs + errorCategory). Rethrows failures
- * unchanged — observation only, never policy.
+ * unchanged - observation only, never policy.
  */
 export async function timeOperation<T>(
   operation: string,

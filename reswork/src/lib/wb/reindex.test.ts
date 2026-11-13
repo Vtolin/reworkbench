@@ -3,7 +3,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 // Full-scope reindex (delete + re-insert vectors) with a mocked backend.
 // Missing-scope is a thin delegate to reembedMissingEmbeddings (covered in
 // ingestResilience.test.ts); here we pin the full path: delete-then-insert
-// shape (never UPDATE — admin-only RLS), idempotent refill, and failure
+// shape (never UPDATE - admin-only RLS), idempotent refill, and failure
 // visibility.
 const S = vi.hoisted(() => ({
   docIds: ["doc1"] as string[],

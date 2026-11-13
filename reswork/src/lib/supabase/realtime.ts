@@ -24,7 +24,7 @@ export type RealtimeEvent =
 // Sidebar, the library page and RealtimeToasts subscribe concurrently, so a
 // static `workspace:<id>` topic collides on mount (same precedent as the
 // admin page's per-mount channel names). Topics are connection-local, so a
-// counter suffices — removeChannel still tears down exactly this channel.
+// counter suffices - removeChannel still tears down exactly this channel.
 let channelSeq = 0;
 
 export function subscribeWorkspace(
@@ -61,7 +61,7 @@ export function subscribeWorkspace(
     // chat_imports carries no workspace_id, so the server cannot scope this
     // subscription (a filter on target_chat_id would need a join). Without a
     // relevance check, one workspace's import toasts every client subscribed
-    // to any workspace — most visibly for users in several workspaces.
+    // to any workspace - most visibly for users in several workspaces.
     // Imports are rare, so one indexed lookup per event is negligible; only
     // imports targeting THIS workspace surface. (Realtime RLS already hides
     // rows the caller cannot read; this handles the multi-workspace member

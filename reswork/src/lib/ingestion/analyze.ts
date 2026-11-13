@@ -1,5 +1,5 @@
 // Deterministic text analysis for ingestion: title/year/DOI/document-type
-// proposal from extracted text. Pure string handling — no DOM, no I/O, no AI.
+// proposal from extracted text. Pure string handling - no DOM, no I/O, no AI.
 //
 // Extracted from lib/wb/ingest.ts so the same rules run identically on the
 // main thread and inside the ingest Web Worker (and stay unit-testable).
@@ -7,7 +7,7 @@ import { classifyDocumentType } from "@/lib/ingestion/classify";
 import { extractDoi } from "@/lib/ingestion/dedup";
 
 /** Lines that look like venue/cover labels rather than the document's own title.
- *  Generic shape patterns only — no topic or field keywords. */
+ *  Generic shape patterns only - no topic or field keywords. */
 const TITLE_JUNK_RE =
   /^(working papers?( \d| no\.| are)?|degree project|course code|findings of|draft (of|version)|copyright|all rights reserved|authors?(\s*[:–-])?|supervisor|examiner|subject|level|department of|school of|faculty of|chapter \d+|figure \d+|table \d+|contents|daftar isi|abstrak$|abstract$|keywords?\s*[:–-]|kata kunci\s*[:–-])/i;
 const VENUE_HINT_RE = /(proceedings|findings of|journal of|working paper|chapter \d+|degree project|technical report|conference on|transactions on)/i;
@@ -60,7 +60,7 @@ export function extractTitleCandidate(text: string, filename: string): { title: 
   const isNameBlob = (l: string): boolean => {
     // Person-name / affiliation lines: short, all-capitalized words, no
     // title paraphernalia (parens, digits, function words). Fully Title-Cased
-    // paper titles without any lowercase word are a rare casualty here —
+    // paper titles without any lowercase word are a rare casualty here -
     // the on-demand page-1 assist covers them.
     if (/[()0-9]/.test(l) || l.length > 60) return false;
     const words = l.replace(NAME_PARTICLES_RE, "").split(/\s+/).filter(Boolean);
@@ -91,7 +91,7 @@ export function extractTitleCandidate(text: string, filename: string): { title: 
       !TITLE_JUNK_RE.test(s) && !BOILERPLATE_RE.test(s) && !isNameBlob(s) &&
       !hasMarkerPrefix(s) && !VENUE_HINT_RE.test(s) && commaCount(s) < 2;
     // A wrapped title head that fell below the pool's 12-char floor (e.g.
-    // "Research") is still joinable — length floor doesn't apply here.
+    // "Research") is still joinable - length floor doesn't apply here.
     const looksContinuation = (s: string): boolean =>
       !!s && s.length >= 3 && s.length <= 60 && /^[A-Z0-9(]/.test(s) && !/[.!?]$/.test(s) &&
       !isEmailLine(s) && !isMostlyNumeric(s) && !TITLE_JUNK_RE.test(s) &&
@@ -126,7 +126,7 @@ export function extractTitleCandidate(text: string, filename: string): { title: 
 /**
  * Conservative year extraction: only explicit imprint patterns
  * (© YYYY, Copyright YYYY, Date: YYYY-MM-DD). Never the first bare
- * 4-digit number in the body — that picks up timelines, version
+ * 4-digit number in the body - that picks up timelines, version
  * histories, and reference lists instead of the publication year.
  */
 export function extractYear(head: string): number | null {

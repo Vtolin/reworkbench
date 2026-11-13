@@ -116,7 +116,7 @@ export default function DuplicateMergerModal({ open, onClose, onMerged }: Duplic
                       onClick={() => setKeepRightMap((m) => ({ ...m, [pair.key]: !keepRight }))}
                       className="rounded-lg border border-[#2f2f2f] bg-black px-2.5 py-1 text-[#d4d4d4] hover:text-white"
                     >
-                      Keep {keepRight ? "Right (Record B)" : "Left (Record A)"} as Primary — Swap
+                      Keep {keepRight ? "Right (Record B)" : "Left (Record A)"} as Primary - Swap
                     </button>
                     <button
                       type="button"
@@ -145,9 +145,9 @@ export default function DuplicateMergerModal({ open, onClose, onMerged }: Duplic
                           <span>{doc.storage_path ? "Has PDF" : "Metadata only"}</span>
                         </div>
                         <div className="text-sm font-medium text-white">{doc.title}</div>
-                        <div className="text-[#b4b4b4]">Authors: {doc.authors.join(", ") || "—"}</div>
-                        <div className="text-[#8e8e8e]">Year: {doc.year ?? "—"} • DOI: {doc.doi ?? "—"}</div>
-                        <div className="text-[#8e8e8e]">Venue: {doc.journal ?? "—"}</div>
+                        <div className="text-[#b4b4b4]">Authors: {doc.authors.join(", ") || "-"}</div>
+                        <div className="text-[#8e8e8e]">Year: {doc.year ?? "-"} • DOI: {doc.doi ?? "-"}</div>
+                        <div className="text-[#8e8e8e]">Venue: {doc.journal ?? "-"}</div>
                       </div>
                     );
                   })}

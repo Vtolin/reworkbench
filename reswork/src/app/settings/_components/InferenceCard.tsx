@@ -39,7 +39,7 @@ export function InferenceCard() {
       body: JSON.stringify({ provider: inf.cloudProvider, apiKey: cloudKey }),
     });
     if (res.ok) {
-      setCloudMsg("Key saved (encrypted at rest, owner-only — never shared). Now press ↻ Models to list.");
+      setCloudMsg("Key saved (encrypted at rest, owner-only - never shared). Now press ↻ Models to list.");
       setCloudKey("");
     } else {
       setCloudMsg(await readError(res, "Save failed"));
@@ -47,7 +47,7 @@ export function InferenceCard() {
   };
 
   const removeCloudKey = async () => {
-    if (!confirm("Forget your saved cloud API key on this workspace? (This does not revoke it at the provider — rotate it there too.)")) {
+    if (!confirm("Forget your saved cloud API key on this workspace? (This does not revoke it at the provider - rotate it there too.)")) {
       return;
     }
     const res = await fetch("/api/ai/proxy", {
@@ -70,7 +70,7 @@ export function InferenceCard() {
       const { listCloudModels } = await import("@/lib/ai/cloud");
       const models = await listCloudModels(inf.cloudProvider);
       setCloudModels(models);
-      setCloudMsg(models.length ? null : "No models returned — check the key.");
+      setCloudMsg(models.length ? null : "No models returned - check the key.");
     } catch (e) {
       setCloudMsg(e instanceof Error ? e.message : "Model list failed (save your key first).");
       setCloudModels(null);
@@ -81,12 +81,12 @@ export function InferenceCard() {
 
   return (
     <Panel
-      title="Chat — inference on this device"
+      title="Chat - inference on this device"
       description={
         <>
-          Model choice, context length, temperature and keys are <span className="text-white">local/browser state</span> — never
+          Model choice, context length, temperature and keys are <span className="text-white">local/browser state</span> - never
           shared with the workspace. This controls the model used by <span className="font-mono text-white">Research → Ask</span>,
-          document Q&amp;A and synthesis. Changes apply on the next question — no restart required.
+          document Q&amp;A and synthesis. Changes apply on the next question - no restart required.
         </>
       }
     >
@@ -144,7 +144,7 @@ export function InferenceCard() {
           </span>
         </label>
         <label className="text-xs font-medium text-[#ececec]">
-          Context length — num_ctx
+          Context length - num_ctx
           <input
             type="number"
             value={inf.numCtx}
@@ -191,7 +191,7 @@ export function InferenceCard() {
             </button>
             {detected ? (
               <div className="mt-1 break-all text-[11px] text-[#8e8e8e]">
-                {detected.join(", ") || "none found — is 'ollama serve' running?"}
+                {detected.join(", ") || "none found - is 'ollama serve' running?"}
               </div>
             ) : null}
           </div>
@@ -199,7 +199,7 @@ export function InferenceCard() {
       </div>
 
       <div className="mt-4 border-t border-[#2f2f2f] pt-4 text-xs font-medium text-[#ececec]">
-        Cloud provider (BYOK — personal, never shared)
+        Cloud provider (BYOK - personal, never shared)
         <div className="mt-2 flex flex-wrap gap-2">
           <select
             value={inf.cloudProvider}

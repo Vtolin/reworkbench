@@ -178,8 +178,8 @@ export function MakalahProvider({ children }: { children: React.ReactNode }) {
     freshItem: freshDraft,
     sort: (list) => [...list].sort((a, b) => b.updatedAt - a.updatedAt),
     messages: {
-      quotaMessage: "Penyimpanan browser penuh — draft hanya ada di memori tab ini. Export/Copy sekarang, lalu hapus draft lama.",
-      failureMessage: "Autosave gagal — draft hanya ada di memori tab ini. Export/Copy sekarang.",
+      quotaMessage: "Penyimpanan browser penuh - draft hanya ada di memori tab ini. Export/Copy sekarang, lalu hapus draft lama.",
+      failureMessage: "Autosave gagal - draft hanya ada di memori tab ini. Export/Copy sekarang.",
     },
   });
 

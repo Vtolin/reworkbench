@@ -12,7 +12,7 @@ describe("isInfrastructureErrorText", () => {
 
   it("passes ordinary app messages", () => {
     expect(isInfrastructureErrorText("Document not found")).toBe(false);
-    expect(isInfrastructureErrorText("Popup blocked — allow popups to export PDF")).toBe(false);
+    expect(isInfrastructureErrorText("Popup blocked - allow popups to export PDF")).toBe(false);
     expect(isInfrastructureErrorText("")).toBe(false);
   });
 });

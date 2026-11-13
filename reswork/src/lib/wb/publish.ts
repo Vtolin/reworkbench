@@ -1,7 +1,7 @@
 // Shared-chat publishing: Research conversations are per-device history;
 // publishing exports one to the workspace gallery (chats + chat_messages)
 // for others to read and import into their own Research. Nothing starts in
-// the gallery — it only receives published research.
+// the gallery - it only receives published research.
 import { createClient } from "@/lib/supabase/client";
 import type { Conversation, StoredChatMessage } from "@/contexts/ChatContext";
 

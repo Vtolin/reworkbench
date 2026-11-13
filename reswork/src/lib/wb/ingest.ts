@@ -120,7 +120,7 @@ export function parseTitleAssistJson(text: string): TitleAssist {
 }
 
 /** Minimal model selection for the page-1 metadata skim (subset of device
- *  settings; intentionally local — lib must not import UI context types). */
+ *  settings; intentionally local - lib must not import UI context types). */
 export interface SuggestSelection {
   provider: "ollama" | "cloud";
   model: string;
@@ -183,7 +183,7 @@ export async function previewFile(file: File): Promise<IngestPreview> {
   const [{ data: existing }, collections] = await Promise.all([
     // Bounded duplicate-detection window (2000 newest): exact hash/doi hits
     // are order-independent, but title-fuzzy matching needs a deterministic
-    // candidate set — newest-first, not whatever the database returns.
+    // candidate set - newest-first, not whatever the database returns.
     sb.from("documents").select("id, title, file_hash, doi, year").eq("workspace_id", ws).order("created_at", { ascending: false }).limit(2000),
     listCollections().catch(() => [] as Array<{ id: string; name: string }>),
   ]);
@@ -290,7 +290,7 @@ export async function confirmIngest(input: ConfirmInput): Promise<{
 }> {
   const { file, preview } = input;
   assertFileSize(file);
-  // Operation facts only (Task O): stage counts, mode, outcome — never file
+  // Operation facts only (Task O): stage counts, mode, outcome - never file
   // names, titles, or text (user content stays out of the logs).
   const started = Date.now();
   const sb = createClient();
@@ -348,7 +348,7 @@ export async function confirmIngest(input: ConfirmInput): Promise<{
     // No row exists, so the just-uploaded object would be an orphan: remove
     // it best-effort (logged) so failed confirms leave no storage garbage.
     // When the row DOES exist, later failures keep it and mark
-    // ingestion_status=error instead — visible and recoverable, never silent.
+    // ingestion_status=error instead - visible and recoverable, never silent.
     const { error: rmErr } = await sb.storage.from("documents").remove([storagePath]);
     logEvent(rmErr ? "warn" : "info", "ingest.confirm.cleanup", {
       fileBytes: file.size,
@@ -411,7 +411,7 @@ export async function confirmIngest(input: ConfirmInput): Promise<{
     if (srcErr) linkErrors.push(`sources row: ${srcErr.message}`);
   }
 
-  let indexingError: string | null = linkErrors.length ? `metadata links incomplete — ${linkErrors.join("; ").slice(0, 500)}` : null;
+  let indexingError: string | null = linkErrors.length ? `metadata links incomplete - ${linkErrors.join("; ").slice(0, 500)}` : null;
   if (chunks.length) {
     try {
       const { data: rows, error: chunkErr } = await sb
@@ -430,7 +430,7 @@ export async function confirmIngest(input: ConfirmInput): Promise<{
       if (chunkErr) throw new Error(chunkErr.message);
       const chunkRows = (rows ?? []) as Array<{ id: string; content: string }>;
       // Bounded parallelism (4): Ollama serializes locally and server egress
-      // is shared — never Promise.all over an unbounded chunk list. Order is
+      // is shared - never Promise.all over an unbounded chunk list. Order is
       // irrelevant (chunk_index is stored explicitly); the first failure
       // still aborts the rest and marks the document errored, as before.
       // Embeddings are collected first and persisted with ONE bulk insert:
@@ -584,7 +584,7 @@ export async function reembedMissingEmbeddings(opts: {
     }
     const chunks = (chunkRows ?? []) as Array<{ id: string; content: string }>;
     if (!chunks.length) {
-      summary.warnings.push(`${target.title}: no chunks stored — re-upload required`);
+      summary.warnings.push(`${target.title}: no chunks stored - re-upload required`);
       continue;
     }
     const ids = chunks.map((c) => c.id);
@@ -652,7 +652,7 @@ export interface OrphanScan {
 /**
  * Storage objects under the workspace prefix with no documents row.
  * Bounded (default 1000): truncated flags an approximate answer on huge
- * buckets. Never deletes — see sweepOrphanStorage for the explicit action.
+ * buckets. Never deletes - see sweepOrphanStorage for the explicit action.
  */
 export async function listOrphanStoragePaths(limit = 1000): Promise<OrphanScan> {
   const sb = createClient();

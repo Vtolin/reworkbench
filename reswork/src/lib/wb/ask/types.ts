@@ -1,6 +1,7 @@
 // Research engine domain types.
 // Extracted verbatim from lib/wb/ask.ts (Phase 9); behavior unchanged.
 import type { ChatMessage } from "../../ai/types";
+import type { WebFilterMode, WebSearchProviderId } from "../../search/webFilter";
 
 export interface StageSelection {
   provider: "inherit" | "ollama" | "cloud";
@@ -36,6 +37,10 @@ export interface InferenceSelection {
   makalahThinkLevel?: "minimal" | "low" | "medium" | "high" | "max";
   /** Makalah thinking-token budget for drafting (prompt-declared + capped). */
   makalahThinkingBudget?: number;
+  /** Optional BYOK live web search toggle and config. */
+  webSearch?: boolean;
+  webSearchProvider?: WebSearchProviderId;
+  webSearchFilterMode?: WebFilterMode;
 }
 
 export interface Source {

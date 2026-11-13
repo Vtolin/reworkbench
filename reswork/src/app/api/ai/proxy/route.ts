@@ -191,7 +191,7 @@ export async function POST(req: Request) {
   }
 }
 
-// PUT /api/ai/proxy {provider, apiKey} — save personal BYOK key (encrypted).
+// PUT /api/ai/proxy {provider, apiKey} - save personal BYOK key (encrypted).
 export async function PUT(req: Request) {
   let body: { provider?: string; apiKey?: string };
   try {
@@ -229,7 +229,7 @@ export async function PUT(req: Request) {
   return NextResponse.json({ ok: true });
 }
 
-// DELETE /api/ai/proxy [{provider}] — forget stored BYOK key(s).
+// DELETE /api/ai/proxy [{provider}] - forget stored BYOK key(s).
 // With {provider}: removes only that provider's key (matches the Settings
 // "Remove key" intent for the selected provider). Without a body: removes
 // all of the caller's keys (legacy behavior for single-key users).
@@ -247,7 +247,7 @@ export async function DELETE(req: Request) {
       provider = body.provider.toLowerCase();
     }
   } catch {
-    // No body — legacy delete-all path below.
+    // No body - legacy delete-all path below.
   }
   let query = supabase.from("ai_credentials").delete().eq("user_id", me.user.id);
   if (provider) query = query.eq("provider", provider);

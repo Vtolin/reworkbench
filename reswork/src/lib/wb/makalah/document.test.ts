@@ -66,7 +66,7 @@ describe("buildPrintHtml", () => {
       titleOf,
     });
     expect(html).toContain("<title>A &lt;B&gt;</title>");
-    expect(html).toContain("Ani — 123");
+    expect(html).toContain("Ani - 123");
     expect(html).toContain("Daftar Isi");
     expect(html).toContain("1.1 Latar Belakang");
     expect(html).toContain("&lt;script&gt;x&lt;/script&gt;");

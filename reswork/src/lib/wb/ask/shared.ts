@@ -56,7 +56,7 @@ export function toSources(passages: Awaited<ReturnType<typeof retrieveContext>>[
     const title = d?.original_filename || d?.title || p.document_id.slice(0, 8);
     const loc = [p.page ? `Page ${p.page}` : null, p.section].filter(Boolean).join(", ");
     return {
-      citation: `[${i + 1}] ${title}${loc ? ` — ${loc}` : ""}`,
+      citation: `[${i + 1}] ${title}${loc ? ` - ${loc}` : ""}`,
       snippet: p.content.slice(0, 600),
       document_id: p.document_id,
       page: p.page,

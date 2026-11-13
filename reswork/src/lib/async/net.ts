@@ -92,7 +92,7 @@ const defaultSleep = (ms: number): Promise<void> => new Promise((r) => setTimeou
 
 /**
  * Run fn until it succeeds, the policy is exhausted, or the error is not
- * retryable (rehtrown immediately — no sleep, no extra attempts).
+ * retryable (rehtrown immediately - no sleep, no extra attempts).
  */
 export async function withRetry<T>(
   fn: (attempt: number) => Promise<T>,

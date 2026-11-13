@@ -21,6 +21,7 @@ export interface AskBody {
   thinking?: boolean;
   use_memory?: boolean;
   hybrid_mode?: string;
+  web_search?: boolean;
   session_id?: string;
   project_id?: string | null;
   memoryMessages?: Array<{ role: "user" | "assistant" | "system"; content: string }>;
@@ -40,6 +41,7 @@ export const researchApi = {
       broad: body.broad,
       thinking: body.thinking,
       hybrid: (body.hybrid_mode as InferenceSelection["hybrid"]) ?? "off",
+      webSearch: Boolean(body.web_search),
       memoryMessages: body.use_memory === false ? [] : body.memoryMessages,
     });
     const r = await wbAsk(body.query, sel, { scopeIds: body.document_ids });
@@ -63,6 +65,7 @@ export const researchApi = {
       broad: body.broad,
       thinking: body.thinking,
       hybrid: (body.hybrid_mode as InferenceSelection["hybrid"]) ?? "off",
+      webSearch: Boolean(body.web_search),
       memoryMessages: body.use_memory === false ? [] : body.memoryMessages,
     });
     return wbAskStream(body.query, sel, {
@@ -113,13 +116,13 @@ export const researchApi = {
       return buildResearchDocx(title, r.summary, "Document Summary");
     }
     if (format === "html") {
-      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(title)} — summary</title></head><body style="font-family:sans-serif;max-width:70ch;margin:2rem auto;line-height:1.6"><h1>${escapeHtml(title)}</h1><pre style="white-space:pre-wrap">${escapeHtml(r.summary)}</pre></body></html>`;
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(title)} - summary</title></head><body style="font-family:sans-serif;max-width:70ch;margin:2rem auto;line-height:1.6"><h1>${escapeHtml(title)}</h1><pre style="white-space:pre-wrap">${escapeHtml(r.summary)}</pre></body></html>`;
       return new Blob([html], { type: "text/html" });
     }
     // PDF: render the same summary into a print window (user saves as PDF).
     const w = window.open("", "_blank");
-    if (!w) throw new Error("Popup blocked — allow popups to export PDF");
-    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(title)} — summary</title></head><body style="font-family:sans-serif;max-width:70ch;margin:2rem auto;line-height:1.6"><h1>${escapeHtml(title)}</h1><pre style="white-space:pre-wrap">${escapeHtml(r.summary)}</pre></body></html>`);
+    if (!w) throw new Error("Popup blocked - allow popups to export PDF");
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(title)} - summary</title></head><body style="font-family:sans-serif;max-width:70ch;margin:2rem auto;line-height:1.6"><h1>${escapeHtml(title)}</h1><pre style="white-space:pre-wrap">${escapeHtml(r.summary)}</pre></body></html>`);
     w.document.close();
     w.focus();
     w.print();

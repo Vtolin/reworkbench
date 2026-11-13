@@ -30,6 +30,7 @@ export interface AskFlowInput {
   thinking: boolean;
   hybrid: string;
   memory: boolean;
+  webSearch?: boolean;
   memoryMessages: Array<{ role: "user" | "assistant" | "system"; content: string }>;
   skipUserMessage?: boolean;
 }
@@ -62,6 +63,7 @@ export interface AskFlowBackend {
       thinking: boolean;
       use_memory: boolean;
       hybrid_mode: string;
+      web_search?: boolean;
       memoryMessages: Array<{ role: "user" | "assistant" | "system"; content: string }>;
     },
     handlers: {
@@ -81,6 +83,7 @@ export interface AskFlowBackend {
     thinking: boolean;
     use_memory: boolean;
     hybrid_mode: string;
+    web_search?: boolean;
     memoryMessages: Array<{ role: "user" | "assistant" | "system"; content: string }>;
   }) => Promise<{ answer: string; sources: Source[]; thinking: string | null; retrieved: unknown }>;
 }
@@ -111,7 +114,7 @@ export function cleanStreamedAnswer(answer: string, thinking: boolean): string {
 
 /**
  * Stop finalization (verbatim page rules): keep whatever streamed so far as
- * a marked partial answer — nothing is thrown away.
+ * a marked partial answer - nothing is thrown away.
  */
 export function finalizeStoppedMessage(acc: Accumulator, thinking: boolean): AskFlowAssistantMessage {
   let content: string;
@@ -134,7 +137,7 @@ export function finalizeStoppedMessage(acc: Accumulator, thinking: boolean): Ask
   }
   content = content.trim();
   answerThinking = answerThinking?.trim() || null;
-  if (!content && !answerThinking) content = "(stopped — nothing generated yet)";
+  if (!content && !answerThinking) content = "(stopped - nothing generated yet)";
   else if (!content && answerThinking) content = "(stopped while thinking)";
   return {
     role: "assistant",
@@ -179,6 +182,7 @@ export async function executeAskFlow(
     thinking,
     use_memory: memory,
     hybrid_mode: hybrid,
+    ...(input.webSearch ? { web_search: true } : {}),
     memoryMessages: memory ? memoryMessages : [],
   };
   const handleFallback = async () => {

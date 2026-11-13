@@ -4,6 +4,7 @@ import type { PipelineStatus } from "./types";
 export const STATUS_LABELS: Record<string, string> = {
   starting: "Starting…",
   retrieving: "Searching documents…",
+  searching_web: "Searching the web…",
   reranking: "Reranking results…",
   preparing: "Preparing context…",
   processing_prompt: "Processing prompt…",
@@ -22,9 +23,9 @@ export const STATUS_LABELS: Record<string, string> = {
  */
 export function statusLabel(status: PipelineStatus, progressNoun?: string): string {
   const base = STATUS_LABELS[status.stage] ?? status.stage;
-  if (status.detail) return `${base} — ${status.detail}`;
+  if (status.detail) return `${base} - ${status.detail}`;
   if (progressNoun && status.current != null && status.total != null) {
-    return `${base} — ${progressNoun} ${status.current}/${status.total}`;
+    return `${base} - ${progressNoun} ${status.current}/${status.total}`;
   }
   return base;
 }

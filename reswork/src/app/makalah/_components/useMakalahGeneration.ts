@@ -79,7 +79,7 @@ export function useMakalahGeneration(draft: MakalahDraftModel) {
     try {
       // Focus-first query: the distinctive span is doubled so the embedding
       // centroid steers away from the chapter terms every sibling shares.
-      // Without focus the query collapses to title+chapter+topic (Mode B) —
+      // Without focus the query collapses to title+chapter+topic (Mode B) -
       // the Step-2 "tanpa fokus" hint nudges the human to fill it.
       const distinctive = `${sub.title} ${sub.focus ?? ""}`.replace(/\s+/g, " ").trim();
       const query = (
@@ -95,7 +95,7 @@ export function useMakalahGeneration(draft: MakalahDraftModel) {
       // default to excluding every other section's passages (fresh mirror).
       // Synthesis chapters skip the allocator entirely: their pool is the
       // already-cited passages of drafted sections (no new evidence, no
-      // disjointness — forcing fresh evidence is what pushed closing
+      // disjointness - forcing fresh evidence is what pushed closing
       // subsections off-topic).
       let passages: SectionPassage[];
       if (isSynthesisKey(flat, outline, key)) {
@@ -127,7 +127,7 @@ export function useMakalahGeneration(draft: MakalahDraftModel) {
           exclude,
         );
       }
-      // Fallback: subsection gets 0 passages — widen to chapter+topic across
+      // Fallback: subsection gets 0 passages - widen to chapter+topic across
       // all selected documents before giving up.
       if (!passages.length) {
         passages = await api.makalahRetrieve(
@@ -200,7 +200,7 @@ export function useMakalahGeneration(draft: MakalahDraftModel) {
       setSec(key, {
         status: "error",
         error: isQuotaError(msg)
-          ? `${msg} — cloud quota/billing limit hit. Nothing is lost: switch the section stage to Ollama in Settings → Makalah pipeline (or wait for reset), then press Regenerate on this section.`
+          ? `${msg} - cloud quota/billing limit hit. Nothing is lost: switch the section stage to Ollama in Settings → Makalah pipeline (or wait for reset), then press Regenerate on this section.`
           : msg,
       });
       return null;
@@ -211,7 +211,7 @@ export function useMakalahGeneration(draft: MakalahDraftModel) {
     stopRef.current = true;
     runSignal.current?.abort();
     setRunNote(
-      "Dihentikan — hasil sejauh ini tersimpan, teks terakhir yang baik tidak dihapus.",
+      "Dihentikan - hasil sejauh ini tersimpan, teks terakhir yang baik tidak dihapus.",
     );
   };
 
@@ -219,7 +219,7 @@ export function useMakalahGeneration(draft: MakalahDraftModel) {
     if (running || !flat.length) return;
     if (!selected.length) {
       setRunNote(
-        "Pilih minimal 1 dokumen sumber di Step 1 dulu — tanpa sumber, retrieval berjalan tanpa batas dan sitasi menunjuk dokumen acak.",
+        "Pilih minimal 1 dokumen sumber di Step 1 dulu - tanpa sumber, retrieval berjalan tanpa batas dan sitasi menunjuk dokumen acak.",
       );
       return;
     }
@@ -239,7 +239,7 @@ export function useMakalahGeneration(draft: MakalahDraftModel) {
     let retries = 0;
     for (const item of flat) {
       if (stopRef.current) {
-        setRunNote("Stopped — generated sections are kept.");
+        setRunNote("Stopped - generated sections are kept.");
         break;
       }
       const prior = buildPrior(acc);
@@ -306,7 +306,7 @@ export function useMakalahGeneration(draft: MakalahDraftModel) {
       setStep(4);
     } else if (failed.length) {
       setRunNote(
-        `Incomplete — ${failed.length} section(s) failed: ${failed
+        `Incomplete - ${failed.length} section(s) failed: ${failed
           .map((f) => `${f.sub.number} ${f.sub.title}`)
           .join(", ")}. Fix quota/model, Regenerate them, then Preview.`,
       );
@@ -321,7 +321,7 @@ export function useMakalahGeneration(draft: MakalahDraftModel) {
 
   /**
    * "Bukti baru": regenerate that provably diverges at temperature 0 by
-   * changing inputs instead of sampling — excludes every passage this and
+   * changing inputs instead of sampling - excludes every passage this and
    * all other sections have used (forces fresh evidence via the allocator's
    * widen→exclude→MMR path) and injects the verbatim negative list of the
    * most-similar already-drafted section. Pool exhaustion (everything comes
@@ -351,7 +351,7 @@ export function useMakalahGeneration(draft: MakalahDraftModel) {
     }
     let collected: SectionPassage[] = [];
     // Synthesis sections reuse the fixed cited pool by design, so evidence
-    // cannot diverge — variance comes from mild sampling on Ollama and from
+    // cannot diverge - variance comes from mild sampling on Ollama and from
     // the verbatim negative list on cloud (Gemini 3 ignores temperature).
     const synth = isSynthesisKey(flat, outline, key);
     const out = await runOne(key, chTitle, sub, {
@@ -366,7 +366,7 @@ export function useMakalahGeneration(draft: MakalahDraftModel) {
       const reused = collected.filter((p) => used.has(passageKey(p))).length;
       if (reused === collected.length) {
         setRunNote(
-          `Pool bukti untuk ${sub.number} ${sub.title} habis — hasil memakai ulang evidence lama. Pertajam Fokus atau tambah sumber.`,
+          `Pool bukti untuk ${sub.number} ${sub.title} habis - hasil memakai ulang evidence lama. Pertajam Fokus atau tambah sumber.`,
         );
       }
     }

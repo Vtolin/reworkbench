@@ -18,7 +18,7 @@ export async function embedSlice(slice: string, embedMode: EmbedMode): Promise<E
       if (response.ok && response.kind === "embed") return response.result;
       if (!response.ok) {
         // Task-level failure (Ollama down, server key missing, dimension
-        // mismatch) — retrying on the main thread repeats the same failure.
+        // mismatch) - retrying on the main thread repeats the same failure.
         throw new Error(response.error);
       }
       throw new Error("Ingest worker returned an unexpected result for embed");

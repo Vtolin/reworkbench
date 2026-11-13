@@ -94,7 +94,7 @@ export default function BulkUploadFlow() {
         setQuotaNote(
           verdict.ok
             ? null
-            : `${verdict.message ?? "Over quota."}${usage.truncated ? " (usage is approximate — large library)" : ""}`,
+            : `${verdict.message ?? "Over quota."}${usage.truncated ? " (usage is approximate - large library)" : ""}`,
         );
       } catch {
         setQuotaNote(null);
@@ -127,7 +127,7 @@ export default function BulkUploadFlow() {
       });
     }
     if (!ready.length) {
-      setError("Nothing to confirm — preview files first and drop the ones that failed.");
+      setError("Nothing to confirm - preview files first and drop the ones that failed.");
       return;
     }
     setBusy(true);
@@ -152,7 +152,7 @@ export default function BulkUploadFlow() {
     <div className="space-y-4">
       <div className="rounded-2xl border-2 border-dashed border-[#2f2f2f] bg-[#0a0a0a] p-6 text-center">
         <div className="mx-auto h-12 w-12 rounded-2xl bg-white text-black grid place-items-center text-xl">⇪</div>
-        <div className="mt-3 font-medium text-white">Bulk upload — up to {MAX_BULK_FILES} files</div>
+        <div className="mt-3 font-medium text-white">Bulk upload - up to {MAX_BULK_FILES} files</div>
         <label className="mt-4 inline-flex cursor-pointer rounded-xl bg-white text-black px-5 py-2.5 text-sm font-medium hover:bg-[#ececec]">
           Choose files
           <input type="file" className="hidden" accept={ACCEPT} multiple onChange={(e) => pick(e.target.files)} />
@@ -218,7 +218,7 @@ export default function BulkUploadFlow() {
                       </button>
                     );
                   })}
-                  {collections.length === 0 && <span className="text-sm text-[#5f5f5f]">No collections — create one in the Library.</span>}
+                  {collections.length === 0 && <span className="text-sm text-[#5f5f5f]">No collections - create one in the Library.</span>}
                 </div>
               </div>
             </div>
@@ -226,15 +226,15 @@ export default function BulkUploadFlow() {
         </div>
       ))}
       {failedPreviews > 0 && previewed && (
-        <div className="text-xs text-[#8e8e8e]">{failedPreviews} file{failedPreviews > 1 ? "s" : ""} failed preview and will be skipped on Accept — remove or re-add them.</div>
+        <div className="text-xs text-[#8e8e8e]">{failedPreviews} file{failedPreviews > 1 ? "s" : ""} failed preview and will be skipped on Accept - remove or re-add them.</div>
       )}
 
       {results && (
         <div className="rounded-2xl border border-[#2f2f2f] bg-[#0a0a0a] p-4 space-y-2">
-          <div className="text-sm font-semibold text-white">Batch result — {results.filter((r) => r.document && !r.error).length}/{results.length} indexed</div>
+          <div className="text-sm font-semibold text-white">Batch result - {results.filter((r) => r.document && !r.error).length}/{results.length} indexed</div>
           {results.map((r, i) => (
             <div key={i} className={`rounded-xl border px-3 py-2 text-sm ${r.error ? "border-red-900/50 bg-red-950/20 text-red-300" : "border-emerald-900/50 bg-emerald-950/20 text-emerald-200"}`}>
-              <div className="truncate">{r.error ? `✗ ${r.fileName} — ${r.error}` : `✓ ${r.document?.title || r.fileName}`}</div>
+              <div className="truncate">{r.error ? `✗ ${r.fileName} - ${r.error}` : `✓ ${r.document?.title || r.fileName}`}</div>
               {!r.error && r.indexing_error && <div className="text-xs text-amber-300 break-all">Indexing warning: {r.indexing_error.slice(0, 300)}</div>}
               {!r.error && <div className="text-xs opacity-70">pending admin approval • {r.document?.ingestion_status}</div>}
             </div>

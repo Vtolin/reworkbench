@@ -1,5 +1,5 @@
 // Worker protocol for the ingest pipeline. Shared by the worker entry, the
-// typed RPC client and tests — one place defines every task/result shape.
+// typed RPC client and tests - one place defines every task/result shape.
 import type { ChunkInput } from "./chunking";
 import type { EmbeddedSlice, EmbedMode } from "./embedCore";
 import type { FileAnalysis } from "./fileAnalysis";

@@ -18,7 +18,7 @@ export async function createServerSupabase() {
               cookieStore.set(name, value, options),
             );
           } catch {
-            // Called from a Server Component — cookies are read-only there.
+            // Called from a Server Component - cookies are read-only there.
           }
         },
       },
@@ -33,7 +33,7 @@ export async function createServerSupabase() {
 // Module-cached (Phase 5): the service client carries no per-request state
 // (no cookies, no session refresh), so one instance is reused across
 // requests instead of rebuilding the client per call. The RLS-aware
-// createServerSupabase above intentionally stays per-request — it forwards
+// createServerSupabase above intentionally stays per-request - it forwards
 // the caller's session cookies and must not be shared.
 let cachedServiceClient: SupabaseClient | null = null;
 export function createServiceSupabase(): SupabaseClient {

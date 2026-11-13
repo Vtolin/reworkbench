@@ -9,6 +9,7 @@ import { parseThinking } from "@/lib/research/streaming";
 import { useAskStream } from "@/components/useAskStream";
 import { toProviderMessages } from "@/lib/ai/types";
 import { copyText } from "@/lib/browser/clipboard";
+import { WEB_SEARCH_PROVIDER_LABELS, type WebSearchProviderId } from "@/lib/search/webFilter";
 import { useResearchActions } from "./_components/useResearchActions";
 import {
   AskMobileControls,
@@ -41,6 +42,7 @@ export default function ResearchPage() {
   const [broad, setBroad] = useState(false);
   const [thinkingMode, setThinkingMode] = useState(false);
   const [memoryOn, setMemoryOn] = useState(true);
+  const [webSearch, setWebSearch] = useState(false);
   const [hybridMode, setHybridMode] = useState<HybridMode>("off");
   const [scopeOpenMobile, setScopeOpenMobile] = useState(false);
   const [compareOpenMobile, setCompareOpenMobile] = useState(false);
@@ -52,7 +54,7 @@ export default function ResearchPage() {
   const [statusNow, setStatusNow] = useState(() => Date.now());
 
   const { activeConversation, addMessage, updateMessage, truncateAfter, clearActive, clearMemory, memoryCutoff } = useChat();
-  const { settings } = useInference();
+  const { settings, setSettings } = useInference();
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const mainRef = useRef<HTMLDivElement>(null);
@@ -70,7 +72,20 @@ export default function ResearchPage() {
       .listDocuments({})
       .then((r) => setDocs(r.documents))
       .catch(() => {});
+    fetch("/api/search/web")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { configuredProviders?: WebSearchProviderId[] } | null) => {
+        if (data?.configuredProviders) {
+          setSettings({ webSearchConfiguredProviders: data.configuredProviders });
+        }
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const webSearchReady = settings.webSearchConfiguredProviders.includes(settings.webSearchProvider);
+  const effectiveWebSearch = webSearchReady && webSearch;
+  const webSearchProviderLabel = WEB_SEARCH_PROVIDER_LABELS[settings.webSearchProvider];
 
   // Elapsed-time ticker while a status (retrieving / loading / processing)
   // is shown.
@@ -120,7 +135,15 @@ export default function ResearchPage() {
     if (!q.trim() || loading) return;
     const query = q;
     setQ("");
-    await sendAsk(query, { scopeIds: selected, broad, thinking: thinkingMode, hybrid: hybridMode, memory: memoryOn, memoryMessages });
+    await sendAsk(query, {
+      scopeIds: selected,
+      broad,
+      thinking: thinkingMode,
+      hybrid: hybridMode,
+      memory: memoryOn,
+      webSearch: effectiveWebSearch,
+      memoryMessages,
+    });
   };
 
   // Regenerate the answer for a given assistant message (re-runs its prompt).
@@ -146,6 +169,7 @@ export default function ResearchPage() {
         thinking: userMsg.thinkingEnabled ?? false,
         hybrid: userMsg.hybridMode ?? "off",
         memory: memoryOn,
+        webSearch: effectiveWebSearch,
         memoryMessages,
       },
       { skipUserMessage: true },
@@ -171,6 +195,7 @@ export default function ResearchPage() {
         thinking: m.thinkingEnabled ?? false,
         hybrid: m.hybridMode ?? "off",
         memory: memoryOn,
+        webSearch: effectiveWebSearch,
         memoryMessages,
       },
       { skipUserMessage: true },
@@ -205,6 +230,10 @@ export default function ResearchPage() {
     setThinking: setThinkingMode,
     memory: memoryOn,
     setMemory: setMemoryOn,
+    webSearch: effectiveWebSearch,
+    setWebSearch,
+    webSearchReady,
+    webSearchProviderLabel,
     broad,
     setBroad,
     hybrid: hybridMode,

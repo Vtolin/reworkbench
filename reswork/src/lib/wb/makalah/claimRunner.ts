@@ -47,7 +47,7 @@ export function matchCitedPassages<P extends ClaimPassage>(
 /**
  * Run the classifier over paragraphs with bounded parallelism (3) and a
  * per-run call budget (Phase 7). A failed run maps every paragraph to
- * not_supported (verbatim page behavior) — but budget exhaustion propagates
+ * not_supported (verbatim page behavior) - but budget exhaustion propagates
  * (explicit stop with a visible message, never silent rows).
  */
 export async function executeClaimCheck<P extends ClaimPassage>(

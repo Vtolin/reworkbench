@@ -12,7 +12,7 @@ import { useMakalahWorkbench } from "./MakalahWorkbenchContext";
 import { overlapNote } from "./roles";
 import { freshSec, resolvedIds } from "./types";
 
-/** STEP 3 — per-section generation, edit, claim check and preview gate. */
+/** STEP 3 - per-section generation, edit, claim check and preview gate. */
 export function DraftingStep() {
   const { draft, gen, exporter } = useMakalahWorkbench();
   const {
@@ -41,7 +41,7 @@ export function DraftingStep() {
     <div className="space-y-4">
       {!approved && (
         <div className="text-xs text-amber-300 border border-amber-800 bg-amber-950/30 rounded-xl px-3 py-2">
-          Outline was edited after approval — review it in step 2, then approve again before
+          Outline was edited after approval - review it in step 2, then approve again before
           drafting.
         </div>
       )}
@@ -158,7 +158,7 @@ export function DraftingStep() {
                 ? resolvedIds(item.sub).map(titleOf).join(", ")
                 : selected.length
                   ? "all selected"
-                  : "⚠ no sources selected — pilih di Step 1"}
+                  : "⚠ no sources selected - pilih di Step 1"}
               {st.passages.length > 0 && ` • ${st.passages.length} passages`}
               {st.integrity && ` • citations ${st.integrity.valid}/${st.integrity.total} valid`}
               {st.integrity && st.integrity.badPages?.length > 0 && (
@@ -177,7 +177,7 @@ export function DraftingStep() {
             {st.error && <div className="text-xs text-red-400">{st.error}</div>}
             {st.output?.gaps.includes(SECTION_SALVAGE_MARKER) && (
               <div className="text-xs text-amber-300 border border-amber-800 bg-amber-950/30 rounded-xl px-3 py-2">
-                ⚠ Model didn&apos;t return JSON — raw text kept without citations. Press Regenerate
+                ⚠ Model didn&apos;t return JSON - raw text kept without citations. Press Regenerate
                 (or switch to a stronger section model in Settings) and verify before keeping.
               </div>
             )}
@@ -265,7 +265,7 @@ export function DraftingStep() {
                         editing: false,
                         output: next,
                         // Citations/claims verified against the old text are
-                        // meaningless now — recompute integrity, drop stale
+                        // meaningless now - recompute integrity, drop stale
                         // verdicts.
                         integrity: validateSectionCitations(next, st.passages),
                         claims: null,

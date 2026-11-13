@@ -257,7 +257,7 @@ export default function DocDetail({ id, onClose, onUpdated }: { id: string | nul
 
         {tab==="related" && (
           <div className="p-5 space-y-4">
-            <div className="text-sm text-[#8e8e8e]">Relationships are labeled by mechanism — semantic similarity is never presented as a confirmed scholarly link.</div>
+            <div className="text-sm text-[#8e8e8e]">Relationships are labeled by mechanism - semantic similarity is never presented as a confirmed scholarly link.</div>
             {!related ? <div className="text-sm text-[#8e8e8e]">Loading…</div> : (
               <>
                 {(
@@ -277,7 +277,7 @@ export default function DocDetail({ id, onClose, onUpdated }: { id: string | nul
                           <div className="text-xs text-[#5f5f5f]">{r.reason}</div>
                         </div>
                       ))}
-                      {(related[key]||[]).length===0 && <div className="text-sm text-[#5f5f5f]">—</div>}
+                      {(related[key]||[]).length===0 && <div className="text-sm text-[#5f5f5f]">-</div>}
                     </div>
                   </div>
                 ))}

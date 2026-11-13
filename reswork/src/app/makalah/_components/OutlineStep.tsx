@@ -5,7 +5,7 @@ import { findOutlineOverlaps } from "@/lib/wb/makalah";
 import { useMakalahWorkbench } from "./MakalahWorkbenchContext";
 import { resolvedIds } from "./types";
 
-/** STEP 2 — human review: edit, renumber, map sources and approve. */
+/** STEP 2 - human review: edit, renumber, map sources and approve. */
 export function OutlineStep() {
   const { draft } = useMakalahWorkbench();
   const {
@@ -59,7 +59,7 @@ export function OutlineStep() {
             </button>
           )}
           {outlineLoading && (
-            <span className="text-xs text-[#8e8e8e]">LLM call #1 — structure only, no content yet.</span>
+            <span className="text-xs text-[#8e8e8e]">LLM call #1 - structure only, no content yet.</span>
           )}
         </div>
       )}
@@ -96,7 +96,7 @@ export function OutlineStep() {
             .slice(0, 3)
             .map((o) => `${o.a} ≈ ${o.b} (${o.score})`)
             .join(" · ")}
-          {outlineOverlaps.length > 3 && ` (+${outlineOverlaps.length - 3} lainnya)`} — pertajam
+          {outlineOverlaps.length > 3 && ` (+${outlineOverlaps.length - 3} lainnya)`} - pertajam
           Fokus di bawah atau gabung sebelum drafting.
         </div>
       )}
@@ -176,12 +176,12 @@ export function OutlineStep() {
               <input
                 value={sub.focus ?? ""}
                 onChange={(e) => patchSub(ci, si, { focus: e.target.value })}
-                placeholder="Fokus — 1 kalimat: pertanyaan apa yang dijawab subbab ini? (dipakai untuk retrieval + anti-duplikasi)"
+                placeholder="Fokus - 1 kalimat: pertanyaan apa yang dijawab subbab ini? (dipakai untuk retrieval + anti-duplikasi)"
                 className="w-full rounded-lg bg-[#212121] border border-[#2f2f2f] px-2 py-1.5 text-xs text-white placeholder:text-[#5f5f5f]"
               />
               {!sub.focus?.trim() && (
                 <div className="text-[11px] text-amber-300/80">
-                  tanpa fokus — retrieval sulit dibedakan dari subbab lain; isi 1 kalimat.
+                  tanpa fokus - retrieval sulit dibedakan dari subbab lain; isi 1 kalimat.
                 </div>
               )}
               <div className="flex flex-wrap gap-1.5">
@@ -205,7 +205,7 @@ export function OutlineStep() {
                 })}
                 {!resolvedIds(sub).length && (
                   <span className="text-[11px] text-[#5f5f5f]">
-                    no sources mapped — retrieval will search all selected docs
+                    no sources mapped - retrieval will search all selected docs
                   </span>
                 )}
               </div>

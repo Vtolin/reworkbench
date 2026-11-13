@@ -10,7 +10,7 @@
 //    text from vectors. Reindex re-derives vectors from stored chunk content.
 //
 // Two modes:
-//  - "missing": delegate to reembedMissingEmbeddings (ingest.ts) — fills
+//  - "missing": delegate to reembedMissingEmbeddings (ingest.ts) - fills
 //    exactly the chunks lacking vectors, skips the rest. Cheapest.
 //  - "full": delete every embedding of the target documents, then embed all
 //    chunks fresh (embedding-model change, suspected drift, post-migration).
@@ -76,7 +76,7 @@ export async function listReindexTargets(): Promise<string[]> {
  * Rebuild embeddings for the target documents.
  * Idempotent: re-running after a partial run re-embeds whatever is still
  * missing (deleted-then-failed chunks are just "missing" again). A document
- * whose chunks fail to embed keeps its error status with the reason — the
+ * whose chunks fail to embed keeps its error status with the reason - the
  * same visibility contract as confirmIngest.
  */
 export async function reindexDocuments(opts: {
@@ -139,7 +139,7 @@ async function reindexFull(opts: {
     }
     const chunks = (chunkRows ?? []) as Array<{ id: string; content: string }>;
     if (!chunks.length) {
-      summary.warnings.push(`document ${docId.slice(0, 8)}: no chunks stored — re-upload required`);
+      summary.warnings.push(`document ${docId.slice(0, 8)}: no chunks stored - re-upload required`);
       continue;
     }
     // Delete-then-insert (never UPDATE: embeddings UPDATE is admin-only RLS,
@@ -168,11 +168,11 @@ async function reindexFull(opts: {
       }));
     } catch (e) {
       summary.warnings.push(
-        `document ${docId.slice(0, 8)}: embed failed (${e instanceof Error ? e.message : "unknown"}) — vectors cleared, retry to refill`,
+        `document ${docId.slice(0, 8)}: embed failed (${e instanceof Error ? e.message : "unknown"}) - vectors cleared, retry to refill`,
       );
       await sb
         .from("documents")
-        .update({ ingestion_status: "error", ingestion_error: "Reindex embed failed — retry to refill vectors" })
+        .update({ ingestion_status: "error", ingestion_error: "Reindex embed failed - retry to refill vectors" })
         .eq("id", docId);
       continue;
     }

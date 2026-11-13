@@ -6,14 +6,14 @@ type ServerSupabase = Awaited<ReturnType<typeof createServerSupabase>>;
 // Server-only API auth guards (infrastructure, not domain).
 // Extracted from the proven pattern in
 // src/app/api/workspaces/kick/route.ts so gated routes share one
-// implementation. RLS remains the enforcement backstop — these checks are
+// implementation. RLS remains the enforcement backstop - these checks are
 // defense in depth and produce explicit 401/403 instead of relying solely
 // on Postgres error mapping.
 //
 // Split deliberately: I/O helpers use the real server-client type (narrow
 // structural interfaces fight Supabase's untyped generics and produce
 // deep-instantiation failures), while every *decision* is a pure function
-// over already-fetched values — those are what the unit tests pin.
+// over already-fetched values - those are what the unit tests pin.
 
 // -- I/O ---------------------------------------------------------------
 

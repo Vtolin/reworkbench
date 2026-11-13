@@ -1,7 +1,7 @@
 // Lightweight, dependency-free error reporting. Sentry/other providers can be
 // wired later by replacing `send` with their SDK call; until then this emits a
 // structured log (and, when configured, POSTs to an endpoint) so failures are
-// never silently swallowed. Never throws — reporting must not break the app.
+// never silently swallowed. Never throws - reporting must not break the app.
 export interface ErrorContext {
   [key: string]: unknown;
 }

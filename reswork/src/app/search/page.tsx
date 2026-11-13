@@ -68,7 +68,7 @@ export default function SearchPage(){
                   <button onClick={async()=>{ await api.deleteSearch(s.id); loadSaved(); }} className="text-[#5f5f5f] hover:text-red-400 px-1">✕</button>
                 </span>
               ))}
-              {saved.length===0 && <span className="text-xs text-[#5f5f5f]">None yet — search, then save it to re-run as your library grows.</span>}
+              {saved.length===0 && <span className="text-xs text-[#5f5f5f]">None yet - search, then save it to re-run as your library grows.</span>}
             </div>
           </div>
           {err && <div className="mt-3 rounded-xl bg-red-950/30 border border-red-900 text-red-300 p-3 text-sm">{err}</div>}
@@ -91,7 +91,7 @@ export default function SearchPage(){
                 {res.results.documents.map((d:any)=>(
                   <div key={d.id} className="rounded-2xl border border-[#2f2f2f] bg-[#0a0a0a] p-4">
                     <div className="font-medium leading-tight text-white break-words">{d.title}</div>
-                    <div className="text-xs text-[#8e8e8e] mt-1 break-words">{d.original_filename} • {d.year || "—"} • {d.jurisdiction || "—"}</div>
+                    <div className="text-xs text-[#8e8e8e] mt-1 break-words">{d.original_filename} • {d.year || "-"} • {d.jurisdiction || "-"}</div>
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {(d.tags||[]).map((t:any)=> <span key={t.id} className="rounded-full bg-white text-black px-2 py-0.5 text-xs">#{t.name}</span>)}
                       {(d.collections||[]).map((c:any)=> <span key={c.id} className="rounded-full border border-[#2f2f2f] px-2 py-0.5 text-xs bg-[#171717] text-[#ececec]">{c.name}</span>)}
@@ -104,24 +104,24 @@ export default function SearchPage(){
               <h2 className="text-sm font-semibold uppercase tracking-widest text-[#8e8e8e] pt-4">Authors • {res.counts.authors}</h2>
               <div className="flex flex-wrap gap-2">
                 {res.results.authors.map((a:any)=> <span key={a.id} className="rounded-full border border-[#2f2f2f] bg-[#171717] px-3 py-1 text-sm text-white">{a.name}</span>)}
-                {res.results.authors.length===0 && <span className="text-sm text-[#5f5f5f]">—</span>}
+                {res.results.authors.length===0 && <span className="text-sm text-[#5f5f5f]">-</span>}
               </div>
 
               <h2 className="text-sm font-semibold uppercase tracking-widest text-[#8e8e8e] pt-2">Collections • {res.counts.collections}</h2>
               <div className="space-y-2">
                 {res.results.collections.map((c:any)=> <div key={c.id} className="rounded-xl border border-[#2f2f2f] bg-[#0a0a0a] px-3 py-2 flex items-center gap-2 text-white"><span className="h-2 w-2 rounded-full" style={{background:c.color}} />{c.name} <span className="ml-auto text-xs bg-[#212121] border border-[#2f2f2f] rounded-full px-2 py-0.5 text-[#8e8e8e]">{c.document_count}</span></div>)}
-                {res.results.collections.length===0 && <span className="text-sm text-[#5f5f5f]">—</span>}
+                {res.results.collections.length===0 && <span className="text-sm text-[#5f5f5f]">-</span>}
               </div>
 
               <h2 className="text-sm font-semibold uppercase tracking-widest text-[#8e8e8e] pt-2">Tags • {res.counts.tags}</h2>
               <div className="flex flex-wrap gap-2">
                 {res.results.tags.map((t:any)=> <span key={t.id} className="rounded-full bg-[#171717] border px-3 py-1 text-sm text-[#ececec]" style={{borderColor:"#2f2f2f"}}>#{t.name}</span>)}
-                {res.results.tags.length===0 && <span className="text-sm text-[#5f5f5f]">—</span>}
+                {res.results.tags.length===0 && <span className="text-sm text-[#5f5f5f]">-</span>}
               </div>
             </div>
 
             <div className="space-y-4 min-w-0">
-              <h2 className="text-sm font-semibold uppercase tracking-widest text-[#8e8e8e]">Passages • {res.counts.passages} <span className="normal-case tracking-normal font-normal text-[#5f5f5f]">— hybrid retrieval</span></h2>
+              <h2 className="text-sm font-semibold uppercase tracking-widest text-[#8e8e8e]">Passages • {res.counts.passages} <span className="normal-case tracking-normal font-normal text-[#5f5f5f]">- hybrid retrieval</span></h2>
               <div className="space-y-3">
                 {res.results.passages.map((p:any,i:number)=>(
                   <div key={i} className="rounded-2xl border border-[#2f2f2f] bg-[#0a0a0a] p-4">
@@ -129,7 +129,7 @@ export default function SearchPage(){
                     <div className="text-sm leading-relaxed mt-2 whitespace-pre-wrap break-words text-[#ececec]">{p.text}</div>
                   </div>
                 ))}
-                {res.results.passages.length===0 && <div className="rounded-2xl border border-dashed border-[#2f2f2f] bg-[#0a0a0a] p-6 text-sm text-[#8e8e8e]">No passages — either the query is too short or no approved documents are embedded yet. Upload documents first.</div>}
+                {res.results.passages.length===0 && <div className="rounded-2xl border border-dashed border-[#2f2f2f] bg-[#0a0a0a] p-6 text-sm text-[#8e8e8e]">No passages - either the query is too short or no approved documents are embedded yet. Upload documents first.</div>}
               </div>
               {res.filters && Object.keys(res.filters).length>0 && (
                 <div className="rounded-xl bg-[#171717] border border-[#2f2f2f] p-3 text-xs">

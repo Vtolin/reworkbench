@@ -8,7 +8,7 @@ import { titleFuzzyScore } from "../ingestion/dedup";
  * these before bigram comparison: template vocabulary ("yang/dan/dalam",
  * "the/of/and") otherwise pushes topically distinct academic sections to
  * ~0.76–0.84 and buries real duplication under the floor. No topic or
- * domain keywords — pure function words only.
+ * domain keywords - pure function words only.
  */
 const STOPWORDS = new Set(
   (

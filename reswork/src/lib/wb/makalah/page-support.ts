@@ -2,7 +2,7 @@
 //
 // Moved verbatim from app/makalah/page.tsx so the section/citation logic is
 // unit-testable outside the 1700-line client component. No React, no I/O,
-// no browser APIs — plain deterministic functions over makalah domain types.
+// no browser APIs - plain deterministic functions over makalah domain types.
 // The page keeps UI state, stream coordination, and export orchestration;
 // this module owns the text-shaping rules both sides share.
 import type {
@@ -57,7 +57,7 @@ export function summarizeOutput(output: SectionOutput, maxChars = 900): string {
 }
 
 /**
- * COVERED prior context as labeled bullets (constraints, not prose — prose
+ * COVERED prior context as labeled bullets (constraints, not prose - prose
  * summaries prime small models to echo the same sentences). Capped so the
  * context can't drown the section's own evidence. Number labels stay so the
  * model can still emit the sanctioned "As discussed in 1.1…" clause.

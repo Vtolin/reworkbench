@@ -20,18 +20,18 @@ export function sectionFullText(output: SectionOutput | null | undefined): strin
   return (output?.paragraphs ?? []).map((p) => p.text).join("\n\n");
 }
 
-/** Paragraphs with zero citations — model-bridged under hybrid grounding. */
+/** Paragraphs with zero citations - model-bridged under hybrid grounding. */
 export function countAiFilled(output: SectionOutput | null | undefined): number {
   return (output?.paragraphs ?? []).filter((p) => !p.citations.length).length;
 }
 
 /**
  * Generic cross-section duplication detector over content-word similarity
- * (function words stripped — see lib/text/similarity). Pairs involving the
+ * (function words stripped - see lib/text/similarity). Pairs involving the
  * closing chapter use a higher bar: Penutup restates by job description, so
  * mid-0.8s there is role overlap, not evidence overlap. The default bar sits
  * above the 0.85–0.88 Indonesian-boilerplate band seen on broad topics.
- * Advisory — the UI lists pairs above threshold for Regenerate/Edit.
+ * Advisory - the UI lists pairs above threshold for Regenerate/Edit.
  */
 export function findRedundantPairs(
   sections: Array<{ label: string; text: string; isClosing?: boolean }>,
@@ -39,7 +39,7 @@ export function findRedundantPairs(
   closingThreshold = 0.94,
 ): Array<{ a: string; b: string; score: number }> {
   // Bounded: quality recomputes on every secs change (autosave keystrokes),
-  // and chapters are unbounded — cap sections before the O(S²·P²) comparison.
+  // and chapters are unbounded - cap sections before the O(S²·P²) comparison.
   const usable = sections.filter((s) => s.text.trim().length > 40).slice(0, 24);
   const out: Array<{ a: string; b: string; score: number }> = [];
   for (let i = 0; i < usable.length; i++) {
@@ -133,7 +133,7 @@ export function buildQualityReport({
         unsupported.push({
           subsection: `${item.sub.number} ${item.sub.title}`,
           paragraph: -1,
-          reason: "raw-text fallback (no valid JSON, no citations) — verify manually or regenerate",
+          reason: "raw-text fallback (no valid JSON, no citations) - verify manually or regenerate",
         });
       }
       const v = st.integrity ?? validateSectionCitations(st.output, st.passages);

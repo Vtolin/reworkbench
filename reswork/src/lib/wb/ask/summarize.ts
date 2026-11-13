@@ -73,7 +73,7 @@ export async function summarize(
     ).then((r) => stripThinkingTags(r.content));
   };
 
-  // Deterministic verbatim-facts layer (no LLM) — exact figures survive
+  // Deterministic verbatim-facts layer (no LLM) - exact figures survive
   // regardless of what the models paraphrase.
   onStatus("preparing", `Extracting verbatim facts (${n} chunks)`, 0, Math.max(n, 1));
   const stale = detectStaleSections(chunks);
@@ -127,7 +127,7 @@ export async function summarize(
   // ---- Map: per-chunk fact extraction with the map model ----
   // Bounded parallelism (3): order preserved by mapWithLimit, so extracts
   // align with chunks exactly as the old sequential loop. Progress counts
-  // completions (was: starts) — same totals, monotonic either way.
+  // completions (was: starts) - same totals, monotonic either way.
   onStatus("preparing", `${n} chunks • map ${map.label} → reduce ${reduce.label} → synthesis ${synth.label}`, 0, n);
   let mapped = 0;
   const extracts = await mapWithLimit(chunks.map((_, i) => i), 3, async (i) => {

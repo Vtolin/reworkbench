@@ -5,9 +5,9 @@ import { Panel, fieldClass } from "@/components/ui/Panel";
 import { StageModelEditor } from "@/components/settings/StageModelEditor";
 
 const STAGES = [
-  { key: "mapStage", label: "Map — per-chunk extraction" },
-  { key: "reduceStage", label: "Reduce — combining + final summary" },
-  { key: "synthesisStage", label: "Synthesis — cross-paper" },
+  { key: "mapStage", label: "Map - per-chunk extraction" },
+  { key: "reduceStage", label: "Reduce - combining + final summary" },
+  { key: "synthesisStage", label: "Synthesis - cross-paper" },
 ] as const;
 
 /** Summarization method + per-stage model overrides. */
@@ -21,7 +21,7 @@ export function SummarizationCard() {
         <>
           <span className="text-white">Single pass</span> stitches the doc into one prompt with the chat model.
           <span className="text-white"> Map→reduce</span> extracts each chunk with the map model, then combines with the reduce
-          model — slower but handles long docs. Cross-paper synthesis uses the synthesis model. Progress shows per chunk (
+          model - slower but handles long docs. Cross-paper synthesis uses the synthesis model. Progress shows per chunk (
           <span className="font-mono">Extracting 1/20 chunks</span>).
         </>
       }

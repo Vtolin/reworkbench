@@ -3,7 +3,7 @@
 // One implementation for every lint/arch guard that reasons about source
 // text: file walking plus focused finders (intervals, fetches, numeric
 // parsing, select-lists, migration tables). Guard tests assert on the
-// structured findings instead of re-implementing scanning each — add a new
+// structured findings instead of re-implementing scanning each - add a new
 // rule by adding a finder here and a describe block in enforcement.test.ts.
 // Pure node (fs/path only); never imports application code.
 

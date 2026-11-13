@@ -23,7 +23,7 @@ interface Msg {
 }
 
 // Shared chats: a read-only gallery of published research. Nobody starts or
-// continues a conversation here — publish from Research, import into Research.
+// continues a conversation here - publish from Research, import into Research.
 // Deletion requires admin approval (owner files a request, admin decides).
 export default function ChatsPage() {
   const { workspace, user } = useSession();
@@ -82,7 +82,7 @@ export default function ChatsPage() {
     try {
       await requestChatDeletion(activeId);
       setDeletionPending(true);
-      flash("Deletion requested — awaiting admin approval");
+      flash("Deletion requested - awaiting admin approval");
     } catch (e) {
       flash(toUserMessage(e, "Request failed"));
     }
@@ -95,12 +95,12 @@ export default function ChatsPage() {
     <div className="flex-1 min-w-0 flex flex-col bg-black">
       <Topbar
         title="Shared chats"
-        subtitle="Published research results — read here, continue in Research, delete only with admin approval"
+        subtitle="Published research results - read here, continue in Research, delete only with admin approval"
       />
       {note && <div className="px-4 lg:px-6 pt-3 text-xs text-emerald-400">{note}</div>}
       <div className="flex flex-col sm:flex-row flex-1 min-w-0 pt-3 sm:min-h-0">
         <aside className="w-64 shrink-0 border-r border-[#2f2f2f] bg-[#0a0a0a] p-2 space-y-1 overflow-y-auto no-scrollbar hidden sm:block">
-          {chats.length === 0 && <div className="text-xs text-[#5f5f5f] p-3 text-center">Nothing published yet — publish from Research → history → Publish ↑</div>}
+          {chats.length === 0 && <div className="text-xs text-[#5f5f5f] p-3 text-center">Nothing published yet - publish from Research → history → Publish ↑</div>}
           {chats.map((c) => (
             <div
               key={c.id}
@@ -130,7 +130,7 @@ export default function ChatsPage() {
               <div className="text-center max-w-sm">
                 <div className="h-12 w-12 mx-auto rounded-2xl bg-white text-black grid place-items-center text-xl mb-4">◭</div>
                 <div className="font-medium text-white">Published research, read-only</div>
-                <div className="text-sm text-[#8e8e8e] mt-1">Open a thread to read it. To build on it, import it into your Research — your own model continues it there.</div>
+                <div className="text-sm text-[#8e8e8e] mt-1">Open a thread to read it. To build on it, import it into your Research - your own model continues it there.</div>
               </div>
             </div>
           ) : (

@@ -1,6 +1,6 @@
 // Finite numeric parsing (Phase 8).
 //
-// Every limit/numeric request parameter goes through parseBoundedInt —
+// Every limit/numeric request parameter goes through parseBoundedInt -
 // never raw Number()/parseInt(). Missing (null/undefined) yields the
 // missing value; present-but-non-finite ("abc", Infinity) either errors
 // (400 at the call site) or falls back, per explicit policy. Finite values
@@ -14,7 +14,7 @@ export function parseBoundedInt(
     min: number;
     max: number;
     name: string;
-    /** Value for missing (null/undefined) input — and for invalid input in "fallback" mode. */
+    /** Value for missing (null/undefined) input - and for invalid input in "fallback" mode. */
     missing: number | undefined;
     /** "error": invalid input is a 400; "fallback": invalid input acts as missing. */
     onInvalid: "error" | "fallback";

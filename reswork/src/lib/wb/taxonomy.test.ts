@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ensureAuthorIds } from "./taxonomy";
 
 // Minimal PostgREST-chain mock: supports exactly the two shapes taxonomy.ts
-// uses — select().eq().in() (awaited) and insert().select() (awaited).
+// uses - select().eq().in() (awaited) and insert().select() (awaited).
 function makeSb(opts: {
   seed?: Array<[string, string]>; // [name, id]
   failInsert?: string;

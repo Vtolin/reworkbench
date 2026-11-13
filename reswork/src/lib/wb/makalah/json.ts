@@ -51,7 +51,7 @@ function escapeControlCharsInStrings(text: string): string {
  * Repair conservatively:
  * 1. Escape raw unescaped control characters (\n, \r, \t) inside string
  *    literals (LLMs emit literal newlines; JSON.parse rejects them).
- * 2. Remove trailing commas before } or ] — the most common LLM JSON defect.
+ * 2. Remove trailing commas before } or ] - the most common LLM JSON defect.
  *
  * Deliberately NOT normalizing single-quoted JSON: the '…'-to-"…" rewrite
  * corrupts legitimate apostrophes (Today's, peneliti's) whenever a model
@@ -89,7 +89,7 @@ export function extractJsonObject(text: string): Record<string, unknown> {
 /**
  * Bounded JSON retry: one normal attempt, then (only on parse failure) one
  * correction attempt that shows the model its own bad output. Still fully
- * app-controlled — fixed max 2 calls, no autonomy. The thrown error carries
+ * app-controlled - fixed max 2 calls, no autonomy. The thrown error carries
  * the last raw output as `(err as { raw?: string }).raw` for salvage paths.
  */
 export async function chatJson<T>(
@@ -112,7 +112,7 @@ export async function chatJson<T>(
     const prompt =
       attempt === 1 ? user : (
         `${user}\n\nIMPORTANT: Your previous response was not valid JSON (${lastErr}). ` +
-        `Reply now with ONLY the corrected JSON object — no preamble, no fences, no commentary. ` +
+        `Reply now with ONLY the corrected JSON object - no preamble, no fences, no commentary. ` +
         `Fix this response:\n${lastRaw.slice(0, 6000)}`
       );
     const r = await provider.chat(
@@ -120,13 +120,13 @@ export async function chatJson<T>(
       {
         model, temperature, numCtx, numPredict, thinking: think !== false,
         ...(typeof think === "string" ? { thinkLevel: think } : {}),
-        // A bare budget ENABLES thinking on Gemini — only send it together
+        // A bare budget ENABLES thinking on Gemini - only send it together
         // with thinking on, never on cold calls. Cold calls send
         // thinking:false explicitly so the proxy maps to minimal/0 instead
         // of the provider default (medium on gemini-3.5-flash).
         ...(think !== false && typeof thinkingBudget === "number" ? { thinkingBudget } : {}),
         // Structured output on cloud (OpenAI-compat response_format).
-        // Ollama ignores unknown flags — it enforces JSON via prompt.
+        // Ollama ignores unknown flags - it enforces JSON via prompt.
         jsonMode: true,
         ...(signal ? { signal } : {}),
       },
@@ -134,14 +134,14 @@ export async function chatJson<T>(
     lastRaw = (r.content ?? "").replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
     // Reasoning models can burn the whole token budget thinking and return an
     // empty answer (native `thinking` field or a think-only block). Retrying
-    // won't help — fail fast with an actionable message instead.
+    // won't help - fail fast with an actionable message instead.
     if (!lastRaw) {
       const thought = (r.thinking ?? "").trim();
       const err = new Error(
         thought ?
           `${label}: model returned only reasoning with no answer (token budget spent thinking). ` +
             `Use a non-reasoning model for this Makalah stage in Settings, or raise num_ctx / output length.`
-        : `${label}: model returned empty output. The model may be overloaded or still loading — wait a moment and retry.`,
+        : `${label}: model returned empty output. The model may be overloaded or still loading - wait a moment and retry.`,
       ) as Error & { raw?: string };
       err.raw = "";
       throw err;
@@ -158,7 +158,7 @@ export async function chatJson<T>(
 }
 
 // ---------------------------------------------------------------------------
-// Mode A — Outline Generator
+// Mode A - Outline Generator
 // ---------------------------------------------------------------------------
 
 export function parseOutlineJson(text: string): MakalahOutline {

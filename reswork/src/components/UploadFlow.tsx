@@ -147,7 +147,7 @@ export default function UploadFlow({ onDone }: { onDone?: ()=>void }) {
     const yearNum = /^\d{4}$/.test(rawYear) ? Number(rawYear) : NaN;
     if (rawYear && (!Number.isInteger(yearNum) || yearNum < 1000 || yearNum > 2100)) {
       setLoading(false); setPhase("");
-      setError(`Invalid year "${rawYear}" — use a 4-digit year 1000–2100 or leave it empty.`);
+      setError(`Invalid year "${rawYear}" - use a 4-digit year 1000–2100 or leave it empty.`);
       return;
     }
     try{
@@ -186,7 +186,7 @@ export default function UploadFlow({ onDone }: { onDone?: ()=>void }) {
       <div className="rounded-2xl border-2 border-dashed border-[#2f2f2f] bg-[#0a0a0a] p-6 lg:p-8 text-center">
         <div className="mx-auto h-12 w-12 rounded-2xl bg-white text-black grid place-items-center text-xl">↑</div>
         <div className="mt-3 font-medium text-white">Drop a PDF, Word (DOCX), Excel (XLSX), PowerPoint (PPTX), or text file here</div>
-        <div className="text-sm text-[#8e8e8e]">Local parsing • SHA-256 dedup • OpenAlex metadata lookup • Goes to pending approval — nothing is shared until an admin approves</div>
+        <div className="text-sm text-[#8e8e8e]">Local parsing • SHA-256 dedup • OpenAlex metadata lookup • Goes to pending approval - nothing is shared until an admin approves</div>
         <label className="mt-4 inline-flex cursor-pointer rounded-xl bg-white text-black px-5 py-2.5 text-sm font-medium hover:bg-[#ececec]">
           Choose file
           <input type="file" className="hidden" accept=".pdf,.docx,.xlsx,.xls,.pptx,.rtf,.txt,.md,.csv,.tsv,.html,.htm" onChange={e=> e.target.files?.[0] && startPreview(e.target.files[0])} />
@@ -200,7 +200,7 @@ export default function UploadFlow({ onDone }: { onDone?: ()=>void }) {
         <div className="rounded-2xl border border-[#2f2f2f] bg-[#0a0a0a] overflow-hidden">
           <div className="px-5 py-4 border-b border-[#2f2f2f] bg-[#171717] flex flex-col sm:flex-row sm:items-start justify-between gap-4">
             <div>
-              <div className="text-xs uppercase tracking-widest font-semibold text-[#8e8e8e]">Proposed metadata — human confirms, system executes</div>
+              <div className="text-xs uppercase tracking-widest font-semibold text-[#8e8e8e]">Proposed metadata - human confirms, system executes</div>
               <div className="text-sm text-[#b4b4b4] mt-1">Nothing is shared until you click <b className="text-white">Accept</b> (and an admin approves). Edit anything below.</div>
             </div>
             <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium border self-start ${preview.decision==="auto_suggest" ? "bg-emerald-950 border-emerald-800 text-emerald-300" : preview.decision==="confirm" ? "bg-amber-950 border-amber-800 text-amber-300" : "bg-[#212121] border-[#2f2f2f] text-[#8e8e8e]"}`}>{preview.decision} • {Math.round(preview.collectionConfidence*100)}%</span>
@@ -225,7 +225,7 @@ export default function UploadFlow({ onDone }: { onDone?: ()=>void }) {
                         onChange={e=>chooseCandidate(e.target.value)}
                         defaultValue=""
                       >
-                        <option value="" className="bg-[#171717]">— keep best match —</option>
+                        <option value="" className="bg-[#171717]">- keep best match -</option>
                         {candidates.map((c,i:number)=>(
                           <option key={i} value={i} className="bg-[#171717]">{c.title?.slice(0,80)} ({Math.round((c.confidence??0)*100)}%)</option>
                         ))}
@@ -233,10 +233,10 @@ export default function UploadFlow({ onDone }: { onDone?: ()=>void }) {
                     </div>
                   )}
                   <div className="mt-2 text-xs text-[#8e8e8e]">
-                    {activeCandidate.title} — {activeCandidate.journal || "no journal"} ({activeCandidate.year || "n.d."})
+                    {activeCandidate.title} - {activeCandidate.journal || "no journal"} ({activeCandidate.year || "n.d."})
                   </div>
                   <button onClick={rejectProposal} className="mt-2 rounded-lg border border-[#2f2f2f] bg-[#212121] px-3 py-1 text-xs text-white hover:bg-[#2f2f2f]">
-                    Reject — use local extraction
+                    Reject - use local extraction
                   </button>
                 </>
               ) : (
@@ -248,13 +248,13 @@ export default function UploadFlow({ onDone }: { onDone?: ()=>void }) {
                   </div>
                   {candidates.length > 0 && (
                     <div className="text-xs text-amber-300">
-                      OpenAlex found {candidates.length} match{candidates.length > 1 ? "es" : ""} below the auto-accept threshold — pick one manually or keep local:
+                      OpenAlex found {candidates.length} match{candidates.length > 1 ? "es" : ""} below the auto-accept threshold - pick one manually or keep local:
                       <select
                         className="ml-2 rounded-lg border border-[#2f2f2f] bg-black px-2 py-1 text-xs text-white outline-none"
                         onChange={e=>chooseCandidate(e.target.value)}
                         defaultValue=""
                       >
-                        <option value="" className="bg-[#171717]">— keep local extraction —</option>
+                        <option value="" className="bg-[#171717]">- keep local extraction -</option>
                         {candidates.map((c,i:number)=>(
                           <option key={i} value={i} className="bg-[#171717]">{c.title?.slice(0,80)} ({Math.round((c.confidence??0)*100)}%)</option>
                         ))}
@@ -270,10 +270,10 @@ export default function UploadFlow({ onDone }: { onDone?: ()=>void }) {
                     >
                       {aiBusy ? "Reading page 1…" : "✨ Suggest from page 1"}
                     </button>
-                    <span className="text-[11px] text-[#5f5f5f]">One small call, first page only — fills empty fields below.</span>
+                    <span className="text-[11px] text-[#5f5f5f]">One small call, first page only - fills empty fields below.</span>
                   </div>
                   {aiError && <div className="text-xs text-red-300">{aiError}</div>}
-                  <div className="text-[11px] text-[#5f5f5f]">Check the title/year/journal below before Accept — Daftar Pustaka is built from these fields exactly.</div>
+                  <div className="text-[11px] text-[#5f5f5f]">Check the title/year/journal below before Accept - Daftar Pustaka is built from these fields exactly.</div>
                 </div>
               )}
             </div>
@@ -283,7 +283,7 @@ export default function UploadFlow({ onDone }: { onDone?: ()=>void }) {
             <div className="mx-5 mt-4 rounded-xl bg-red-950/30 border border-red-900 p-3 text-sm text-red-300">
               ⚠ Possible duplicate detected
               <ul className="list-disc ml-5 mt-1 break-words">
-                {preview.duplicates.map((d)=><li key={d.id}>{d.title} — {d.label} ({Math.round(d.confidence*100)}%)</li>)}
+                {preview.duplicates.map((d)=><li key={d.id}>{d.title} - {d.label} ({Math.round(d.confidence*100)}%)</li>)}
               </ul>
             </div>
           )}
@@ -304,7 +304,7 @@ export default function UploadFlow({ onDone }: { onDone?: ()=>void }) {
 
           {preview.extractionError && (
             <div className="mx-5 mt-4 rounded-xl bg-red-950/30 border border-red-900 p-3 text-sm text-red-300">
-              ⚠ Document text extraction failed in your browser — accepting would file this as
+              ⚠ Document text extraction failed in your browser - accepting would file this as
               metadata only with nothing searchable.
               <div className="mt-1 font-mono text-xs break-all">{preview.extractionError}</div>
               <div className="mt-1 text-xs text-red-300/70">Try re-uploading; if it persists, report this message.</div>
@@ -331,9 +331,9 @@ export default function UploadFlow({ onDone }: { onDone?: ()=>void }) {
                   const on = (edit.collection_ids||[]).includes(c.id);
                   return <button key={c.id} onClick={()=>setEdit({...edit, collection_ids: on? edit.collection_ids.filter((x:string)=>x!==c.id) : [...(edit.collection_ids||[]), c.id]})} className={`rounded-full px-3 py-1.5 text-xs border flex items-center gap-1.5 ${on? "bg-white text-black border-white":"bg-[#171717] border-[#2f2f2f] text-[#ececec]"}`}><span className="h-2 w-2 rounded-full" style={{background:c.color}} />{c.name}</button>
                 })}
-                {collections.length===0 && <span className="text-sm text-[#5f5f5f]">No collections — create one in the Library.</span>}
+                {collections.length===0 && <span className="text-sm text-[#5f5f5f]">No collections - create one in the Library.</span>}
               </div>
-              {preview.suggestedCollection && <div className="mt-2 text-xs text-[#8e8e8e]">Suggested: <b className="text-white">{preview.suggestedCollection.name}</b> — {preview.collectionReason} • {Math.round(preview.collectionConfidence*100)}% confidence</div>}
+              {preview.suggestedCollection && <div className="mt-2 text-xs text-[#8e8e8e]">Suggested: <b className="text-white">{preview.suggestedCollection.name}</b> - {preview.collectionReason} • {Math.round(preview.collectionConfidence*100)}% confidence</div>}
             </div>
             <div className="md:col-span-2 rounded-xl bg-[#171717] border border-[#2f2f2f] p-3">
               <div className="text-xs font-semibold uppercase tracking-widest text-[#8e8e8e]">Extraction preview</div>
@@ -343,7 +343,7 @@ export default function UploadFlow({ onDone }: { onDone?: ()=>void }) {
           </div>
 
           <div className="px-5 py-4 border-t border-[#2f2f2f] flex flex-col sm:flex-row gap-3 bg-black">
-            <button onClick={confirm} disabled={loading} className="flex-1 rounded-xl bg-white text-black py-3 text-sm font-semibold disabled:opacity-50 hover:bg-[#ececec]">Accept & Index — {loading ? "Indexing…" : "Ready"}</button>
+            <button onClick={confirm} disabled={loading} className="flex-1 rounded-xl bg-white text-black py-3 text-sm font-semibold disabled:opacity-50 hover:bg-[#ececec]">Accept & Index - {loading ? "Indexing…" : "Ready"}</button>
             <button onClick={()=>{ setPreview(null); setFile(null); }} className="rounded-xl border border-[#2f2f2f] bg-[#212121] px-6 py-3 text-sm text-white hover:bg-[#2f2f2f]">Cancel</button>
           </div>
         </div>
@@ -351,7 +351,7 @@ export default function UploadFlow({ onDone }: { onDone?: ()=>void }) {
 
       {result && (
         <div className="rounded-2xl border border-emerald-900 bg-emerald-950/30 p-4">
-          <div className="text-sm font-medium text-emerald-300">✓ Accepted — {result.document.title}</div>
+          <div className="text-sm font-medium text-emerald-300">✓ Accepted - {result.document.title}</div>
           <div className="text-xs mt-1 text-emerald-400/70">Status: pending admin approval • Metadata source: {result.document.metadata_source}{result.document.metadata_confidence != null ? ` • ${Math.round(result.document.metadata_confidence*100)}%` : ""}</div>
           {result.indexing_error && <div className="text-xs mt-2 text-amber-300 bg-amber-950/30 border border-amber-900 rounded-lg p-2 break-all">Indexing warning: {String(result.indexing_error).slice(0,400)}</div>}
           <div className="text-xs text-emerald-400/70 mt-1 break-all">Stored at {result.document.stored_path} • {result.document.ingestion_status}</div>

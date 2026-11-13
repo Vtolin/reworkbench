@@ -69,7 +69,7 @@ export function normalizeAliasCitation(c: SectionCitation): SectionCitation {
 const UUID_SRC = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const UUID_PAREN_RE = new RegExp(`\\(\\s*(?:${UUID_SRC})\\s*(?:,\\s*p\\.?\\s*\\d+)?\\s*\\)`, "gi");
 const UUID_RE = new RegExp(`\\b(?:${UUID_SRC})\\b`, "gi");
-// Page markers in several languages — the model localizes them (Indonesian
+// Page markers in several languages - the model localizes them (Indonesian
 // "h." for halaman turned up in the wild as "[S2, h. 5]").
 const PAGE_MARK_SRC = "(?:p\\.?|h\\.?|hal\\.?|halaman|pp?\\.?)";
 const ALIAS_LEAK_RE = new RegExp(
@@ -89,10 +89,10 @@ const ALIAS_BARE_RE = new RegExp(`\\bS\\d+\\s*,\\s*${PAGE_MARK_SRC}\\s*\\d+`, "g
 // strict patterns above; the [^A-Za-z…] middle keeps prose like "(S1 orang)" safe.
 const ALIAS_DEBRIS_RE = /[[(]\s*S\d+[^A-Za-z[\]()]*[\])]/gi;
 // Bare numeric brackets the model emits as pseudo-citations ("[483]",
-// "[6, 21]" — IEEE-looking echoes from small models). Never legit here:
+// "[6, 21]" - IEEE-looking echoes from small models). Never legit here:
 // attribution lives ONLY in the `citations` array, and rendered cites always
 // carry a title ("[Title, h. X]"), never a bare number. Paren-form "(483)"
-// is deliberately NOT matched — bare paren numbers collide with real prose.
+// is deliberately NOT matched - bare paren numbers collide with real prose.
 const NUMERIC_CITE_RE = /\[\s*\d+(?:\s*[,;]\s*\d+)*\s*\]/g;
 // Empty placeholder brackets the model emits when it wants a citation but
 // has none ("[]", "[;]", "( )"). Never legit in academic prose.
@@ -126,7 +126,7 @@ export function stripLeakedCitations(text: string): string {
 /**
  * Chunk storage prefixes every chunk with a "[Page N]" marker. Inside a
  * section-generation prompt that marker reads as a citation key, and models
- * copy it into `citations` as source_id "Page" (rendered "[Page, h. 1]" —
+ * copy it into `citations` as source_id "Page" (rendered "[Page, h. 1]" -
  * validator-flagged, but ugly). Strip markers from passage text at
  * prompt-build time only; stored chunks are untouched.
  */
@@ -138,7 +138,7 @@ export function cleanPassageForPrompt(text: string): string {
  * Strip title echoes (`[Full Paper Title, h. 1]`, `(Full Paper Title)`): the
  * model sometimes cites by title string instead of alias, usually echoing a
  * title it saw inside passage text or from training data. Matching is exact
- * (case-insensitive) against known source titles, so only genuine echoes go —
+ * (case-insensitive) against known source titles, so only genuine echoes go -
  * and only titles long enough (≥24 chars) that a prose collision is implausible.
  */
 export function stripTitleEchoes(text: string, titles: string[]): string {
@@ -167,7 +167,7 @@ export function stripTitleEchoes(text: string, titles: string[]): string {
  */
 
 /** Source-gap meta-sentences that belong in `gaps`, never in paragraph text.
- *  Narrowly scoped to source-referencing phrases — paper-scope statements
+ *  Narrowly scoped to source-referencing phrases - paper-scope statements
  *  ("Penelitian ini tidak akan membahas…") are legitimate and NOT matched. */
 const GAP_LEAK_PATTERNS: RegExp[] = [
   /tidak\s+ditemukan\s+dalam\s+sumber/i,
@@ -189,7 +189,7 @@ export function containsGapLeak(text: string): boolean {
 
 /** True when prose still carries citation-shaped leakage (aliases, bare
  *  numeric brackets, UUIDs, author-year echoes, empty placeholders). Runs on
- *  raw model text BEFORE stripping — after stripping there is nothing left
+ *  raw model text BEFORE stripping - after stripping there is nothing left
  *  to detect. */
 export function hasCitationLeak(text: string): boolean {
   const t = text ?? "";

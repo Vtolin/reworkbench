@@ -1,4 +1,4 @@
-// Port of core/ingestion/deduplication.py — algorithms preserved, infra dropped.
+// Port of core/ingestion/deduplication.py - algorithms preserved, infra dropped.
 // Priority: SHA-256 → DOI → normalized title → author+year → fuzzy title ≥0.85.
 
 export interface ProposedDoc {
@@ -46,7 +46,7 @@ export function extractDoi(text: string | null | undefined): string | null {
   const m = DOI_RE.exec(text);
   if (!m) return null;
   // Strip trailing punctuation the regex legitimately includes mid-DOI
-  // ("/", ";", "(", ")") — must agree with openalex.cleanDoi, kept inline
+  // ("/", ";", "(", ")") - must agree with openalex.cleanDoi, kept inline
   // here to avoid a dedup↔openalex import cycle.
   return m[0].toLowerCase().replace(/[.,;)\]]+$/, "") || null;
 }

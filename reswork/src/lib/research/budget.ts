@@ -5,7 +5,7 @@
 // provider.chat goes through check() first, and exhaustion throws
 // BudgetExceededError into the existing error path (visible progress +
 // message, no silent truncation). Defaults are generous ceilings (a 100-chunk
-// doc needs ~107 summarize calls), not targets — override via env.
+// doc needs ~107 summarize calls), not targets - override via env.
 // Billed calls are still never retried (see lib/async/net policy).
 
 /** Generous ceiling: ~100-chunk doc ≈ classify(1) + map(100) + reduce(~5) + synth(1). */
@@ -19,7 +19,7 @@ export class BudgetExceededError extends Error {
     public readonly step?: string,
   ) {
     super(
-      `Call budget exceeded (${limit} calls${step ? ` at ${step}` : ""}) — narrow the scope or raise the budget.`,
+      `Call budget exceeded (${limit} calls${step ? ` at ${step}` : ""}) - narrow the scope or raise the budget.`,
     );
     this.name = "BudgetExceededError";
   }

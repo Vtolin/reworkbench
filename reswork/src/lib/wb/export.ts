@@ -4,7 +4,7 @@ import { DOCUMENT_COLUMNS_SELECT } from "./library";
 
 // Workspace export (Phase 5: scalability).
 //
-// The old export fetched whole tables with select("*") in single shots —
+// The old export fetched whole tables with select("*") in single shots -
 // documents rows carry a generated fts tsvector (KBs per row), so large
 // libraries blew up memory and bandwidth. Now:
 // - documents use DOCUMENT_COLUMNS_SELECT (fts excluded, like the library)

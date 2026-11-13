@@ -9,7 +9,7 @@ import type { ChatSource, MatrixRow, Mode, TimedStatus } from "./types";
 const EMPTY_COPY: Record<Mode, { title: string; body: string }> = {
   ask: {
     title: "What do you want to know?",
-    body: "Ask any question against your library. Toggle Thinking for hypotheses or unanswerable questions — uses the model's built-in reasoning before answering.",
+    body: "Ask any question against your library. Toggle Thinking for hypotheses or unanswerable questions - uses the model's built-in reasoning before answering.",
   },
   compare: {
     title: "Compare documents",
@@ -17,7 +17,7 @@ const EMPTY_COPY: Record<Mode, { title: string; body: string }> = {
   },
   summarize: {
     title: "Summarize a paper",
-    body: "Pick a document. The pipeline classifies document type, extracts facts per chunk (map), consolidates (reduce), then writes a doc-type-aware narrative (synthesis). Verbatim figures and dates are extracted by regex — exact regardless of model output.",
+    body: "Pick a document. The pipeline classifies document type, extracts facts per chunk (map), consolidates (reduce), then writes a doc-type-aware narrative (synthesis). Verbatim figures and dates are extracted by regex - exact regardless of model output.",
   },
   matrix: {
     title: "Build a literature matrix",
@@ -25,7 +25,7 @@ const EMPTY_COPY: Record<Mode, { title: string; body: string }> = {
   },
   synthesis: {
     title: "Cross-paper synthesis",
-    body: "Select ≥2 documents and ask what the literature agrees on, disagrees on, or where the gaps are — answers are attributed per source.",
+    body: "Select ≥2 documents and ask what the literature agrees on, disagrees on, or where the gaps are - answers are attributed per source.",
   },
 };
 
@@ -96,7 +96,7 @@ export function Transcript(props: TranscriptProps) {
               <details className="group/thinking mb-3 overflow-hidden rounded-xl border border-[#2f2f2f] bg-[#0a0a0a]">
                 <summary className="flex list-none cursor-pointer items-center gap-2 px-3 py-2 text-xs font-medium text-[#ab68ff] select-none">
                   <span className="h-2 w-2 animate-pulse rounded-full bg-[#ab68ff]" /> Thinking
-                  <span className="hidden font-normal text-[#5f5f5f] sm:inline">— model reasoning</span>
+                  <span className="hidden font-normal text-[#5f5f5f] sm:inline">- model reasoning</span>
                   <span className="ml-auto text-[#5f5f5f] transition-transform group-open/thinking:rotate-180">▾</span>
                 </summary>
                 <div className="border-t border-[#1a1a1a] px-3 pt-1 pb-3 font-mono text-xs leading-relaxed whitespace-pre-wrap text-[#b4b4b4]">
@@ -183,7 +183,7 @@ export function Transcript(props: TranscriptProps) {
                 <button
                   onClick={() => props.onStartEdit(m)}
                   className="ml-auto rounded-full border border-[#2f2f2f] bg-[#171717] px-2.5 py-1 text-[11px] text-[#8e8e8e] hover:text-white"
-                  title="Edit question — regenerates the answer"
+                  title="Edit question - regenerates the answer"
                 >
                   ✎ Edit
                 </button>
@@ -328,7 +328,7 @@ export function StreamingBubble({
           <details open className="mb-3 overflow-hidden rounded-xl border border-[#2f2f2f] bg-[#0a0a0a]">
             <summary className="flex list-none cursor-pointer items-center gap-2 px-3 py-2 text-xs font-medium text-[#ab68ff] select-none">
               <span className="h-2 w-2 animate-pulse rounded-full bg-[#ab68ff]" /> Thinking
-              <span className="hidden font-normal text-[#5f5f5f] sm:inline">— model reasoning</span>
+              <span className="hidden font-normal text-[#5f5f5f] sm:inline">- model reasoning</span>
               <span className="ml-auto h-1.5 w-1.5 animate-ping rounded-full bg-emerald-400" />
             </summary>
             <div className="border-t border-[#1a1a1a] px-3 pt-1 pb-3 font-mono text-xs leading-relaxed whitespace-pre-wrap text-[#b4b4b4]">

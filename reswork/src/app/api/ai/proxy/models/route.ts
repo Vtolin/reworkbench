@@ -4,14 +4,14 @@ import { fetchWithTimeout } from "@/lib/async/net";
 import { getRequestId, logRequest, withRequestId } from "@/app/api/_lib/request";
 
 // Upstream-call policy: every provider fetch has an explicit 15s deadline so
-// a half-open socket cannot hang the serverless function. No retry here —
+// a half-open socket cannot hang the serverless function. No retry here -
 // model-list GETs are cheap but caller-driven; failures surface to the user.
 // Auth is enforced via resolveApiKey BEFORE any upstream call: anonymous
-// callers get 401, callers with no stored key get 400 — never an upstream
+// callers get 401, callers with no stored key get 400 - never an upstream
 // fetch with a missing key.
 const MODELS_TIMEOUT_MS = 15_000;
 
-// GET /api/ai/proxy/models?provider=deepseek — live model list from the
+// GET /api/ai/proxy/models?provider=deepseek - live model list from the
 // provider, authenticated with the member's OWN stored key. Nothing hardcoded.
 export async function GET(req: Request) {
   const requestId = getRequestId(req); // Phase 7: completion below carries this.

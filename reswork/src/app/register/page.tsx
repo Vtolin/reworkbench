@@ -45,7 +45,7 @@ export default function RegisterPage() {
       const { data, error: signErr } = await supabase.auth.signUp({ email, password });
       if (signErr) throw signErr;
       const userId = data.user?.id;
-      if (!userId) throw new Error("Sign-up succeeded but no session — ask the admin to check email-confirmation settings.");
+      if (!userId) throw new Error("Sign-up succeeded but no session - ask the admin to check email-confirmation settings.");
       const join = await fetch("/api/workspaces/members", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

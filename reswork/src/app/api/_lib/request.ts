@@ -7,7 +7,7 @@ import { errorCategory, logEvent } from "@/lib/observability/log";
 // through every logEvent for that request, plus a completion line with
 // duration and status. Correlate client → server by sending x-request-id
 // (the ask client does); otherwise a fresh id is generated. Ids are opaque
-// nonces — never user data — and safe to return in the x-request-id
+// nonces - never user data - and safe to return in the x-request-id
 // response header for support correlation.
 
 /** Fresh opaque request id. Pure. */
@@ -38,7 +38,7 @@ export function withRequestId<T extends Response>(res: T, requestId: string): T 
 
 /**
  * Completion line for one request: operation, duration, outcome. Call once
- * per handler exit (success or failure) — never with prompts, keys, bodies,
+ * per handler exit (success or failure) - never with prompts, keys, bodies,
  * or row contents (redact() is the backstop, but don't pass them at all).
  */
 export function logRequest(
@@ -48,7 +48,7 @@ export function logRequest(
   ok: boolean,
   extra: Record<string, unknown> = {},
 ): void {
-  // `error` shapes the category only — raw error text never hits the log.
+  // `error` shapes the category only - raw error text never hits the log.
   const { error, ...rest } = extra;
   logEvent(ok ? "info" : "error", operation, {
     requestId,

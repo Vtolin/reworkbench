@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { clearTraces, exportTrace, listTraces } from "@/lib/observability/trace";
 
-// Dev/debug panel (Phase 7): reads the local in-memory trace collector —
+// Dev/debug panel (Phase 7): reads the local in-memory trace collector -
 // timings + counts for retrieve/rerank/llm steps. Never prompts, keys, or
 // document content (steps have no such fields by construction).
 export function TracePanel() {
@@ -55,9 +55,9 @@ export function TracePanel() {
       {open && (
         <div className="mt-2 space-y-2">
           <div className="text-[11px] text-[#5f5f5f]">
-            In-memory only, sent nowhere. Steps show timings + counts — never prompts, keys, or content.
+            In-memory only, sent nowhere. Steps show timings + counts - never prompts, keys, or content.
           </div>
-          {traces.length === 0 && <div className="text-xs text-[#5f5f5f]">No traces yet — run a search or ask.</div>}
+          {traces.length === 0 && <div className="text-xs text-[#5f5f5f]">No traces yet - run a search or ask.</div>}
           {traces.map((t) => (
             <div key={t.traceId} className="rounded-lg border border-[#2f2f2f] bg-[#171717] p-2">
               <div className="flex items-center gap-2">
@@ -73,7 +73,7 @@ export function TracePanel() {
               <div className="mt-1 font-mono text-[11px] leading-relaxed text-[#b4b4b4]">
                 {t.steps.map((s, i) => (
                   <div key={i}>
-                    {s.step} — {s.ms}ms
+                    {s.step} - {s.ms}ms
                     {s.provider ? ` · ${s.provider}` : ""}
                     {s.model ? `:${s.model}` : ""}
                     {s.counts ? ` · ${Object.entries(s.counts).map(([k, v]) => `${k}=${v}`).join(" ")}` : ""}

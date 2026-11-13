@@ -26,7 +26,7 @@ export function credentialForProvider(
  * Embedding-backend choice. Policy (mirrors rag/embed):
  * explicit provider wins when saved; otherwise a lone key is unambiguous;
  * several keys prefer one with an embedding API (OpenAI, then Google).
- * Returns null when no stored row can serve embeddings — the caller turns
+ * Returns null when no stored row can serve embeddings - the caller turns
  * that into the "save an OpenAI or Google key" 400, never a silent miss.
  */
 export function selectEmbeddingCredential(

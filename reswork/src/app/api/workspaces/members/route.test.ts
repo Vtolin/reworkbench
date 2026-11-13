@@ -7,7 +7,7 @@ import * as path from "node:path";
 // one transaction). These tests pin the wiring: the route delegates to that
 // single RPC (no standalone insert = no check-then-act window) and maps every
 // outcome to the pre-existing UX messages. True multi-connection atomicity is
-// a live-DB property — the migration carries a static guard below, and a
+// a live-DB property - the migration carries a static guard below, and a
 // staging concurrency probe is tracked as a follow-up.
 const mocks = vi.hoisted(() => ({
   calls: [] as string[],

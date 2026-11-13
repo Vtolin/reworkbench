@@ -89,7 +89,7 @@ export async function groupedSearch(rawQuery: string, embedMode: "local" | "serv
   if (f.collection) filters.collection = f.collection;
 
   // Documents leg: every predicate server-side, sharing the listDocuments
-  // semi-join shape (docFilters — one implementation). Names resolve to
+  // semi-join shape (docFilters - one implementation). Names resolve to
   // bounded ID sets first; a requested-but-unmatched filter yields an empty
   // page 1 instead of the old post-LIMIT client filtering, which silently
   // dropped matches past row 20.
@@ -172,7 +172,7 @@ export async function groupedSearch(rawQuery: string, embedMode: "local" | "serv
 }
 
 // Saved searches -------------------------------------------------------------
-// Explicit columns (Phase 5): no select("*") — table growth must never widen
+// Explicit columns (Phase 5): no select("*") - table growth must never widen
 // this payload by accident.
 export const SAVED_SEARCH_COLUMNS = "id, workspace_id, name, query, filters_json, created_by, created_at, updated_at";
 

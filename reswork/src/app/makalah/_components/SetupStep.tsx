@@ -5,7 +5,7 @@ import { makalahStageLabels } from "@/lib/wb/makalah";
 import { useMakalahWorkbench } from "./MakalahWorkbenchContext";
 import { toggleId } from "./types";
 
-/** STEP 1 — topic, grounding, sources, template constraints and cover. */
+/** STEP 1 - topic, grounding, sources, template constraints and cover. */
 export function SetupStep() {
   const { draft } = useMakalahWorkbench();
   const {
@@ -107,7 +107,7 @@ export function SetupStep() {
                   : "border-[#2f2f2f] bg-[#212121] text-white"
               }`}
             >
-              Mode A — AI proposes outline
+              Mode A - AI proposes outline
             </button>
             <button
               onClick={() => setMode("B")}
@@ -117,7 +117,7 @@ export function SetupStep() {
                   : "border-[#2f2f2f] bg-[#212121] text-white"
               }`}
             >
-              Mode B — I define structure
+              Mode B - I define structure
             </button>
           </div>
         </div>
@@ -132,7 +132,7 @@ export function SetupStep() {
               onClick={() => setHybridMode(m)}
               title={
                 m === "off"
-                  ? "100% strict — setiap klaim faktual wajib dari passages"
+                  ? "100% strict - setiap klaim faktual wajib dari passages"
                   : m === "15/85"
                     ? "85% sumber + 15% kecerdasan model untuk transisi/koherensi (disarankan)"
                     : "70% sumber + 30% kecerdasan model untuk sintesis/kerangka teori"
@@ -149,7 +149,7 @@ export function SetupStep() {
         </div>
         <div className="text-[11px] text-[#5f5f5f]">
           Strict = 100% sitasi sumber. 15/85 = +transisi narasi (disarankan). 30/70 = +sintesis
-          teori. Paragraf tanpa sitasi selalu ditandai sebagai model-bridged di quality report —
+          teori. Paragraf tanpa sitasi selalu ditandai sebagai model-bridged di quality report -
           tidak pernah diklaim bersumber.
         </div>
       </div>
@@ -183,13 +183,13 @@ export function SetupStep() {
               >
                 {on ? "✓ " : ""}
                 {d.original_filename}{" "}
-                {d.title && d.title !== d.original_filename ? `— ${d.title.slice(0, 60)}` : ""}
+                {d.title && d.title !== d.original_filename ? `- ${d.title.slice(0, 60)}` : ""}
               </button>
             );
           })}
           {!docs.length && (
             <div className="text-xs text-[#5f5f5f]">
-              No documents — upload and approve in Library first.
+              No documents - upload and approve in Library first.
             </div>
           )}
         </div>
@@ -258,7 +258,7 @@ export function SetupStep() {
           {settings.makalahThinking
             ? ` • thinking ${settings.makalahThinkLevel ?? "low"} · ${settings.makalahThinkingBudget ?? 1024} tok (drafting only)`
             : " • thinking off"}{" "}
-          — change in Settings → Makalah pipeline
+          - change in Settings → Makalah pipeline
         </span>
         {mode === "A" ? (
           <button

@@ -4,7 +4,7 @@ import type { ConfirmedDocument, ConfirmInput, IngestPreview } from "./ingest";
 
 // Ingest-flow runner (Phase 6): the UploadFlow confirm core as a UI-free,
 // injectable orchestrator. UploadFlow itself is intentionally unwired (rule:
-// no UploadFlow changes beyond typing) — this runner is tested here and
+// no UploadFlow changes beyond typing) - this runner is tested here and
 // ready to adopt. Year validation and confirm assembly mirror UploadFlow
 // exactly; confirmIngest (lib/wb/ingest) is untouched.
 
@@ -43,7 +43,7 @@ export function validateUploadYear(raw: string | number | null | undefined): Val
   const rawYear = String(raw ?? "").trim();
   const yearNum = /^\d{4}$/.test(rawYear) ? Number(rawYear) : NaN;
   if (rawYear && (!Number.isInteger(yearNum) || yearNum < 1000 || yearNum > 2100)) {
-    return { ok: false, error: `Invalid year "${rawYear}" — use a 4-digit year 1000–2100 or leave it empty.` };
+    return { ok: false, error: `Invalid year "${rawYear}" - use a 4-digit year 1000–2100 or leave it empty.` };
   }
   return { ok: true, year: rawYear ? yearNum : null };
 }

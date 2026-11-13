@@ -20,7 +20,8 @@ export type RateLimitScope =
   | "ai-proxy"
   | "rag-embed"
   | "rag-search"
-  | "research-trail";
+  | "research-trail"
+  | "web-search";
 
 interface RateLimitConfig {
   max: number;
@@ -35,6 +36,7 @@ const DEFAULTS: Record<RateLimitScope, RateLimitConfig> = {
   "rag-embed": { max: 120, windowSecs: 60 },
   "rag-search": { max: 120, windowSecs: 60 },
   "research-trail": { max: 200, windowSecs: 60 },
+  "web-search": { max: 40, windowSecs: 60 },
 };
 
 function envInfix(scope: RateLimitScope): string {

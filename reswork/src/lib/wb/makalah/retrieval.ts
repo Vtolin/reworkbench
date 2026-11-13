@@ -49,13 +49,13 @@ export async function getSourceSummaries(docIds: string[]): Promise<SourceSummar
 }
 
 // ---------------------------------------------------------------------------
-// Retrieval per subsection — deterministic, no LLM
+// Retrieval per subsection - deterministic, no LLM
 // ---------------------------------------------------------------------------
 
 /**
  * Stable identity for a retrieved passage. Single key space shared by the
  * allocator (excludeKeys), the UI (used-tracking, overlap display) and the
- * validator — never introduce a second key format.
+ * validator - never introduce a second key format.
  */
 export function passageKey(p: {
   source_id: string;

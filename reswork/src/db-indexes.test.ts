@@ -5,7 +5,7 @@ import * as path from "node:path";
 // Phase 5 structural guards: the unified schema must carry every
 // index/RPC hardening the query layer relies on, and the wide tables must
 // never regress to select("*"). EXPLAIN-before/after against a live database
-// is a staging follow-up (no live Supabase in CI) — the exact queries to run
+// is a staging follow-up (no live Supabase in CI) - the exact queries to run
 // are documented below; these guards pin the definitions they depend on.
 //
 // Staging EXPLAIN checklist (after applying 0001_init.sql):

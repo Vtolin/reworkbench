@@ -21,14 +21,14 @@ export interface PipeChunk {
 }
 
 // ---------------------------------------------------------------------------
-// Token counting (chars/3.2 fallback — tiktoken is unavailable in browser)
+// Token counting (chars/3.2 fallback - tiktoken is unavailable in browser)
 // ---------------------------------------------------------------------------
 export function countTokens(text: string): number {
   return Math.max(1, Math.round(text.length / 3.2));
 }
 
 // ---------------------------------------------------------------------------
-// Sentence splitting — dependency-free, abbreviation-aware
+// Sentence splitting - dependency-free, abbreviation-aware
 // ---------------------------------------------------------------------------
 const ABBREVIATIONS = [
   "et al.", "approx.", "sept.", "supp.", "figs.", "refs.", "eqs.",
@@ -517,7 +517,7 @@ export function synthesisPromptFor(docType: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Output cleanup (port of output_cleanup.py — KaTeX-safe subset)
+// Output cleanup (port of output_cleanup.py - KaTeX-safe subset)
 // ---------------------------------------------------------------------------
 const LATEX_ESCAPES: Array<[string, string]> = [
   ["\\$", "$"], ["\\%", "%"], ["\\#", "#"], ["\\&", "&"],

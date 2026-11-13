@@ -4,7 +4,7 @@
 
 // Plain CSL-ish item for the lightweight plaintext renderer below. This is
 // NOT the citeproc-js CSL-JSON shape (see ./csl.ts CslItem, which uses
-// dashed keys like "container-title" plus authority/number/URL) — the shared
+// dashed keys like "container-title" plus authority/number/URL) - the shared
 // name caused confusion, so this one is explicitly Plain- (Phase 11).
 export interface PlainCslItem {
   id: string;

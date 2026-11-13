@@ -1,4 +1,4 @@
-// App-layer permission helpers. These mirror Supabase RLS — they exist for
+// App-layer permission helpers. These mirror Supabase RLS - they exist for
 // UX (hiding buttons) only. Every mutation is re-checked by RLS + server
 // routes, so a modified client gains nothing.
 

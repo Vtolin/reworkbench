@@ -59,7 +59,7 @@ export function useCitationSettings(): CitationSettings {
   const addCustomStyle = async (xml: string) => {
     const r = await api.citationStyleCustom(xml);
     setStyles(r.styles ?? []);
-    setMessage("Custom style added — select 'Custom CSL' above");
+    setMessage("Custom style added - select 'Custom CSL' above");
     return "Custom CSL";
   };
 

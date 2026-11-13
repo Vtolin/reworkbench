@@ -1,5 +1,5 @@
 // Pure TypeScript implementation of Okapi BM25 scoring & ranking.
-// Zero external dependencies — fast, deterministic, runs in browser and Vercel.
+// Zero external dependencies - fast, deterministic, runs in browser and Vercel.
 // Formula:
 //   IDF(q_i) = ln( (N - n(q_i) + 0.5) / (n(q_i) + 0.5) + 1 )
 //   Score(D, Q) = Σ IDF(q_i) * ( f(q_i, D) * (k1 + 1) ) / ( f(q_i, D) + k1 * (1 - b + b * (|D| / avgdl)) )

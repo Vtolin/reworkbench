@@ -42,7 +42,7 @@ function MakalahShell() {
     <div className="flex-1 min-w-0 flex flex-col bg-black min-h-0 relative">
       <Topbar
         title="Makalah"
-        subtitle="Deterministic drafting pipeline — outline, approve, draft per section, export PDF"
+        subtitle="Deterministic drafting pipeline - outline, approve, draft per section, export PDF"
       />
       {historyOpen && (
         <div className="absolute inset-0 z-20 flex">

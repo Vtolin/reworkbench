@@ -30,7 +30,7 @@ describe("logRequest", () => {
     vi.restoreAllMocks();
   });
 
-  it("logs duration, status, and id — never raw error text", () => {
+  it("logs duration, status, and id - never raw error text", () => {
     const lines: string[] = [];
     const spy = vi.spyOn(console, "error").mockImplementation((line: string) => {
       lines.push(String(line));

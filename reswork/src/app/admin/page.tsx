@@ -247,7 +247,7 @@ export default function AdminPage() {
       const { reembedMissingEmbeddings } = await import("@/lib/wb/ingest");
       const { readInference } = await import("@/lib/api");
       const s = await reembedMissingEmbeddings({ embedMode: readInference().embedMode });
-      flash(`Re-embed: ${s.docsFixed}/${s.docsScanned} docs fixed, ${s.chunksEmbedded} vectors added, ${s.chunksSkipped} skipped${s.warnings.length ? ` — ${s.warnings.length} warning(s): ${s.warnings[0]?.slice(0, 200)}` : ""}`);
+      flash(`Re-embed: ${s.docsFixed}/${s.docsScanned} docs fixed, ${s.chunksEmbedded} vectors added, ${s.chunksSkipped} skipped${s.warnings.length ? ` - ${s.warnings.length} warning(s): ${s.warnings[0]?.slice(0, 200)}` : ""}`);
       load();
     } catch (e) {
       flash(toUserMessage(e, "Re-embed failed"));
@@ -265,7 +265,7 @@ export default function AdminPage() {
     try {
       const { api } = await import("@/lib/api");
       const s = await api.reindex(reindexScope, undefined, (done, total) => setReindexProgress([done, total]));
-      flash(`Reindex (${reindexScope}): ${s.docsFixed}/${s.docsScanned} docs, ${s.chunksEmbedded} vectors${s.chunksDeleted ? `, ${s.chunksDeleted} cleared` : ""}, ${s.chunksSkipped} skipped${s.warnings.length ? ` — ${s.warnings.length} warning(s): ${s.warnings[0]?.slice(0, 200)}` : ""}`);
+      flash(`Reindex (${reindexScope}): ${s.docsFixed}/${s.docsScanned} docs, ${s.chunksEmbedded} vectors${s.chunksDeleted ? `, ${s.chunksDeleted} cleared` : ""}, ${s.chunksSkipped} skipped${s.warnings.length ? ` - ${s.warnings.length} warning(s): ${s.warnings[0]?.slice(0, 200)}` : ""}`);
       load();
     } catch (e) {
       flash(toUserMessage(e, "Reindex failed"));
@@ -376,7 +376,7 @@ export default function AdminPage() {
               {busy === "reembed" ? "Re-embedding…" : "Re-embed missing"}
             </button>
           </div>
-          <div className="text-xs text-[#8e8e8e] mt-1">Errored documents and FTS-only (no vectors) documents. Re-embed is idempotent — chunks that already have vectors are skipped.</div>
+          <div className="text-xs text-[#8e8e8e] mt-1">Errored documents and FTS-only (no vectors) documents. Re-embed is idempotent - chunks that already have vectors are skipped.</div>
           <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2">
             <span className="text-xs text-[#8e8e8e]">Library reindex:</span>
             <select
@@ -387,12 +387,12 @@ export default function AdminPage() {
               title="missing: fill gaps only (cheapest) • full: clear + rebuild every vector (model change)"
             >
               <option value="missing" className="bg-[#171717]">missing vectors only</option>
-              <option value="full" className="bg-[#171717]">full — rebuild all vectors</option>
+              <option value="full" className="bg-[#171717]">full - rebuild all vectors</option>
             </select>
             <button onClick={reindex} disabled={busy !== null} className="rounded-lg bg-white text-black px-3 py-1.5 text-xs font-medium disabled:opacity-40">
               {busy === "reindex" ? `Reindexing${reindexProgress ? ` ${reindexProgress[0]}/${reindexProgress[1]}` : "… "}` : "Run reindex"}
             </button>
-            {reindexScope === "full" && <span className="text-[11px] text-amber-300/80">Clears vectors first — retry refills gaps if embedding fails mid-run.</span>}
+            {reindexScope === "full" && <span className="text-[11px] text-amber-300/80">Clears vectors first - retry refills gaps if embedding fails mid-run.</span>}
           </div>
           {healthError && <div className="mt-2 text-xs text-red-400">Health check unavailable: {healthError} (ensure `0001_init.sql` / `ingest_health` RPC is applied).</div>}
           <div className="mt-3 space-y-2">
@@ -416,7 +416,7 @@ export default function AdminPage() {
             {!healthError && health.length === 0 && <div className="text-sm text-[#5f5f5f]">All documents healthy.</div>}
           </div>
           <div className="mt-4 flex items-center gap-2">
-            <div className="text-xs text-[#8e8e8e]">Storage orphans (uploads with no documents row){orphans !== null && ` — ${orphans.length} found`}.</div>
+            <div className="text-xs text-[#8e8e8e]">Storage orphans (uploads with no documents row){orphans !== null && ` - ${orphans.length} found`}.</div>
             <button onClick={scanOrphans} disabled={busy !== null} className="ml-auto rounded-lg border border-[#2f2f2f] bg-[#212121] px-3 py-1.5 text-xs text-white hover:bg-[#2f2f2f] disabled:opacity-40">
               {busy === "orphans" ? "Scanning…" : "Scan orphans"}
             </button>
@@ -430,7 +430,7 @@ export default function AdminPage() {
 
         <div className="rounded-2xl border border-[#2f2f2f] bg-[#0a0a0a] p-4 lg:p-5">
           <div className="text-sm font-semibold text-white">Shared-chat deletion requests ({delRequests.length})</div>
-          <div className="text-xs text-[#8e8e8e] mt-1">Owners cannot delete published research unilaterally — approving removes the chat and its messages.</div>
+          <div className="text-xs text-[#8e8e8e] mt-1">Owners cannot delete published research unilaterally - approving removes the chat and its messages.</div>
           <div className="mt-3 space-y-2">
             {delRequests.map((r) => (
               <div key={r.id} className="flex items-center gap-3 rounded-xl border border-[#2f2f2f] bg-[#171717] px-3 py-2">

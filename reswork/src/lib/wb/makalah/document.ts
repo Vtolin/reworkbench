@@ -150,7 +150,7 @@ export function buildPrintHtml({
         @media print{.cover{margin-top:0}}
       </style></head><body>
       <div class="cover"><h1>${escapeHtml(docTitle)}</h1>
-        ${cover.author ? `<p>${escapeHtml(cover.author)}${cover.nim ? ` — ${escapeHtml(cover.nim)}` : ""}</p>` : ""}
+        ${cover.author ? `<p>${escapeHtml(cover.author)}${cover.nim ? ` - ${escapeHtml(cover.nim)}` : ""}</p>` : ""}
         ${cover.course ? `<p>${escapeHtml(cover.course)}</p>` : ""}
         ${cover.lecturer ? `<p>${escapeHtml(cover.lecturer)}</p>` : ""}
       </div>

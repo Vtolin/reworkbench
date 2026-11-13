@@ -2,7 +2,7 @@
 //
 // Lightweight {traceId, step, ms, provider, model, counts} records for RAG
 // retrieve, rerank and LLM calls. Deliberately narrow by construction: steps
-// carry durations + counts only — there is NO field for prompts, keys, or
+// carry durations + counts only - there is NO field for prompts, keys, or
 // document content, so content can never leak even if a caller is careless.
 // Records stay in memory (capped ring) and go NOWHERE by default (the sink
 // is a noop until setTraceSink installs one); the dev/debug panel reads the
@@ -34,7 +34,7 @@ let counter = 0;
 type TraceSink = (step: TraceStep) => void;
 let sink: TraceSink = () => {};
 
-/** Mint a trace id (no node dependency — runs in the browser). Pure. */
+/** Mint a trace id (no node dependency - runs in the browser). Pure. */
 export function newTraceId(prefix = "tr"): string {
   counter += 1;
   return `${prefix}_${Date.now().toString(36)}_${counter.toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -48,7 +48,7 @@ export function setTraceSink(next: TraceSink | null): () => void {
   };
 }
 
-/** Record one step (durations + counts only — no content fields exist). */
+/** Record one step (durations + counts only - no content fields exist). */
 export function traceStep(step: TraceStep): void {
   const steps = traces.get(step.traceId) ?? [];
   steps.push({ ...step, counts: step.counts ? { ...step.counts } : undefined });
@@ -67,7 +67,7 @@ export function traceStep(step: TraceStep): void {
 
 /**
  * Time fn as one step. Records ms + fields even on failure (with
- * ok:false count), then rethrows unchanged — observation only.
+ * ok:false count), then rethrows unchanged - observation only.
  */
 export async function withTrace<T>(
   traceId: string,

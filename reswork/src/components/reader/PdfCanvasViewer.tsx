@@ -309,7 +309,7 @@ export default function PdfCanvasViewer({
           {mode === "canvas-text" && (
             <div className="lg:col-span-5 flex flex-col bg-[#0a0a0a]" style={{ maxHeight: "72vh" }}>
               <div className="border-b border-[#2f2f2f] px-3 py-2 flex items-center justify-between text-xs text-[#8e8e8e]">
-                <span>Selectable text — page {page}</span>
+                <span>Selectable text - page {page}</span>
                 <span>{pageHighlights.length} highlight{pageHighlights.length === 1 ? "" : "s"} on page</span>
               </div>
               <div

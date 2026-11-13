@@ -1,4 +1,4 @@
-# Research Workbench — Cloud Version
+# Research Workbench - Cloud Version
 
 Multi-user, cloud-coordinated, locally-executed AI research workspace.
 
@@ -24,16 +24,16 @@ You only need:
 
 > **Each computer has its own AI runtime. The deployed website does not run
 > Ollama for you.** Your AI requests go directly from your browser to
-> `http://localhost:11434` (or to your cloud provider) — the Vercel server
+> `http://localhost:11434` (or to your cloud provider) - the Vercel server
 > never sees your local model's inference.
 
-### Option A — Local AI with Ollama
+### Option A - Local AI with Ollama
 
 Recommended for privacy.
 
 1. Open the Workbench's deployed URL.
 2. Create your account or sign in.
-3. Install Ollama on your computer (ollama.com — Windows, macOS Apple Silicon,
+3. Install Ollama on your computer (ollama.com - Windows, macOS Apple Silicon,
    or Linux via `curl -fsSL https://ollama.com/install.sh | sh`).
 4. Pull the models you want to use. The **only required model** is
    `nomic-embed-text` (it powers search); chat models are your own choice
@@ -50,9 +50,9 @@ Recommended for privacy.
 8. Click **Auto-detect Ollama models**.
 9. If you are using the deployed `vercel.app` site (not `localhost:3000`),
    configure `OLLAMA_ORIGINS` once as described in **Joining on a new laptop**
-   below — otherwise the browser cannot reach your local Ollama.
+   below - otherwise the browser cannot reach your local Ollama.
 
-### Option B — Cloud AI
+### Option B - Cloud AI
 
 No Ollama installation is required.
 
@@ -72,9 +72,9 @@ members.
 
 The library is shared, but the AI runs on **your own computer**. So each person,
 on each computer they use, picks one of the two options below. Nothing is shared
-between members — your models and keys stay yours.
+between members - your models and keys stay yours.
 
-**Option A — run the AI on your computer (private, recommended)**
+**Option A - run the AI on your computer (private, recommended)**
 
 1. Install Ollama and open it at least once:
    - **Windows**: download from ollama.com (it lives by the clock, bottom-right).
@@ -82,14 +82,14 @@ between members — your models and keys stay yours.
      Apple chips run models fast with no extra setup.
    - **Linux**: open Terminal and run `curl -fsSL https://ollama.com/install.sh | sh`
      (it starts itself in the background).
-2. Download the models — open a terminal (PowerShell on Windows, Terminal on
+2. Download the models - open a terminal (PowerShell on Windows, Terminal on
    Mac/Linux) and paste one line at a time, Enter after each:
    ```bash
    ollama pull nomic-embed-text
    ollama pull qwen2.5:7b
    ```
    The first one is required for searching. Chat models are your own choice:
-   `gemma4:26b-a4b-it-qat` if your machine is strong, `qwen2.5:7b` if modest —
+   `gemma4:26b-a4b-it-qat` if your machine is strong, `qwen2.5:7b` if modest -
    any Ollama model works, pick what fits.
 3. Check Ollama is awake: in your browser open `http://localhost:11434/`.
    You should see the words **"Ollama is running"**. If not, start the Ollama app
@@ -99,27 +99,27 @@ between members — your models and keys stay yours.
 5. **Only if you open the site via a `vercel.app` address** (not `localhost:3000`):
    Ollama blocks websites it doesn't know, so introduce them once.
    (Use the real address from your browser bar, e.g.
-   `https://rewbench.vercel.app` — exactly that, nothing after it.)
+   `https://rewbench.vercel.app` - exactly that, nothing after it.)
    - **Windows** (PowerShell):
      ```powershell
      setx OLLAMA_ORIGINS "https://YOUR-APP.vercel.app"
      ```
      Then **fully restart Ollama**: right-click its icon by the clock → **Quit**,
      then open Ollama again from the Start menu. Just closing the browser tab is
-     not enough — the Ollama program itself must restart.
+     not enough - the Ollama program itself must restart.
    - **Mac** (Terminal):
      ```bash
      launchctl setenv OLLAMA_ORIGINS "https://YOUR-APP.vercel.app"
      ```
      Then quit Ollama from the top menu bar and reopen it from Applications.
-     (Re-run this command after a reboot — macOS forgets it on restart.
+     (Re-run this command after a reboot - macOS forgets it on restart.
      Alternative that lasts as long as the window stays open: quit the menu-bar
      app, then run `OLLAMA_ORIGINS="https://YOUR-APP.vercel.app" ollama serve`.)
-   - **Linux** (Terminal — permanent, survives reboots):
+   - **Linux** (Terminal - permanent, survives reboots):
      ```bash
      sudo systemctl edit ollama
      ```
-     An editor opens — paste these two lines, save, exit:
+     An editor opens - paste these two lines, save, exit:
      ```
      [Service]
      Environment="OLLAMA_ORIGINS=https://YOUR-APP.vercel.app"
@@ -140,14 +140,14 @@ between members — your models and keys stay yours.
        ```bash
        curl -s -o /dev/null -w "%{http_code}\n" -H "Origin: https://YOUR-APP.vercel.app" http://localhost:11434/api/tags
        ```
-   - You want `200`. `403` means Ollama is still the old one — repeat step 5.
+   - You want `200`. `403` means Ollama is still the old one - repeat step 5.
 
-**Option B — use a cloud AI key (nothing to install)**
+**Option B - use a cloud AI key (nothing to install)**
 
 1. Get an API key from one provider: OpenAI, DeepSeek, Google, or Anthropic.
 2. In the app: **Settings** → provider **Cloud** → pick that provider →
    paste **your own** key → **Save key**.
-3. Click **↻ Models** — the app lists that provider's real models; pick one.
+3. Click **↻ Models** - the app lists that provider's real models; pick one.
    Your key is encrypted and visible only to you.
 
 **Everyday notes**
@@ -155,14 +155,14 @@ between members — your models and keys stay yours.
 - First question after a break is slow: Ollama unloads idle models after ~5 minutes,
   so it reloads once (large models take a bit), then stays fast.
 - "Failed to fetch" in Research almost always means Ollama isn't awake on that
-  computer — redo step 3 above.
+  computer - redo step 3 above.
 - You only ever do the setup steps once per computer. After that: log in and work.
 
 ---
 
 ## Architecture
 
-This is the core conceptual difference from a conventional cloud AI app —
+This is the core conceptual difference from a conventional cloud AI app -
 follow the arrows:
 
 ```text
@@ -189,16 +189,16 @@ User's browser
                        user's own model
 ```
 
-- **Vercel + Next.js 16** (this directory — the app root) — UI, auth screens, API routes, cloud-AI proxy, authorization.
-- **Supabase** (`supabase/`) — Postgres, Auth, Storage, Realtime, `pgvector`, FTS.
-- **Browser** — calls local Ollama (`localhost:11434`) directly, or Vercel → cloud (BYOK).
+- **Vercel + Next.js 16** (this directory - the app root) - UI, auth screens, API routes, cloud-AI proxy, authorization.
+- **Supabase** (`supabase/`) - Postgres, Auth, Storage, Realtime, `pgvector`, FTS.
+- **Browser** - calls local Ollama (`localhost:11434`) directly, or Vercel → cloud (BYOK).
 
 No FastAPI, no SQLite, no Chroma, no `pfolder/`, no watch-folder daemon.
 
 ## Run your own local development instance
 
 This section is only for people working on the code. Normal members: you don't
-need any of this — see **Using the deployed version** above.
+need any of this - see **Using the deployed version** above.
 
 1. Create a Supabase project, then in **SQL Editor** run
    `supabase/migrations/0001_init.sql` once (it creates all tables, indexes,

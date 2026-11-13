@@ -12,11 +12,11 @@ export function MakalahPipelineCard() {
   return (
     <Panel
       title="Makalah pipeline"
-      description="Outline is cheap structure-only work (a small/fast model is fine). Section drafting writes the actual prose with citations — use your strongest model here. Both inherit the chat model above unless overridden. Changes apply on the next run."
+      description="Outline is cheap structure-only work (a small/fast model is fine). Section drafting writes the actual prose with citations - use your strongest model here. Both inherit the chat model above unless overridden. Changes apply on the next run."
     >
       <div className="mt-4 grid grid-cols-1 gap-3 border-t border-[#2f2f2f] pt-3 md:grid-cols-2">
         <div className="text-xs text-[#8e8e8e]">
-          Thinking — section drafting only
+          Thinking - section drafting only
           <div className="mt-1">
             <button
               onClick={() => setInf({ makalahThinking: !inf.makalahThinking })}
@@ -25,14 +25,14 @@ export function MakalahPipelineCard() {
                   ? "border-emerald-600 bg-emerald-500/15 text-emerald-300"
                   : "border-[#2f2f2f] bg-[#212121] text-[#8e8e8e] hover:text-white"
               }`}
-              title="Off (default): deterministic JSON. On: model reasons step-by-step first — costs output tokens."
+              title="Off (default): deterministic JSON. On: model reasons step-by-step first - costs output tokens."
             >
               {inf.makalahThinking ? "● On" : "○ Off"}
             </button>
           </div>
           <div className="mt-1 text-[11px] text-[#5f5f5f]">
-            Outline + claim check never think — reasoning runs only while drafting sections. Note: native reasoning models can
-            still think on their own — if calls fail with “only reasoning”, use a non-reasoning model for that stage.
+            Outline + claim check never think - reasoning runs only while drafting sections. Note: native reasoning models can
+            still think on their own - if calls fail with “only reasoning”, use a non-reasoning model for that stage.
           </div>
         </div>
         {inf.makalahThinking ? (
@@ -44,10 +44,10 @@ export function MakalahPipelineCard() {
                 onChange={(e) => setInf({ makalahThinkLevel: e.target.value as InferenceSettings["makalahThinkLevel"] })}
                 className={fieldClass}
               >
-                <option value="minimal">Minimal — closest to off (Gemini 3)</option>
-                <option value="low">Low — brief trace</option>
+                <option value="minimal">Minimal - closest to off (Gemini 3)</option>
+                <option value="low">Low - brief trace</option>
                 <option value="medium">Medium</option>
-                <option value="high">High — deep trace</option>
+                <option value="high">High - deep trace</option>
                 <option value="max">Max</option>
               </select>
               <span className="text-[11px] text-[#5f5f5f]">
@@ -68,7 +68,7 @@ export function MakalahPipelineCard() {
               />
               <span className="text-[11px] text-[#5f5f5f]">
                 Hard cap: deliberation runs with exactly this many tokens, then the answer is written cold with the full output
-                cap — thinking can never truncate the answer. The model is also told its allowance.
+                cap - thinking can never truncate the answer. The model is also told its allowance.
               </span>
             </label>
           </>
@@ -92,12 +92,12 @@ export function MakalahPipelineCard() {
       </div>
       <StageModelEditor
         stageKey="makalahOutlineStage"
-        label="Outline — structure proposal (LLM call #1)"
+        label="Outline - structure proposal (LLM call #1)"
         description="Structure only; a small/fast model is usually enough."
       />
       <StageModelEditor
         stageKey="makalahSectionStage"
-        label="Sections — drafting + claim check (LLM call #2)"
+        label="Sections - drafting + claim check (LLM call #2)"
         description="Writes cited prose. Use the strongest model you can afford."
       />
     </Panel>

@@ -23,7 +23,7 @@ export function outlineSubLabel(chapter_number: string, sub: OutlineSubsection):
 }
 
 function outlineScopeText(sub: OutlineSubsection): string {
-  // must_not_cover names OTHER sections' topics — including it would inflate
+  // must_not_cover names OTHER sections' topics - including it would inflate
   // every pair sharing vocabulary. Score what the section IS (title+focus).
   return [sub.title, sub.focus ?? ""].join(" ");
 }
@@ -31,7 +31,7 @@ function outlineScopeText(sub: OutlineSubsection): string {
 type OutlineRole = "open" | "middle" | "close";
 
 /**
- * Outline-overlap gate (advisory, not blocking), scored on content words —
+ * Outline-overlap gate (advisory, not blocking), scored on content words -
  * raw bigrams over Indonesian academic titles ("Perkembangan LLM",
  * "Penggunaan LLM") routinely hit 0.5–0.7 with no real meaning overlap.
  * Same-role pairs (esp. within Pembahasan, the real duplication zone) warn
@@ -146,5 +146,5 @@ export async function generateOutline(
 }
 
 // ---------------------------------------------------------------------------
-// Source summaries (outline input) — deterministic, no LLM
+// Source summaries (outline input) - deterministic, no LLM
 // ---------------------------------------------------------------------------

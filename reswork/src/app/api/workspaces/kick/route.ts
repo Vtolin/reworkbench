@@ -62,7 +62,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Could not remove member" }, { status: 500 });
   }
   // Invalidate the kicked member's sessions. NOTE: auth.admin.signOut() takes
-  // a session JWT, not a user id — passing a UUID is a silent no-op. Banning
+  // a session JWT, not a user id - passing a UUID is a silent no-op. Banning
   // is the mechanism that actually revokes all of the user's tokens. The
   // account itself is preserved (audit trail); RLS already excludes removed
   // members, so the ban is defense in depth.

@@ -6,7 +6,7 @@ import { HttpStatusError, fetchWithTimeout, withRetry } from "@/lib/async/net";
 // External-call policy (Task N): OpenAlex is a free idempotent GET API, so a
 // single bounded retry on retryable failures (timeout / network / 429 / 5xx)
 // is safe; 404s and other 4xx fail fast with no retry. The DOI lookup gets a
-// timeout but no retry — a miss degrades to title search anyway. 20s
+// timeout but no retry - a miss degrades to title search anyway. 20s
 // deadline: metadata lookup runs in the background of an upload preview,
 // never on a hot path.
 const OPENALEX_TIMEOUT_MS = 20_000;
@@ -191,7 +191,7 @@ export async function fetchByPmid(pmid: string): Promise<MetadataCandidate | nul
 export async function searchByTitle(title: string, authors: string[] = []): Promise<MetadataCandidate[]> {
   if (!title.trim()) return [];
   // Single retry layer (max 2 fetches): network/timeout/429/5xx retry, 4xx
-  // fail fast. DOI lookup above needs none — a miss degrades to this path.
+  // fail fast. DOI lookup above needs none - a miss degrades to this path.
   const res = await withRetry(async () => {
     const r = await openalexFetch(`${OPENALEX_BASE}/works?search=${encodeURIComponent(title)}&per-page=5`);
     // HttpStatusError keeps the established message text (callers surface

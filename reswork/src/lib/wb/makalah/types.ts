@@ -91,7 +91,7 @@ export interface MakalahReference {
 export interface QualityReport {
   structure_complete: boolean;
   citation_integrity_pct: number;
-  /** Total citations counted (0 → integrity % is meaningless, UI shows —). */
+  /** Total citations counted (0 → integrity % is meaningless, UI shows -). */
   citation_total: number;
   unsupported_claims: Array<{ subsection: string; paragraph: number; reason: string }>;
   missing_references: string[];
@@ -114,13 +114,13 @@ export const SECTION_SALVAGE_MARKER = "[unstructured-fallback]";
 
 /**
  * Grounding modes for section drafting (chosen in Makalah Setup).
- * - off: 100% strict — every factual claim must come from passages.
+ * - off: 100% strict - every factual claim must come from passages.
  * - 15/85 (default): ~85% grounded, ~15% model intelligence for transitions
  *   and narrative coherence.
  * - 30/70: ~70% grounded, ~30% model intelligence for deeper synthesis and
  *   theoretical framing.
  * Paragraphs with zero citations are counted as model-bridged (`ai_filled`)
- * in the quality report — expected under hybrid, a warning under off.
+ * in the quality report - expected under hybrid, a warning under off.
  */
 export type MakalahHybrid = "off" | "15/85" | "30/70";
 
@@ -141,7 +141,7 @@ export interface RefineResult {
  *  2. Drop sourceless subsections when the chapter still has ≥ minSubs;
  *     otherwise redirect them to `fallbackSourceIds` (explicit "search all").
  *  3. Renumber consecutively (X.1, X.2, … by chapter position).
- * Run before drafting — renumbering detaches previously drafted sections.
+ * Run before drafting - renumbering detaches previously drafted sections.
  */
 export interface OutlineContext {
   full_outline: string;

@@ -60,7 +60,7 @@ export async function POST(req: Request) {
   const compensate = async (step: string, fn: () => Promise<{ error?: { message: string } | null }>): Promise<void> => {
     try {
       const { error } = await fn();
-      // IDs only — never email/passwords (redact() is the backstop).
+      // IDs only - never email/passwords (redact() is the backstop).
       logEvent(error ? "error" : "info", "register_admin.compensate", { requestId, step, userId, ok: !error });
     } catch {
       logEvent("error", "register_admin.compensate", { requestId, step, userId, ok: false });

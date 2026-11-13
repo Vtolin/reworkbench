@@ -5,7 +5,7 @@
 // calls. Every case asserts ACTUAL authorization behavior (row visibility /
 // row effects verified with the service-role client), not just HTTP status.
 //
-// Required environment (staging only — never production secrets here):
+// Required environment (staging only - never production secrets here):
 //   RLS_PROBE_URL, RLS_PROBE_ANON_KEY, RLS_PROBE_SERVICE_KEY,
 //   RLS_PROBE_USER_A_EMAIL, RLS_PROBE_USER_A_PASSWORD,
 //   RLS_PROBE_USER_B_EMAIL, RLS_PROBE_USER_B_PASSWORD
@@ -100,7 +100,7 @@ describe.skipIf(!ENABLED)("staging RLS probe (User A / User B / unauthenticated)
     chatA = (chat as { id: string }).id;
     await svc.from("chat_messages").insert({ chat_id: chatA, role: "user", content: "probe" });
 
-    // Credential seeds: A/openai + B/anthropic (ciphertext is opaque here —
+    // Credential seeds: A/openai + B/anthropic (ciphertext is opaque here -
     // RLS cares about (user_id, provider) identity, not payload validity).
     await svc.from("ai_credentials").upsert([
       { user_id: idA, provider: "openai", ciphertext: "probe", iv: "probe" },

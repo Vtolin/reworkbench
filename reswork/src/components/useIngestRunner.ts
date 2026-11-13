@@ -12,7 +12,7 @@ import {
 // Ingest-flow runner hook (Phase 6): thin state shell over
 // executeIngestFlow (tested with fakes in ingestRunner.test.ts).
 // UploadFlow adoption is deliberately deferred (no UploadFlow changes beyond
-// typing this phase) — wire it when the flow is next touched.
+// typing this phase) - wire it when the flow is next touched.
 export function useIngestRunner(deps: {
   confirm?: (input: ConfirmInput) => Promise<{ document: ConfirmedDocument; indexingError: string | null }>;
   onDone?: () => void;

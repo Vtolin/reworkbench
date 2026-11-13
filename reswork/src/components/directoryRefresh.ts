@@ -7,7 +7,7 @@ import type { RealtimeEvent } from "@/lib/supabase/realtime";
 //
 // Document changes fan out to all three: the collections/tags lists embed
 // per-list document_count badges (count RPCs, no status filter), and stats
-// counts approved documents — one document INSERT/UPDATE/DELETE can move all
+// counts approved documents - one document INSERT/UPDATE/DELETE can move all
 // of them. Collection/tag table changes touch only their own list. Member,
 // chat and project events never touch directory data.
 export type DirectoryResource = "collections" | "tags" | "stats";

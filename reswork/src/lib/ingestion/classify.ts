@@ -1,4 +1,4 @@
-// Port of core/ingestion/classifier.py — deterministic, no LLM.
+// Port of core/ingestion/classifier.py - deterministic, no LLM.
 
 export type DocumentType = "legal" | "empirical" | "survey" | "thesis" | "general";
 
@@ -51,7 +51,7 @@ export function suggestCollection(
   existingCollections: CollectionRef[],
 ): { collection: CollectionRef | null; confidence: number; reason: string } {
   if (existingCollections.length === 0) {
-    return { collection: null, confidence: 0.4, reason: "No existing collections — suggest creating one" };
+    return { collection: null, confidence: 0.4, reason: "No existing collections - suggest creating one" };
   }
   const hayType = (documentType ?? "").toLowerCase();
   const hayJur = (jurisdiction ?? "").toLowerCase();
@@ -94,5 +94,5 @@ export function suggestCollection(
       reason: bestReason,
     };
   }
-  return { collection: null, confidence: 0.35, reason: "No strong match — consider creating a new collection" };
+  return { collection: null, confidence: 0.35, reason: "No strong match - consider creating a new collection" };
 }

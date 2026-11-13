@@ -11,7 +11,7 @@ import {
 } from "./scan";
 
 // Enforcement (Phase 8): the audit findings, pinned as guards so regressions
-// fail `npm test`. All scanning lives in ./scan (reusable) — this file only
+// fail `npm test`. All scanning lives in ./scan (reusable) - this file only
 // states the rules.
 
 const REPO = path.join(__dirname, "..", "..");
@@ -31,7 +31,7 @@ describe("no bare fetch in API routes", () => {
 
 describe("finite numeric parsing", () => {
   it("confines ad-hoc coercion to _lib (routes use parseBoundedInt)", () => {
-    // apiSources rels are relative to src/app/api — helpers live in _lib/.
+    // apiSources rels are relative to src/app/api - helpers live in _lib/.
     const sites = findNumericParsing(apiSources).filter((s) => !s.file.startsWith("_lib/"));
     expect(sites.map((s) => `${s.file}:${s.line}: ${s.text}`)).toEqual([]);
   });

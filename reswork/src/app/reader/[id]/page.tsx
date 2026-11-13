@@ -150,7 +150,7 @@ function ReaderContent() {
     <div className="flex-1 min-w-0 flex flex-col bg-black">
       <Topbar
         title={doc.title}
-        subtitle={`${doc.original_filename || "Reference record"} • ${pageCount || doc.page_count || "?"} pages — p. ${currentPage}`}
+        subtitle={`${doc.original_filename || "Reference record"} • ${pageCount || doc.page_count || "?"} pages - p. ${currentPage}`}
       />
       <div className="flex flex-1 min-h-0 flex-col lg:flex-row">
         <div className="flex-1 bg-black p-4 overflow-auto">
@@ -238,7 +238,7 @@ function ReaderContent() {
         <div className="w-full lg:w-[360px] shrink-0 border-t lg:border-t-0 lg:border-l border-[#2f2f2f] bg-[#0a0a0a] flex flex-col max-h-[50vh] lg:max-h-none">
           <div className="p-4 border-b border-[#2f2f2f]">
             <div className="text-sm font-semibold text-white">Highlights & notes</div>
-            <div className="text-xs text-[#8e8e8e] break-words">{highlights.length} highlights — click a page badge to jump</div>
+            <div className="text-xs text-[#8e8e8e] break-words">{highlights.length} highlights - click a page badge to jump</div>
           </div>
           <div className="flex-1 overflow-auto p-3 space-y-2">
             {highlights.map((h) => (

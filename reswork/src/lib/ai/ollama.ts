@@ -32,7 +32,7 @@ export class OllamaProvider implements AIProvider {
       return await this.doChat(messages, options, thinking, thinkLevel);
     } catch (e) {
       if (e instanceof Error && /failed: 400/.test(e.message)) {
-        // Old Ollama builds reject the `think` field entirely — retry with it
+        // Old Ollama builds reject the `think` field entirely - retry with it
         // omitted (the pre-explicit-flag behavior).
         if (thinking) {
           // Non-thinking models (e.g. qwen2.5:1.5b) reject think=true with 400.
@@ -41,7 +41,7 @@ export class OllamaProvider implements AIProvider {
           const fallback = await this.doChat(messages, options, undefined);
           return {
             ...fallback,
-            thinking: `Thinking mode is not supported by ${options.model} — answered directly. Use a reasoning model (e.g. deepseek-r1) or turn off the Thinking toggle.`,
+            thinking: `Thinking mode is not supported by ${options.model} - answered directly. Use a reasoning model (e.g. deepseek-r1) or turn off the Thinking toggle.`,
           };
         }
         return await this.doChat(messages, options, undefined);
@@ -54,14 +54,14 @@ export class OllamaProvider implements AIProvider {
     // `undefined` = omit the field (legacy fallback only). Otherwise always
     // explicit: reasoning models (qwen3, deepseek-r1, …) think NATIVELY when
     // the field is omitted and can burn the whole num_predict budget on
-    // thinking, returning empty content (verified live on qwen3.5:4b —
+    // thinking, returning empty content (verified live on qwen3.5:4b -
     // omitted: 1024 thinking tokens + 0 answer bytes; think:false: clean
     // answer in 1.6s). Structured calls (Makalah JSON) depend on this.
     // When thinking is on, a level (low/medium/high/max) is sent instead of
-    // `true` if provided — a server-side bound on the trace length. Numeric
+    // `true` if provided - a server-side bound on the trace length. Numeric
     // budgets are NOT a stable Ollama feature (400 on 0.33.3), so token
     // budgets are enforced via prompt instruction + num_predict accounting.
-    // "minimal" is a cloud (Gemini 3) level — closest Ollama equivalent is a
+    // "minimal" is a cloud (Gemini 3) level - closest Ollama equivalent is a
     // brief "low" trace.
     const wantThinking = thinking === true;
     const ollamaLevel = thinkLevel === "minimal" ? "low" : thinkLevel;
@@ -122,7 +122,7 @@ export class OllamaProvider implements AIProvider {
       }
       // Splitting <think> tags is gated on the toggle: with thinking off the
       // model may still emit tags spontaneously (reasoning-distilled models
-      // do) — strip them silently instead of opening a Thinking box.
+      // do) - strip them silently instead of opening a Thinking box.
       if (wantThinking && !thinkingText) {
         const m = full.match(/<think>([\s\S]*?)<\/think>/i);
         if (m) {

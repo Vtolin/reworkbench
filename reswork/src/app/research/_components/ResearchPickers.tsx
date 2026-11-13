@@ -73,23 +73,37 @@ function TogglePill({
   onClick,
   children,
   title,
+  disabled = false,
   className = "",
 }: {
   on: boolean;
   onClick: () => void;
   children: ReactNode;
   title: string;
+  disabled?: boolean;
   className?: string;
 }) {
   return (
     <button
-      onClick={onClick}
+      onClick={() => {
+        if (!disabled) onClick();
+      }}
+      disabled={disabled}
       className={`items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-        on ? pillOn : pillOff
+        disabled
+          ? "cursor-not-allowed border-[#262626] bg-[#141414] text-[#5f5f5f] opacity-55"
+          : on
+            ? pillOn
+            : pillOff
       } ${className}`}
       title={title}
     >
-      <span className={`h-2 w-2 rounded-full ${on ? "bg-emerald-400" : "bg-[#8e8e8e]"}`} /> {children}
+      <span
+        className={`h-2 w-2 rounded-full ${
+          disabled ? "bg-[#4a4a4a]" : on ? "bg-emerald-400" : "bg-[#8e8e8e]"
+        }`}
+      />{" "}
+      {children}
     </button>
   );
 }
@@ -99,6 +113,10 @@ interface AskFlags {
   setThinking: (on: boolean) => void;
   memory: boolean;
   setMemory: (on: boolean) => void;
+  webSearch: boolean;
+  setWebSearch: (on: boolean) => void;
+  webSearchReady: boolean;
+  webSearchProviderLabel?: string;
   broad: boolean;
   setBroad: (on: boolean) => void;
   hybrid: HybridMode;
@@ -106,8 +124,11 @@ interface AskFlags {
   onClear: () => void;
 }
 
-/** Desktop ask toolbar: thinking / memory / hybrid / broad / clear. */
+/** Desktop ask toolbar: thinking / memory / web / hybrid / broad / clear. */
 export function AskToolbar(flags: AskFlags) {
+  const webTitle = flags.webSearchReady
+    ? `Web search (${flags.webSearchProviderLabel || "BYOK"} + anti-slop filter): retrieve verified web sources alongside your library`
+    : "Web search locked - save an API key in Settings → Web Search to enable live web retrieval";
   return (
     <>
       <TogglePill
@@ -125,6 +146,15 @@ export function AskToolbar(flags: AskFlags) {
         className="hidden sm:flex"
       >
         Memory
+      </TogglePill>
+      <TogglePill
+        on={flags.webSearchReady && flags.webSearch}
+        disabled={!flags.webSearchReady}
+        onClick={() => flags.setWebSearch(!flags.webSearch)}
+        title={webTitle}
+        className="hidden sm:flex"
+      >
+        Web
       </TogglePill>
       <HybridSelect
         value={flags.hybrid}
@@ -144,6 +174,9 @@ export function AskToolbar(flags: AskFlags) {
 
 /** Compact ask flags shown inside the mobile scope drawer. */
 export function AskMobileControls(flags: AskFlags) {
+  const webTitle = flags.webSearchReady
+    ? `Web search (${flags.webSearchProviderLabel || "BYOK"} + anti-slop filter)`
+    : "Save a Web Search API key in Settings → Web Search to unlock";
   return (
     <div className="flex flex-wrap gap-2 xl:hidden">
       <TogglePill
@@ -161,6 +194,15 @@ export function AskMobileControls(flags: AskFlags) {
         className="flex min-w-[90px] flex-1 justify-center py-1.5"
       >
         Memory
+      </TogglePill>
+      <TogglePill
+        on={flags.webSearchReady && flags.webSearch}
+        disabled={!flags.webSearchReady}
+        onClick={() => flags.setWebSearch(!flags.webSearch)}
+        title={webTitle}
+        className="flex min-w-[90px] flex-1 justify-center py-1.5"
+      >
+        Web
       </TogglePill>
       <label className="flex min-w-22.5 flex-1 items-center justify-center gap-2 rounded-full border border-[#2f2f2f] bg-[#212121] py-1.5 text-xs">
         <input type="checkbox" checked={flags.broad} onChange={(e) => flags.setBroad(e.target.checked)} /> Broad
@@ -198,7 +240,7 @@ export function AskScopePicker({
           <span className="text-[#8e8e8e]">Scope:</span>
           <span className="font-medium">{selected.length === 0 ? "All docs" : `${selected.length} selected`}</span>
           {selected.length > 0 && (
-            <span className="hidden max-w-[150px] truncate text-xs text-[#8e8e8e] sm:inline">— {labels}</span>
+            <span className="hidden max-w-[150px] truncate text-xs text-[#8e8e8e] sm:inline">- {labels}</span>
           )}
         </span>
         <span className="flex shrink-0 items-center gap-2">
@@ -270,7 +312,7 @@ export function ComparePicker({
         <span className="flex items-center gap-2 text-[#ececec]">
           <span className="text-[#8e8e8e]">Compare:</span>
           <span className="font-medium">{ids.length === 0 ? "Select docs" : `${ids.length} selected`}</span>
-          {ids.length > 0 && <span className="hidden max-w-[150px] truncate text-xs text-[#8e8e8e] sm:inline">— {labels}</span>}
+          {ids.length > 0 && <span className="hidden max-w-[150px] truncate text-xs text-[#8e8e8e] sm:inline">- {labels}</span>}
         </span>
         <span className="shrink-0 text-xs text-[#8e8e8e]">{open ? "Hide ▴" : "Show ▾"}</span>
       </button>
@@ -352,7 +394,7 @@ export function SummarizePicker({
           <option value="">Select a document to summarize</option>
           {docs.map((d) => (
             <option key={d.id} value={d.id}>
-              {d.original_filename} — {d.title?.slice(0, 60) ?? ""}
+              {d.original_filename} - {d.title?.slice(0, 60) ?? ""}
             </option>
           ))}
         </select>
@@ -368,7 +410,7 @@ export function SummarizePicker({
           disabled={!docId || loading || exportingFmt !== null}
           title={
             armed === "pdf"
-              ? "Armed — PDF will export when summarization finishes (press again to disarm)"
+              ? "Armed - PDF will export when summarization finishes (press again to disarm)"
               : "Arm PDF export for when summarization finishes"
           }
           className={armClass("pdf")}
@@ -380,7 +422,7 @@ export function SummarizePicker({
           disabled={!docId || loading || exportingFmt !== null}
           title={
             armed === "html"
-              ? "Armed — HTML will export when summarization finishes (press again to disarm)"
+              ? "Armed - HTML will export when summarization finishes (press again to disarm)"
               : "Arm HTML export for when summarization finishes"
           }
           className={armClass("html")}
@@ -392,7 +434,7 @@ export function SummarizePicker({
           disabled={!docId || loading || exportingFmt !== null}
           title={
             armed === "docx"
-              ? "Armed — Word (.docx) will export when summarization finishes (press again to disarm)"
+              ? "Armed - Word (.docx) will export when summarization finishes (press again to disarm)"
               : "Arm Word (.docx) export for when summarization finishes"
           }
           className={armClass("docx")}
@@ -421,11 +463,11 @@ export function HybridBanner({ mode }: { mode: HybridMode }) {
         <span className="shrink-0">⚠</span>
         <span>
           Hybrid source is <b>on ({mode})</b>. When the documents don&apos;t contain the answer, the model will draw on its training
-          data — and it <b>may hallucinate</b>. Verify critical claims against the cited sources.
+          data - and it <b>may hallucinate</b>. Verify critical claims against the cited sources.
         </span>
       </div>
       <details className="mt-2 rounded-lg border border-amber-800/60 bg-amber-950/40 px-3 py-1.5 text-[11px] text-amber-300 sm:hidden">
-        <summary className="cursor-pointer list-none select-none">⚠ Hybrid {mode} — may hallucinate ▸</summary>
+        <summary className="cursor-pointer list-none select-none">⚠ Hybrid {mode} - may hallucinate ▸</summary>
         <div className="pt-1 leading-relaxed">
           When the documents don&apos;t contain the answer, the model draws on its training data. Verify critical claims against
           the cited sources.

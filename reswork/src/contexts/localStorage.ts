@@ -6,7 +6,7 @@ import { useCallback, useEffect, useReducer, useRef, type Dispatch, type SetStat
 //
 // ChatContext, MakalahContext and InferenceContext each carried their own
 // copy of: read+parse with fallback, write with quota detection, and a
-// persistError surface. This module is the ONE implementation — contexts
+// persistError surface. This module is the ONE implementation - contexts
 // keep only their domain shapes (defaults, migrations, normalization,
 // cross-key validation) and delegate every storage touch to it.
 //
@@ -26,7 +26,7 @@ function browserStorage(): StorageLike | null {
   }
 }
 
-/** Quota-shaped failure (name or message based — browsers differ). */
+/** Quota-shaped failure (name or message based - browsers differ). */
 export function isQuotaError(e: unknown): boolean {
   if (e instanceof DOMException && (e.name === "QuotaExceededError" || e.code === 22)) return true;
   return e instanceof Error && /quota|exceed/i.test(e.message);
@@ -34,7 +34,7 @@ export function isQuotaError(e: unknown): boolean {
 
 /**
  * Read and JSON-parse a key. Returns undefined when missing, corrupt, or
- * storage is unavailable — callers apply their own fallback. Never throws.
+ * storage is unavailable - callers apply their own fallback. Never throws.
  */
 export function readJsonDoc(store: StorageLike | null, key: string): unknown {
   if (!store) return undefined;
@@ -81,7 +81,7 @@ export interface LocalDocList<D> {
 /**
  * Load a persisted {items, activeId} pair: parse, migrate legacy keys,
  * validate the active id, guarantee a non-empty list. Pure over injected
- * storage — the domain loader decides shapes, this decides structure.
+ * storage - the domain loader decides shapes, this decides structure.
  */
 export function loadDocList<D>(opts: {
   store: StorageLike | null;
